@@ -28,8 +28,12 @@ export class VaultService {
       dto.unlockAmount,
       isPublic ? 1 : 0
     );
-    
-    return this.getVaultById(id);
+
+    const vault = this.getVaultById(id);
+    if (!vault) {
+      throw new Error('Failed to create vault');
+    }
+    return vault;
   }
   
   static getVaultById(id: string): Vault | null {

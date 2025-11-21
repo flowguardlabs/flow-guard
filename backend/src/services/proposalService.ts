@@ -28,8 +28,12 @@ export class ProposalService {
       0,
       JSON.stringify([])
     );
-    
-    return this.getProposalById(id);
+
+    const proposal = this.getProposalById(id);
+    if (!proposal) {
+      throw new Error('Failed to create proposal');
+    }
+    return proposal;
   }
   
   static getProposalById(id: string): Proposal | null {
