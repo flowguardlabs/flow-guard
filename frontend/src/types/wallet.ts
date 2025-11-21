@@ -1,10 +1,10 @@
 /**
  * Wallet Types and Interfaces for FlowGuard
- * Supports both Selene and mainnet.cash wallets
+ * Supports BCH browser extension wallets (Badger, Paytaca) and mainnet.cash
  */
 
 export enum WalletType {
-  SELENE = 'selene',
+  BCH_EXTENSION = 'bch_extension', // Badger, Paytaca, etc.
   MAINNET = 'mainnet',
 }
 
@@ -53,7 +53,7 @@ export interface WalletState {
 }
 
 export interface WalletActions {
-  connect: (walletType: WalletType) => Promise<void>;
+  connect: (walletType: WalletType, seedPhrase?: string) => Promise<void>;
   disconnect: () => Promise<void>;
   signTransaction: (tx: Transaction) => Promise<SignedTransaction>;
   signMessage: (message: string) => Promise<string>;
