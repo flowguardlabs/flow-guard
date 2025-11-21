@@ -265,12 +265,17 @@ All Layla CHIPs activate on:
 Source: [BCH Loops](https://github.com/bitjson/bch-loops), [BCH Bitwise](https://github.com/bitjson/bch-bitwise), [BCH P2S](https://github.com/bitjson/bch-p2s), [BCH Functions](https://github.com/bitjson/bch-functions)
 
 ### ✅ Phase 1: Working on Chipnet NOW
-**FlowGuardDemo.cash** - Production-ready multisig treasury
-- ✅ Deployed and working on BCH testnet
+**FlowGuardEnhanced.cash** - Production-ready multisig treasury
+- ✅ Deployed and working on BCH chipnet
 - ✅ Multi-signature approvals (2-of-3, 3-of-3 configurable)
-- ✅ Real on-chain contract deployment
+- ✅ Real on-chain contract deployment and interaction
 - ✅ Live blockchain balance monitoring (30s intervals)
 - ✅ Full end-to-end flow: wallet connection → vault creation → contract deployment
+- ✅ On-chain proposal creation with wallet signing
+- ✅ On-chain proposal approvals with multi-signature validation
+- ✅ Execute payout functionality with transaction broadcasting
+- ✅ Unlock cycle functionality with time-based validation
+- ✅ Transaction history tracking with blockchain explorer integration
 
 **🎯 Live Deployment Proof:**
 - **Contract Address:** `bchtest:pvwj657cm4wmjruparrs7c899370ldx6t3u0cyfj574rjh5mrjqajtue6w8dm`
@@ -324,12 +329,18 @@ Modular, reusable contract logic:
 
 ### ✅ Phase 1: Chipnet Track Submission (COMPLETE)
 **Working NOW on Chipnet:**
-- [x] Multi-signature vault creation (FlowGuardDemo.cash deployed)
+- [x] Multi-signature vault creation (FlowGuardEnhanced.cash deployed)
 - [x] Real blockchain integration - contracts on BCH chipnet
 - [x] Live balance monitoring (30s intervals)
-- [x] Proposal and approval workflow
-- [x] Frontend wallet integration (Paytaca, mainnet.cash)
+- [x] Proposal creation and approval workflow (database + on-chain)
+- [x] On-chain proposal creation with wallet signing
+- [x] On-chain proposal approvals with signature validation
+- [x] Execute payout with multi-signature transaction broadcasting
+- [x] Unlock cycle with time-based validation
+- [x] Transaction history with blockchain explorer links
+- [x] Frontend wallet integration (Paytaca, Badger, mainnet.cash)
 - [x] Backend API with automatic balance tracking
+- [x] Lucide React icons for consistent UI
 
 **CHIP Mastery Demonstrated:**
 - [x] Loops - Automated recurring unlocks (loops.cash written)

@@ -6,6 +6,7 @@ import { fetchVault, fetchProposals, approveProposal } from '../utils/api';
 import { approveProposalOnChain, executePayoutOnChain, unlockCycleOnChain } from '../utils/blockchain';
 import { AddSignerModal } from '../components/vaults/AddSignerModal';
 import { useWallet } from '../hooks/useWallet';
+import { CheckCircle, DollarSign, Unlock, ExternalLink } from 'lucide-react';
 
 export default function VaultDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -108,7 +109,7 @@ export default function VaultDetailPage() {
 
   const handleApproveProposal = async (proposalId: string) => {
     if (!wallet.address) {
-      alert('⚠️ Please connect your wallet to approve proposals');
+      alert('WARNING: Please connect your wallet to approve proposals');
       return;
     }
 
@@ -125,17 +126,17 @@ export default function VaultDetailPage() {
             wallet.publicKey
           );
           console.log('On-chain approval successful, txid:', txid);
-          alert(`✅ Approval Successful!\n\nYour signature has been broadcast to the BCH blockchain.\n\nTransaction ID: ${txid}\n\nView on explorer: https://chipnet.chaingraph.cash/tx/${txid}`);
+          alert(`SUCCESS: Approval Successful!\n\nYour signature has been broadcast to the BCH blockchain.\n\nTransaction ID: ${txid}\n\nView on explorer: https://chipnet.chaingraph.cash/tx/${txid}`);
         } catch (onChainError: any) {
           console.warn('On-chain approval failed, falling back to database:', onChainError);
           // Fallback to database approval
           await approveProposal(proposalId, wallet.address);
-          alert('✅ Approval recorded in database.\n\n⚠️ Note: On-chain transaction failed. Approval saved locally.');
+          alert('SUCCESS: Approval recorded in database.\n\nNOTE: On-chain transaction failed. Approval saved locally.');
         }
       } else {
         // No contract address or wallet not fully connected - use database approval
         await approveProposal(proposalId, wallet.address);
-        alert('✅ Approval recorded in database.');
+        alert('SUCCESS: Approval recorded in database.');
       }
 
       // Reload proposals
@@ -145,7 +146,7 @@ export default function VaultDetailPage() {
       }
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to approve proposal';
-      alert(`❌ Approval Failed\n\n${errorMsg}\n\nPlease try again or contact support if the issue persists.`);
+      alert(`ERROR: Approval Failed\n\n${errorMsg}\n\nPlease try again or contact support if the issue persists.`);
     } finally {
       setApprovingProposalId(null);
     }
@@ -153,26 +154,27 @@ export default function VaultDetailPage() {
 
   const handleExecutePayout = async (proposalId: string) => {
     if (!wallet.address) {
-      alert('⚠️ Please connect your wallet to execute payouts');
+      alert('WARNING: Please connect your wallet to execute payouts');
       return;
     }
 
     if (!vault?.contractAddress) {
-      alert('❌ Cannot execute payout\n\nThis vault does not have an on-chain contract address.');
+      alert('ERROR: Cannot execute payout\n\nThis vault does not have an on-chain contract address.');
       return;
     }
 
     if (!wallet.isConnected || !wallet.publicKey) {
-      alert('⚠️ Wallet not fully connected\n\nPlease reconnect your wallet and try again.');
+      alert('WARNING: Wallet not fully connected\n\nPlease reconnect your wallet and try again.');
       return;
     }
 
     // Confirm with user before executing
     const confirmed = confirm(
-      '⚠️ Execute Payout?\n\n' +
+      'EXECUTE PAYOUT?\n\n' +
       'This will broadcast a multi-signature transaction to the BCH blockchain.\n\n' +
       `• ${vault.approvalThreshold} signers must sign this transaction\n` +
-      '• Funds will be sent from the contract to the recipient\n• This action cannot be undone\n\n' +
+      '• Funds will be sent from the contract to the recipient\n' +
+      '• This action cannot be undone\n\n' +
       'Do you want to continue?'
     );
 
@@ -188,7 +190,7 @@ export default function VaultDetailPage() {
 
       console.log('On-chain payout execution successful, txid:', txid);
       alert(
-        `✅ Payout Executed Successfully!\n\n` +
+        `SUCCESS: Payout Executed Successfully!\n\n` +
         `Funds have been sent from the vault contract to the recipient.\n\n` +
         `Transaction ID: ${txid}\n\n` +
         `View on explorer: https://chipnet.chaingraph.cash/tx/${txid}`
@@ -209,7 +211,7 @@ export default function VaultDetailPage() {
       const errorMsg = err.message || 'Failed to execute payout';
       console.error('Payout execution failed:', err);
       alert(
-        `❌ Payout Execution Failed\n\n` +
+        `ERROR: Payout Execution Failed\n\n` +
         `${errorMsg}\n\n` +
         `Possible reasons:\n` +
         `• Insufficient approvals\n` +
@@ -224,28 +226,28 @@ export default function VaultDetailPage() {
 
   const handleUnlockCycle = async (cycleNumber: number) => {
     if (!wallet.address) {
-      alert('⚠️ Please connect your wallet to unlock cycles');
+      alert('WARNING: Please connect your wallet to unlock cycles');
       return;
     }
 
     if (!vault?.contractAddress) {
-      alert('❌ Cannot unlock cycle\n\nThis vault does not have an on-chain contract address.');
+      alert('ERROR: Cannot unlock cycle\n\nThis vault does not have an on-chain contract address.');
       return;
     }
 
     if (!wallet.isConnected || !wallet.publicKey) {
-      alert('⚠️ Wallet not fully connected\n\nPlease reconnect your wallet and try again.');
+      alert('WARNING: Wallet not fully connected\n\nPlease reconnect your wallet and try again.');
       return;
     }
 
     if (!id) {
-      alert('❌ Invalid vault ID');
+      alert('ERROR: Invalid vault ID');
       return;
     }
 
     // Confirm with user before unlocking
     const confirmed = confirm(
-      '⚠️ Unlock Cycle?\n\n' +
+      'UNLOCK CYCLE?\n\n' +
       'This will broadcast a multi-signature transaction to the BCH blockchain.\n\n' +
       `• Cycle #${cycleNumber} will be unlocked\n` +
       `• ${vault.unlockAmount || 0} BCH will become available\n` +
@@ -266,7 +268,7 @@ export default function VaultDetailPage() {
 
       console.log('On-chain cycle unlock successful, txid:', txid);
       alert(
-        `✅ Cycle Unlocked Successfully!\n\n` +
+        `SUCCESS: Cycle Unlocked Successfully!\n\n` +
         `Cycle #${cycleNumber} has been unlocked on the blockchain.\n` +
         `${vault.unlockAmount || 0} BCH is now available for spending.\n\n` +
         `Transaction ID: ${txid}\n\n` +
@@ -292,7 +294,7 @@ export default function VaultDetailPage() {
       const errorMsg = err.message || 'Failed to unlock cycle';
       console.error('Cycle unlock failed:', err);
       alert(
-        `❌ Cycle Unlock Failed\n\n` +
+        `ERROR: Cycle Unlock Failed\n\n` +
         `${errorMsg}\n\n` +
         `Possible reasons:\n` +
         `• Cycle not yet eligible for unlock\n` +
@@ -549,10 +551,12 @@ export default function VaultDetailPage() {
                           onClick={() => handleExecutePayout(proposal.id)}
                           disabled={executingProposalId === proposal.id}
                         >
-                          {executingProposalId === proposal.id ? 'Executing...' : '💸 Execute Payout'}
+                          <DollarSign className="w-4 h-4 mr-1" />
+                          {executingProposalId === proposal.id ? 'Executing...' : 'Execute Payout'}
                         </Button>
-                        <div className="text-xs text-green-600 flex items-center">
-                          ✅ Ready to execute - {vault.approvalThreshold} approvals met
+                        <div className="text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Ready to execute - {vault.approvalThreshold} approvals met
                         </div>
                       </div>
                     )}
@@ -611,11 +615,13 @@ export default function VaultDetailPage() {
                           onClick={() => handleUnlockCycle(cycleNum)}
                           disabled={unlockingCycle === cycleNum}
                         >
-                          {unlockingCycle === cycleNum ? 'Unlocking...' : '🔓 Unlock Cycle'}
+                          <Unlock className="w-4 h-4 mr-1" />
+                          {unlockingCycle === cycleNum ? 'Unlocking...' : 'Unlock Cycle'}
                         </Button>
                       </div>
-                      <div className="mt-2 text-xs text-green-600 flex items-center">
-                        ✅ Ready to unlock - requires {vault.approvalThreshold} signer approvals
+                      <div className="mt-2 text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        Ready to unlock - requires {vault.approvalThreshold} signer approvals
                       </div>
                     </div>
                   ))}
@@ -690,9 +696,10 @@ export default function VaultDetailPage() {
                         href={`https://chipnet.chaingraph.cash/tx/${tx.txid}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                       >
-                        View on Explorer →
+                        View on Explorer
+                        <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   </div>

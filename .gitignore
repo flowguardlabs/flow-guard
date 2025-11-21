@@ -53,3 +53,8 @@ tmp/
 temp/
 *.tmp
 
+# Personal workflow and documentation files (except README)
+*.md
+!README.md
+!**/README.md
+
