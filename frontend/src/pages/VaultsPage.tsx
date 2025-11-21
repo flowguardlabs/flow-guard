@@ -67,8 +67,8 @@ export default function VaultsPage() {
   const displayedVaults = getDisplayedVaults();
   const totalVaults = vaultsData ? vaultsData.all.length : 0;
   const totalAssets = displayedVaults.reduce((sum, v) => sum + (v.totalDeposit || 0), 0);
-  // Mock proposals count - will be replaced with real data
-  const activeProposals = displayedVaults.length * 2; // Placeholder
+  // Active proposals will be calculated from real API data when implemented
+  const activeProposals = 0; // TODO: Fetch from proposals API
 
   return (
     <div className="section-spacious bg-[var(--color-background)] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#0a0a0a] min-h-screen">
@@ -175,7 +175,8 @@ export default function VaultsPage() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayedVaults.map((vault) => {
-              // Calculate unlocked/locked amounts (mock data for now)
+              // Calculate unlocked/locked amounts from vault state
+              // TODO: Get actual unlocked amount from on-chain state when contract integration is complete
               const unlocked = vault.unlockAmount || 0;
               const locked = (vault.totalDeposit || 0) - unlocked;
               const unlockPercentage = vault.totalDeposit ? (unlocked / vault.totalDeposit) * 100 : 0;
@@ -186,10 +187,10 @@ export default function VaultsPage() {
                 <Link key={vault.id} to={`/vaults/${vault.id}`}>
                   <Card
                     padding="lg"
-                    className="group relative overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border-2 border-transparent hover:border-[#b2ac88] dark:hover:border-[#b2ac88]"
+                    className="group relative overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border-2 border-transparent hover:border-[var(--color-primary)]"
                   >
                     {/* Gradient accent bar */}
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#b2ac88] to-[#4b6e48]" />
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]" />
 
                     {/* Background decoration */}
                     <div className="absolute top-0 right-0 opacity-5 group-hover:opacity-10 transition-opacity text-gray-400 dark:text-gray-600">
@@ -204,8 +205,8 @@ export default function VaultsPage() {
                             {vault.vaultId || `Vault ${vault.id.slice(0, 8)}`}
                           </h3>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex items-center px-3 py-1 bg-[#4b6e48]/20 dark:bg-[#b2ac88]/20 text-[#4b6e48] dark:text-[#b2ac88] text-xs font-semibold rounded-full">
-                              <span className="w-2 h-2 bg-[#4b6e48] dark:bg-[#b2ac88] rounded-full mr-2 animate-pulse" />
+                            <span className="inline-flex items-center px-3 py-1 bg-[var(--color-accent)]/20 text-[var(--color-accent)] dark:bg-[var(--color-primary)]/20 dark:text-[var(--color-primary)] text-xs font-semibold rounded-full">
+                              <span className="w-2 h-2 bg-[var(--color-accent)] dark:bg-[var(--color-primary)] rounded-full mr-2 animate-pulse" />
                               active
                             </span>
                             <span
