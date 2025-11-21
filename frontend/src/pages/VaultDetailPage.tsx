@@ -178,8 +178,11 @@ export default function VaultDetailPage() {
             <p className="text-3xl font-bold">{vault.totalDeposit || 0} BCH</p>
           </Card>
           <Card padding="lg">
-            <h3 className="text-sm text-gray-600 mb-2">Unlocked</h3>
-            <p className="text-3xl font-bold text-green-600">{unlocked.toFixed(2)} BCH</p>
+            <h3 className="text-sm text-gray-600 mb-2">On-Chain Balance</h3>
+            <p className="text-3xl font-bold text-blue-600">
+              {vault.balance !== undefined ? (vault.balance / 100000000).toFixed(8) : '0.00000000'} BCH
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Live from blockchain</p>
           </Card>
           <Card padding="lg">
             <h3 className="text-sm text-gray-600 mb-2">Locked</h3>
@@ -191,6 +194,19 @@ export default function VaultDetailPage() {
           <Card padding="lg">
             <h2 className="text-xl font-semibold mb-4">Vault Details</h2>
             <div className="space-y-3">
+              {vault.contractAddress && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <div className="text-xs text-blue-800 dark:text-blue-200 mb-1 font-semibold">Contract Address (BCH Chipnet)</div>
+                  <a
+                    href={`https://chipnet.chaingraph.cash/address/${vault.contractAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                  >
+                    {vault.contractAddress}
+                  </a>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">Spending Cap:</span>
                 <span className="font-semibold">{vault.spendingCap || 'No cap'} BCH</span>

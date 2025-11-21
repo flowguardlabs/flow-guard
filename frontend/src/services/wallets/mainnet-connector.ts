@@ -78,10 +78,12 @@ export class MainnetConnector implements IWalletConnector {
       }
 
       const address = await this.getAddress();
+      const publicKey = await this.getPublicKey();
       const balance = await this.getBalance();
 
       return {
         address,
+        publicKey,
         balance,
         network: this.network,
       };
@@ -176,6 +178,35 @@ export class MainnetConnector implements IWalletConnector {
       throw new Error('Wallet not connected');
     }
     return this.wallet.getDepositAddress();
+  }
+
+  /**
+   * Get wallet public key (hex format)
+   * Required for contract deployment
+   */
+  async getPublicKey(): Promise<string> {
+    if (!this.wallet) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      // mainnet-js exposes publicKey property as Uint8Array
+      const publicKeyBytes = this.wallet.publicKey;
+      if (!publicKeyBytes) {
+        throw new Error('Public key not available from wallet');
+      }
+
+      // Convert Uint8Array to hex string
+      const publicKeyHex = Array.from(publicKeyBytes)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      console.log('Retrieved public key:', publicKeyHex ? `${publicKeyHex.substring(0, 10)}...` : 'null');
+      return publicKeyHex;
+    } catch (error) {
+      console.error('Failed to get public key:', error);
+      throw new Error('Failed to retrieve public key from wallet. This is required for vault creation.');
+    }
   }
 
   /**

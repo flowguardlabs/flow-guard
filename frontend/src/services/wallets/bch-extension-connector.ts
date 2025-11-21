@@ -118,6 +118,15 @@ export class BCHExtensionConnector implements IWalletConnector {
       const address = await this.wallet.getAddress();
       this.address = address;
 
+      // Get public key (required for contract deployment)
+      let publicKey: string | undefined;
+      try {
+        publicKey = await this.getPublicKey();
+      } catch (error) {
+        console.warn('Could not retrieve public key:', error);
+        // Public key is optional for connection, but required for vault creation
+      }
+
       // Get balance
       const balance = await this.getBalance();
 
@@ -129,6 +138,7 @@ export class BCHExtensionConnector implements IWalletConnector {
 
       return {
         address,
+        publicKey,
         balance,
         network: 'chipnet', // Default to chipnet for now
       };
@@ -205,6 +215,29 @@ export class BCHExtensionConnector implements IWalletConnector {
 
     this.address = await this.wallet.getAddress();
     return this.address;
+  }
+
+  /**
+   * Get wallet public key (hex format)
+   * Required for contract deployment
+   */
+  async getPublicKey(): Promise<string> {
+    if (!this.wallet) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      if (!this.wallet.getPublicKey) {
+        throw new Error('Wallet does not support getPublicKey method. Please use a compatible BCH wallet.');
+      }
+
+      const publicKey = await this.wallet.getPublicKey();
+      console.log('Retrieved public key:', publicKey ? `${publicKey.substring(0, 10)}...` : 'null');
+      return publicKey;
+    } catch (error) {
+      console.error('Failed to get public key:', error);
+      throw new Error('Failed to retrieve public key from wallet. This is required for vault creation.');
+    }
   }
 
   /**

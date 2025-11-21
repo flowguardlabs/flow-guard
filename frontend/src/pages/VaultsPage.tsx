@@ -66,7 +66,13 @@ export default function VaultsPage() {
 
   const displayedVaults = getDisplayedVaults();
   const totalVaults = vaultsData ? vaultsData.all.length : 0;
-  const totalAssets = displayedVaults.reduce((sum, v) => sum + (v.totalDeposit || 0), 0);
+  // Calculate total assets using blockchain balance when available, otherwise use totalDeposit
+  const totalAssets = displayedVaults.reduce((sum, v) => {
+    if (v.contractAddress && v.balance !== undefined) {
+      return sum + (v.balance / 100000000); // Convert satoshis to BCH
+    }
+    return sum + (v.totalDeposit || 0);
+  }, 0);
   // Active proposals will be calculated from real API data when implemented
   const activeProposals = 0; // TODO: Fetch from proposals API
 
@@ -231,8 +237,19 @@ export default function VaultsPage() {
 
                       {/* Total Amount - Large Display */}
                       <div className="mb-6">
-                        <div className="text-sm text-[var(--color-text-muted)] mb-1">Total Balance</div>
-                        <div className="text-4xl font-bold text-[var(--color-text-primary)]">{vault.totalDeposit || 0} BCH</div>
+                        <div className="text-sm text-[var(--color-text-muted)] mb-1">
+                          {vault.contractAddress ? 'On-Chain Balance' : 'Total Balance'}
+                        </div>
+                        <div className="text-4xl font-bold text-[var(--color-text-primary)]">
+                          {vault.contractAddress && vault.balance !== undefined
+                            ? (vault.balance / 100000000).toFixed(8)
+                            : vault.totalDeposit || 0} BCH
+                        </div>
+                        {vault.contractAddress && (
+                          <div className="text-xs text-[var(--color-text-muted)] mt-1">
+                            Live from blockchain
+                          </div>
+                        )}
                       </div>
 
                       {/* Progress Visualization */}

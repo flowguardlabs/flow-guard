@@ -21,6 +21,7 @@ export function useWallet(): UseWalletReturn {
   const [state, setState] = useState<WalletState>({
     walletType: null,
     address: null,
+    publicKey: null, // NEW: Store public key
     balance: null,
     isConnected: false,
     isConnecting: false,
@@ -123,6 +124,7 @@ export function useWallet(): UseWalletReturn {
       setState({
         walletType,
         address: walletInfo.address,
+        publicKey: walletInfo.publicKey || null, // NEW: Store public key
         balance: walletInfo.balance || null,
         isConnected: true,
         isConnecting: false,
@@ -135,6 +137,9 @@ export function useWallet(): UseWalletReturn {
       // Save to localStorage
       localStorage.setItem('wallet_type', walletType);
       localStorage.setItem('wallet_address', walletInfo.address);
+      if (walletInfo.publicKey) {
+        localStorage.setItem('wallet_publickey', walletInfo.publicKey);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to connect wallet';
 
@@ -159,6 +164,7 @@ export function useWallet(): UseWalletReturn {
     setState({
       walletType: null,
       address: null,
+      publicKey: null, // NEW: Clear public key
       balance: null,
       isConnected: false,
       isConnecting: false,
@@ -171,6 +177,7 @@ export function useWallet(): UseWalletReturn {
     // Clear localStorage
     localStorage.removeItem('wallet_type');
     localStorage.removeItem('wallet_address');
+    localStorage.removeItem('wallet_publickey'); // NEW: Clear public key
   }, [connector]);
 
   /**
@@ -202,6 +209,22 @@ export function useWallet(): UseWalletReturn {
   );
 
   /**
+   * Get public key from connected wallet
+   */
+  const getPublicKey = useCallback(async (): Promise<string | null> => {
+    if (!connector) {
+      return null;
+    }
+
+    try {
+      return await connector.getPublicKey();
+    } catch (error) {
+      console.error('Failed to get public key:', error);
+      return null;
+    }
+  }, [connector]);
+
+  /**
    * Refresh balance
    */
   const refreshBalance = useCallback(async (): Promise<void> => {
@@ -221,6 +244,7 @@ export function useWallet(): UseWalletReturn {
     ...state,
     connect,
     disconnect,
+    getPublicKey, // NEW: Expose public key getter
     signTransaction,
     signMessage,
     refreshBalance,

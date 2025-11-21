@@ -37,6 +37,7 @@ export interface IWalletConnector {
   connect(): Promise<WalletInfo>;
   disconnect(): Promise<void>;
   getAddress(): Promise<string>;
+  getPublicKey(): Promise<string>; // NEW: Get public key in hex format
   getBalance(): Promise<WalletBalance>;
   signTransaction(tx: Transaction): Promise<SignedTransaction>;
   signMessage(message: string): Promise<string>;
@@ -45,6 +46,7 @@ export interface IWalletConnector {
 export interface WalletState {
   walletType: WalletType | null;
   address: string | null;
+  publicKey: string | null; // NEW: Store public key
   balance: WalletBalance | null;
   isConnected: boolean;
   isConnecting: boolean;
@@ -55,6 +57,7 @@ export interface WalletState {
 export interface WalletActions {
   connect: (walletType: WalletType, seedPhrase?: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  getPublicKey: () => Promise<string | null>; // NEW: Expose public key getter
   signTransaction: (tx: Transaction) => Promise<SignedTransaction>;
   signMessage: (message: string) => Promise<string>;
   refreshBalance: () => Promise<void>;

@@ -18,6 +18,7 @@ export default function CreateVaultPage() {
     spendingCap: '',
     approvalThreshold: '2',
     signers: ['', '', ''],
+    signerPubkeys: ['', '', ''], // NEW: Public keys for blockchain deployment
     cycleDuration: '2592000', // 30 days in seconds
     unlockAmount: '',
     isPublic: false, // Default to private
@@ -31,6 +32,27 @@ export default function CreateVaultPage() {
     const newSigners = [...formData.signers];
     newSigners[index] = value;
     setFormData(prev => ({ ...prev, signers: newSigners }));
+  };
+
+  const handlePubkeyChange = (index: number, value: string) => {
+    const newPubkeys = [...formData.signerPubkeys];
+    newPubkeys[index] = value;
+    setFormData(prev => ({ ...prev, signerPubkeys: newPubkeys }));
+  };
+
+  // Auto-fill creator's address and public key in first signer slot
+  const fillCreatorInfo = () => {
+    if (wallet.address && wallet.publicKey) {
+      const newSigners = [...formData.signers];
+      const newPubkeys = [...formData.signerPubkeys];
+      newSigners[0] = wallet.address;
+      newPubkeys[0] = wallet.publicKey;
+      setFormData(prev => ({
+        ...prev,
+        signers: newSigners,
+        signerPubkeys: newPubkeys
+      }));
+    }
   };
 
   const handleNext = () => {
@@ -51,8 +73,9 @@ export default function CreateVaultPage() {
     setError(null);
 
     try {
-      // Filter out empty signers
+      // Filter out empty signers and public keys
       const validSigners = formData.signers.filter(s => s.trim() !== '');
+      const validPubkeys = formData.signerPubkeys.filter(pk => pk.trim() !== '');
 
       // Prepare vault data
       const vaultData = {
@@ -60,6 +83,7 @@ export default function CreateVaultPage() {
         spendingCap: formData.spendingCap ? parseFloat(formData.spendingCap) : 0,
         approvalThreshold: parseInt(formData.approvalThreshold),
         signers: validSigners,
+        signerPubkeys: validPubkeys, // NEW: Include public keys for blockchain deployment
         cycleDuration: parseInt(formData.cycleDuration),
         unlockAmount: parseFloat(formData.unlockAmount),
         isPublic: formData.isPublic,
@@ -71,6 +95,12 @@ export default function CreateVaultPage() {
       }
       if (vaultData.unlockAmount <= 0) {
         throw new Error('Unlock amount must be greater than 0');
+      }
+      if (validSigners.length !== 3) {
+        throw new Error('Exactly 3 signers are required for blockchain deployment');
+      }
+      if (validPubkeys.length !== 3) {
+        throw new Error('Exactly 3 signer public keys are required for blockchain deployment');
       }
       if (validSigners.length < vaultData.approvalThreshold) {
         throw new Error('Number of signers must be at least the approval threshold');
@@ -231,6 +261,27 @@ export default function CreateVaultPage() {
           {step === 4 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold">Signers and Approval Threshold</h2>
+
+              {/* Warning about blockchain deployment */}
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  ⚠️ <strong>Blockchain Deployment Required:</strong> This vault will be deployed as a smart contract on Bitcoin Cash chipnet.
+                  You must provide exactly 3 signer addresses with their public keys.
+                </p>
+              </div>
+
+              {/* Auto-fill button */}
+              {wallet.address && wallet.publicKey && (
+                <Button
+                  variant="outline"
+                  onClick={fillCreatorInfo}
+                  type="button"
+                  className="mb-4"
+                >
+                  Auto-fill my wallet as Signer 1
+                </Button>
+              )}
+
               <div>
                 <label className="block text-sm font-medium mb-2">Approval Threshold</label>
                 <input
@@ -245,18 +296,38 @@ export default function CreateVaultPage() {
                   Number of signers required to approve a proposal (e.g., 2-of-3)
                 </p>
               </div>
-              <div className="space-y-4">
-                <label className="block text-sm font-medium">Signer Addresses</label>
+
+              <div className="space-y-6">
+                <label className="block text-sm font-medium">Signers (exactly 3 required)</label>
                 {formData.signers.map((signer, index) => (
-                  <input
-                    key={index}
-                    type="text"
-                    value={signer}
-                    onChange={(e) => handleSignerChange(index, e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
-                    placeholder={`Signer ${index + 1} address`}
-                  />
+                  <div key={index} className="space-y-2 p-4 border border-gray-200 rounded-lg">
+                    <div className="font-medium text-sm text-gray-700 dark:text-gray-300">
+                      Signer {index + 1}
+                    </div>
+                    <input
+                      type="text"
+                      value={signer}
+                      onChange={(e) => handleSignerChange(index, e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
+                      placeholder={`Signer ${index + 1} BCH address (bitcoincash:...)`}
+                    />
+                    <input
+                      type="text"
+                      value={formData.signerPubkeys[index]}
+                      onChange={(e) => handlePubkeyChange(index, e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary font-mono text-sm"
+                      placeholder={`Signer ${index + 1} public key (hex format)`}
+                    />
+                    {formData.signerPubkeys[index] && (
+                      <p className="text-xs text-green-600">
+                        ✓ Public key provided ({formData.signerPubkeys[index].length} chars)
+                      </p>
+                    )}
+                  </div>
                 ))}
+                <p className="text-sm text-gray-600">
+                  <strong>Note:</strong> Public keys must be in hex format. Ask each signer to provide their public key from their BCH wallet.
+                </p>
               </div>
             </div>
           )}
@@ -313,6 +384,22 @@ export default function CreateVaultPage() {
                   </p>
                 </div>
                 <div>
+                  <span className="text-sm text-gray-600">Signers:</span>
+                  <div className="space-y-2 mt-2">
+                    {formData.signers.filter(s => s).map((signer, index) => (
+                      <div key={index} className="text-sm">
+                        <p className="font-medium">Signer {index + 1}:</p>
+                        <p className="font-mono text-xs text-gray-600 truncate">{signer}</p>
+                        {formData.signerPubkeys[index] && (
+                          <p className="font-mono text-xs text-green-600">
+                            ✓ Public key: {formData.signerPubkeys[index].substring(0, 20)}...
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
                   <span className="text-sm text-gray-600">Spending Cap:</span>
                   <p className="font-semibold">
                     {formData.spendingCap || 'No cap'}
@@ -324,6 +411,14 @@ export default function CreateVaultPage() {
                     {formData.isPublic ? 'Public' : 'Private'}
                   </p>
                 </div>
+              </div>
+
+              {/* Blockchain deployment notice */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  🔗 <strong>Blockchain Deployment:</strong> Creating this vault will deploy a smart contract to Bitcoin Cash chipnet.
+                  The contract will be deployed with the 3 signers and their public keys you've provided.
+                </p>
               </div>
             </div>
           )}
