@@ -1,5 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://flowguard-backend.fly.dev/api' : 'http://localhost:3001/api');
+  (import.meta.env.PROD ? 'https://flow-guard.fly.dev/api' : 'http://localhost:3001/api');
 
 export interface VaultsResponse {
   created: any[];

@@ -4,14 +4,25 @@ import dotenv from 'dotenv';
 import vaultsRouter from './api/vaults';
 import proposalsRouter from './api/proposals';
 import cyclesRouter from './api/cycles';
+import deploymentRouter from './api/deployment';
 import { startBlockchainMonitor, stopBlockchainMonitor } from './services/blockchain-monitor';
+import { startCycleUnlockScheduler, stopCycleUnlockScheduler } from './services/cycle-unlock-scheduler';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// CORS configuration - Allow all Vercel deployments
+app.use(cors({
+  origin: true, // Allow all origins for now (can restrict later)
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-address'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  maxAge: 86400, // 24 hours
+  optionsSuccessStatus: 200
+}));
 app.use(express.json());
 
 // Health check
@@ -23,6 +34,7 @@ app.get('/health', (req, res) => {
 app.use('/api/vaults', vaultsRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api', cyclesRouter);
+app.use('/api/deployment', deploymentRouter);
 
 app.get('/api', (req, res) => {
   res.json({ message: 'FlowGuard API', version: '0.1.0', network: 'chipnet' });
@@ -35,18 +47,24 @@ app.listen(PORT, () => {
   // Start blockchain monitoring (check every 30 seconds)
   console.log('🔗 Starting blockchain monitor...');
   startBlockchainMonitor(30000);
+
+  // Start cycle unlock scheduler (check every 1 minute)
+  console.log('⏰ Starting cycle unlock scheduler...');
+  startCycleUnlockScheduler(60000);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM signal received: closing HTTP server');
   stopBlockchainMonitor();
+  stopCycleUnlockScheduler();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT signal received: closing HTTP server');
   stopBlockchainMonitor();
+  stopCycleUnlockScheduler();
   process.exit(0);
 });
 
