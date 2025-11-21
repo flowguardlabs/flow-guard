@@ -71,7 +71,7 @@ export default function VaultsPage() {
   const activeProposals = 0; // TODO: Fetch from proposals API
 
   return (
-    <div className="section-spacious bg-[var(--color-background)] dark:bg-gradient-to-b dark:from-[#1a1a1a] dark:to-[#0a0a0a] min-h-screen">
+    <div className="section-spacious bg-[var(--color-background)] min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Enhanced Header Section */}
         <div className="mb-12">
@@ -98,7 +98,7 @@ export default function VaultsPage() {
                 onClick={() => setViewMode('created')}
                 className={`px-6 py-2 rounded-md text-sm font-semibold transition-all ${
                   viewMode === 'created'
-                    ? 'bg-[#4b6e48] text-white shadow-sm'
+                    ? 'bg-[var(--color-accent)] text-white shadow-sm'
                     : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
@@ -108,7 +108,7 @@ export default function VaultsPage() {
                 onClick={() => setViewMode('signer')}
                 className={`px-6 py-2 rounded-md text-sm font-semibold transition-all ${
                   viewMode === 'signer'
-                    ? 'bg-[#4b6e48] text-white shadow-sm'
+                    ? 'bg-[var(--color-accent)] text-white shadow-sm'
                     : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
@@ -118,7 +118,7 @@ export default function VaultsPage() {
                 onClick={() => setViewMode('all')}
                 className={`px-6 py-2 rounded-md text-sm font-semibold transition-all ${
                   viewMode === 'all'
-                    ? 'bg-[#4b6e48] text-white shadow-sm'
+                    ? 'bg-[var(--color-accent)] text-white shadow-sm'
                     : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                 }`}
               >
@@ -244,7 +244,7 @@ export default function VaultsPage() {
                           </div>
                           <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-gradient-to-r from-[#4b6e48] to-[#b2ac88] rounded-full transition-all duration-500"
+                              className="h-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-primary)] rounded-full transition-all duration-500"
                               style={{ width: `${unlockPercentage}%` }}
                             />
                           </div>
