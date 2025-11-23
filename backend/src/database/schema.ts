@@ -1,13 +1,17 @@
-import Database from 'better-sqlite3';
+/**
+ * Database Schema and Initialization
+ * SQLite-only implementation
+ */
 
+import Database, { type Database as DatabaseType } from 'better-sqlite3';
+
+// Initialize SQLite database
 const dbPath = process.env.DATABASE_PATH || './flowguard.db';
 const db = new Database(dbPath);
+console.log('Using SQLite database:', dbPath);
 
-// Enable foreign keys
-db.pragma('foreign_keys = ON');
-
-// Create tables
-db.exec(`
+// SQL schema for SQLite
+const createTablesSQL = `
   CREATE TABLE IF NOT EXISTS vaults (
     id TEXT PRIMARY KEY,
     vault_id TEXT UNIQUE NOT NULL,
@@ -15,7 +19,7 @@ db.exec(`
     total_deposit REAL NOT NULL,
     spending_cap REAL NOT NULL,
     approval_threshold INTEGER NOT NULL,
-    signers TEXT NOT NULL, -- JSON array
+    signers TEXT NOT NULL,
     state INTEGER DEFAULT 0,
     cycle_duration INTEGER NOT NULL,
     unlock_amount REAL NOT NULL,
@@ -33,7 +37,7 @@ db.exec(`
     reason TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     approval_count INTEGER DEFAULT 0,
-    approvals TEXT NOT NULL DEFAULT '[]', -- JSON array
+    approvals TEXT NOT NULL DEFAULT '[]',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     executed_at DATETIME,
@@ -60,84 +64,49 @@ db.exec(`
     vault_id TEXT,
     proposal_id TEXT,
     tx_hash TEXT UNIQUE NOT NULL,
-    tx_type TEXT NOT NULL, -- 'create', 'unlock', 'proposal', 'approve', 'payout'
+    tx_type TEXT NOT NULL,
     amount REAL,
     from_address TEXT,
     to_address TEXT,
-    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'confirmed', 'failed'
+    status TEXT NOT NULL DEFAULT 'pending',
     block_height INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     confirmed_at DATETIME,
     FOREIGN KEY (vault_id) REFERENCES vaults(vault_id),
     FOREIGN KEY (proposal_id) REFERENCES proposals(id)
   );
+`;
 
-`);
+// Initialize tables
+db.pragma('foreign_keys = ON');
+db.exec(createTablesSQL);
 
-// Migrations: Add columns if they don't exist
-// This handles existing databases that don't have the columns yet
+// Migration: Add columns if they don't exist
 try {
   const tableInfo = db.prepare("PRAGMA table_info(vaults)").all() as Array<{ name: string }>;
 
-  // Add is_public column
-  const hasIsPublic = tableInfo.some(col => col.name === 'is_public');
-  if (!hasIsPublic) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN is_public INTEGER DEFAULT 0`);
-    console.log('Added is_public column to vaults table');
-  }
+  const columns = [
+    { name: 'is_public', sql: 'ALTER TABLE vaults ADD COLUMN is_public INTEGER DEFAULT 0' },
+    { name: 'contract_address', sql: 'ALTER TABLE vaults ADD COLUMN contract_address TEXT' },
+    { name: 'contract_bytecode', sql: 'ALTER TABLE vaults ADD COLUMN contract_bytecode TEXT' },
+    { name: 'balance', sql: 'ALTER TABLE vaults ADD COLUMN balance REAL DEFAULT 0' },
+    { name: 'signer_pubkeys', sql: 'ALTER TABLE vaults ADD COLUMN signer_pubkeys TEXT' },
+    { name: 'start_time', sql: 'ALTER TABLE vaults ADD COLUMN start_time DATETIME' },
+    { name: 'name', sql: 'ALTER TABLE vaults ADD COLUMN name TEXT' },
+    { name: 'description', sql: 'ALTER TABLE vaults ADD COLUMN description TEXT' },
+  ];
 
-  // Add contract_address column for blockchain integration
-  const hasContractAddress = tableInfo.some(col => col.name === 'contract_address');
-  if (!hasContractAddress) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN contract_address TEXT`);
-    console.log('Added contract_address column to vaults table');
-  }
-
-  // Add contract_bytecode column for contract deployment
-  const hasContractBytecode = tableInfo.some(col => col.name === 'contract_bytecode');
-  if (!hasContractBytecode) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN contract_bytecode TEXT`);
-    console.log('Added contract_bytecode column to vaults table');
-  }
-
-  // Add balance column for current on-chain balance
-  const hasBalance = tableInfo.some(col => col.name === 'balance');
-  if (!hasBalance) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN balance REAL DEFAULT 0`);
-    console.log('Added balance column to vaults table');
-  }
-
-  // Add signer_pubkeys column for storing public keys
-  const hasSignerPubkeys = tableInfo.some(col => col.name === 'signer_pubkeys');
-  if (!hasSignerPubkeys) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN signer_pubkeys TEXT`); // JSON array
-    console.log('Added signer_pubkeys column to vaults table');
-  }
-
-  // Add start_time column for cycle calculations
-  const hasStartTime = tableInfo.some(col => col.name === 'start_time');
-  if (!hasStartTime) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN start_time DATETIME`);
-    console.log('Added start_time column to vaults table');
-  }
-
-  // Add name column for user-friendly vault names
-  const hasName = tableInfo.some(col => col.name === 'name');
-  if (!hasName) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN name TEXT`);
-    console.log('Added name column to vaults table');
-  }
-
-  // Add description column for vault descriptions
-  const hasDescription = tableInfo.some(col => col.name === 'description');
-  if (!hasDescription) {
-    db.exec(`ALTER TABLE vaults ADD COLUMN description TEXT`);
-    console.log('Added description column to vaults table');
+  for (const col of columns) {
+    const hasColumn = tableInfo.some(c => c.name === col.name);
+    if (!hasColumn) {
+      db.exec(col.sql);
+      console.log(`Added ${col.name} column to vaults table`);
+    }
   }
 } catch (error) {
-  // Columns might already exist, log warning
   console.warn('Migration error:', error);
 }
 
+// Export database instance
+export { db };
 export default db;
-

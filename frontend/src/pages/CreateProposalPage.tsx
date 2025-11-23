@@ -17,6 +17,16 @@ export default function CreateProposalPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isValidBchAddress = (value: string): boolean => {
+    const addr = value.trim();
+    if (!addr) return false;
+    // Basic BCH cashaddr validation for now – expect chipnet or mainnet prefix
+    if (addr.startsWith('bchtest:') || addr.startsWith('bitcoincash:')) {
+      return true;
+    }
+    return false;
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -36,22 +46,26 @@ export default function CreateProposalPage() {
     setError(null);
 
     try {
+      // Normalize inputs
+      const recipient = formData.recipient.trim();
+      const amountValue = parseFloat(formData.amount);
+
       // Validate form
-      if (!formData.recipient) {
-        throw new Error('Recipient address is required');
+      if (!isValidBchAddress(recipient)) {
+        throw new Error('Recipient must be a valid BCH cash address (e.g. bchtest:qq...)');
       }
-      if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      if (!formData.amount || Number.isNaN(amountValue) || amountValue <= 0) {
         throw new Error('Amount must be greater than 0');
       }
-      if (!formData.reason) {
+      if (!formData.reason.trim()) {
         throw new Error('Reason is required');
       }
 
       // Create proposal via API
       const proposalData = {
-        recipient: formData.recipient,
-        amount: parseFloat(formData.amount),
-        reason: formData.reason,
+        recipient,
+        amount: amountValue,
+        reason: formData.reason.trim(),
       };
 
       await createProposal(id, proposalData, wallet.address);
@@ -59,7 +73,16 @@ export default function CreateProposalPage() {
       // Navigate back to vault detail page
       navigate(`/vaults/${id}`);
     } catch (err: any) {
-      setError(err.message || 'Failed to create proposal');
+      // Provide more specific error messages for common failures
+      let errorMsg = err.message || 'Failed to create proposal';
+      if (errorMsg.includes('exceeds spending cap') || errorMsg.includes('spending cap')) {
+        errorMsg = 'Amount exceeds the vault spending cap. Please reduce the proposal amount.';
+      } else if (errorMsg.includes('already exists') || errorMsg.includes('proposal ID')) {
+        errorMsg = 'A proposal with this ID already exists. Please wait for the current proposal to be processed.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+        errorMsg = 'Network connection error. Please check your internet connection and try again.';
+      }
+      setError(errorMsg);
       setIsSubmitting(false);
     }
   };
@@ -90,7 +113,7 @@ export default function CreateProposalPage() {
                 value={formData.recipient}
                 onChange={(e) => handleInputChange('recipient', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary font-mono"
-                placeholder="0x..."
+                placeholder="bchtest:qq... (BCH cash address)"
               />
             </div>
 

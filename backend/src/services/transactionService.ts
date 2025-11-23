@@ -38,7 +38,7 @@ export class TransactionService {
   ): Promise<TransactionRecord> {
     const id = randomUUID();
 
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       INSERT INTO transactions (
         id, vault_id, proposal_id, tx_hash, tx_type, amount,
         from_address, to_address, status
@@ -67,7 +67,7 @@ export class TransactionService {
    * Get transaction by ID
    */
   static getTransaction(id: string): TransactionRecord | null {
-    const stmt = db.prepare('SELECT * FROM transactions WHERE id = ?');
+    const stmt = db!.prepare('SELECT * FROM transactions WHERE id = ?');
     const row = stmt.get(id) as any;
 
     if (!row) return null;
@@ -92,7 +92,7 @@ export class TransactionService {
    * Get transaction by tx hash
    */
   static getTransactionByHash(txHash: string): TransactionRecord | null {
-    const stmt = db.prepare('SELECT * FROM transactions WHERE tx_hash = ?');
+    const stmt = db!.prepare('SELECT * FROM transactions WHERE tx_hash = ?');
     const row = stmt.get(txHash) as any;
 
     if (!row) return null;
@@ -117,7 +117,7 @@ export class TransactionService {
    * Get all transactions for a vault
    */
   static getVaultTransactions(vaultId: string): TransactionRecord[] {
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       SELECT * FROM transactions 
       WHERE vault_id = ? 
       ORDER BY created_at DESC
@@ -148,7 +148,7 @@ export class TransactionService {
     status: 'pending' | 'confirmed' | 'failed',
     blockHeight?: number
   ): Promise<void> {
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       UPDATE transactions 
       SET status = ?, block_height = ?, confirmed_at = ?
       WHERE tx_hash = ?
@@ -162,7 +162,7 @@ export class TransactionService {
    * Get all pending transactions
    */
   static getPendingTransactions(): TransactionRecord[] {
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       SELECT * FROM transactions 
       WHERE status = 'pending'
       ORDER BY created_at ASC

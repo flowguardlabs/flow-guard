@@ -65,7 +65,7 @@ export class CycleUnlockScheduler {
   private async checkAndUnlockCycles(): Promise<void> {
     try {
       // Get all vaults with contract addresses
-      const stmt = db.prepare(`
+      const stmt = db!.prepare(`
         SELECT * FROM vaults 
         WHERE contract_address IS NOT NULL 
         AND cycle_duration > 0
@@ -132,7 +132,7 @@ export class CycleUnlockScheduler {
     const unlockTime = vaultStartTime + cycleNumber * cycleDuration;
 
     // Check if cycle record exists
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       SELECT * FROM cycles 
       WHERE vault_id = ? AND cycle_number = ?
     `);
@@ -141,7 +141,7 @@ export class CycleUnlockScheduler {
     if (!existing) {
       // Create cycle record
       const id = require('crypto').randomUUID();
-      const insertStmt = db.prepare(`
+      const insertStmt = db!.prepare(`
         INSERT INTO cycles (
           id, vault_id, cycle_number, unlock_time, unlock_amount, status
         ) VALUES (?, ?, ?, ?, ?, ?)
@@ -252,7 +252,7 @@ export class CycleUnlockScheduler {
       VaultService.updateVaultState(vaultId, newState);
 
       // Update cycle record
-      const stmt = db.prepare(`
+      const stmt = db!.prepare(`
         UPDATE cycles 
         SET status = 'unlocked', unlocked_at = CURRENT_TIMESTAMP
         WHERE vault_id = ? AND cycle_number = ?

@@ -1,101 +1,185 @@
 // FlowGuard Enhanced Contract
-// Optimized for CashScript 0.10.0 - Production Ready
-// Security: Signature verification, state tracking, spending limits
-// Efficiency: Minimal opcount, consolidated validation logic
+// Enforces Layla CHIP patterns (Loops, Bitwise, Functions)
 
-pragma cashscript ^0.10.0;
+pragma cashscript ^0.13.0;
 
 contract FlowGuardEnhanced(
-    // Vault parameters
     pubkey signer1,
     pubkey signer2,
     pubkey signer3,
     int approvalThreshold,
-    
-    // State tracking (validated by backend, enforced on-chain)
     int state,
-    
-    // Cycle parameters
     int cycleDuration,
     int vaultStartTime,
-    
-    // Spending guardrails
     int spendingCap
 ) {
-    // Unlock function - unlocks funds for a specific cycle
-    // Security: Requires valid signer signature, state must change
     function unlock(
         int cycleNumber,
-        int newState,
-        pubkey pk1,
-        sig s1
+        int newStateCandidate,
+        pubkey pk,
+        sig s
     ) {
-        // Verify signature and signer
-        require(checkSig(s1, pk1));
-        require((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));
-        
-        // Validate cycle and parameters
-        require(cycleNumber >= 0 && cycleNumber < 16);
+        require(checkSig(s, pk));
+
+        bool authorized = false;
+        int idx = 0;
+        do {
+            pubkey current = signer1;
+            if (idx == 1) {
+                current = signer2;
+            }
+            if (idx == 2) {
+                current = signer3;
+            }
+            if (pk == current) {
+                authorized = true;
+            }
+            idx = idx + 1;
+        } while (idx < 3);
+        require(authorized);
+
         require(cycleDuration > 0 && vaultStartTime > 0);
-        
-        // Security: State must change (prevents replay attacks)
-        require(newState != state);
+        require(cycleNumber >= 0 && cycleNumber < 16);
+
+        int cycleMask = 1;
+        if (cycleNumber > 0) {
+            int powIdx = 0;
+            do {
+                cycleMask = cycleMask * 2;
+                powIdx = powIdx + 1;
+            } while (powIdx < cycleNumber);
+        }
+
+        int shiftedState = state;
+        if (cycleNumber > 0) {
+            int shiftIdx = 0;
+            do {
+                shiftedState = shiftedState / 2;
+                shiftIdx = shiftIdx + 1;
+            } while (shiftIdx < cycleNumber);
+        }
+        int cycleBit = shiftedState % 2;
+        require(cycleBit == 0);
+
+        require(newStateCandidate == state + cycleMask);
     }
-    
-    // Create proposal function
-    // Security: Requires signer signature, validates amount and recipient
+
     function createProposal(
         bytes20 recipient,
         int amount,
         int proposalId,
-        int newState,
-        pubkey pk1,
-        sig s1
+        int newStateCandidate,
+        pubkey pk,
+        sig s
     ) {
-        // Verify signature and signer
-        require(checkSig(s1, pk1));
-        require((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));
-        
-        // Validate proposal parameters
+        require(checkSig(s, pk));
+
+        bool authorized = false;
+        int idx = 0;
+        do {
+            pubkey current = signer1;
+            if (idx == 1) {
+                current = signer2;
+            }
+            if (idx == 2) {
+                current = signer3;
+            }
+            if (pk == current) {
+                authorized = true;
+            }
+            idx = idx + 1;
+        } while (idx < 3);
+        require(authorized);
+
         require(proposalId >= 0 && proposalId < 16);
         require(recipient != bytes20(0));
         require(amount > 0);
-        
-        // Enforce spending cap if set
         if (spendingCap > 0) {
             require(amount <= spendingCap);
         }
-        
-        // Security: State must change
-        require(newState != state);
+
+        int shift = 32 + proposalId * 2;
+
+        int bitUnit = 1;
+        if (shift > 0) {
+            int powIdx = 0;
+            do {
+                bitUnit = bitUnit * 2;
+                powIdx = powIdx + 1;
+            } while (powIdx < shift);
+        }
+
+        int shiftedState = state;
+        if (shift > 0) {
+            int shiftIdx = 0;
+            do {
+                shiftedState = shiftedState / 2;
+                shiftIdx = shiftIdx + 1;
+            } while (shiftIdx < shift);
+        }
+        int currentStatus = shiftedState % 4;
+        require(currentStatus == 0);
+
+        require(newStateCandidate == state + bitUnit);
     }
-    
-    // Approve proposal function
-    // Security: Requires signer signature, validates proposal ID
+
     function approveProposal(
         int proposalId,
-        int newState,
-        pubkey pk1,
-        sig s1
+        int newStateCandidate,
+        pubkey pk,
+        sig s
     ) {
-        // Verify signature and signer
-        require(checkSig(s1, pk1));
-        require((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));
-        
-        // Validate proposal ID
+        require(checkSig(s, pk));
+
+        bool authorized = false;
+        int idx = 0;
+        do {
+            pubkey current = signer1;
+            if (idx == 1) {
+                current = signer2;
+            }
+            if (idx == 2) {
+                current = signer3;
+            }
+            if (pk == current) {
+                authorized = true;
+            }
+            idx = idx + 1;
+        } while (idx < 3);
+        require(authorized);
+
         require(proposalId >= 0 && proposalId < 16);
-        
-        // Security: State must change
-        require(newState != state);
+
+        int shift = 32 + proposalId * 2;
+
+        int bitUnit = 1;
+        if (shift > 0) {
+            int powIdx = 0;
+            do {
+                bitUnit = bitUnit * 2;
+                powIdx = powIdx + 1;
+            } while (powIdx < shift);
+        }
+
+        int shiftedState = state;
+        if (shift > 0) {
+            int shiftIdx = 0;
+            do {
+                shiftedState = shiftedState / 2;
+                shiftIdx = shiftIdx + 1;
+            } while (shiftIdx < shift);
+        }
+        int currentStatus = shiftedState % 4;
+        require(currentStatus == 1);
+
+        require(newStateCandidate == state + bitUnit);
     }
-    
-    // Execute payout function - requires threshold signatures
-    // Security: Multi-sig verification, amount validation, state tracking
+
     function executePayout(
         bytes20 recipient,
         int amount,
         int proposalId,
-        int newState,
+        int newStateCandidate,
         pubkey pk1,
         sig s1,
         pubkey pk2,
@@ -103,31 +187,76 @@ contract FlowGuardEnhanced(
         pubkey pk3,
         sig s3
     ) {
-        // Verify all signatures and count valid signers
-        bool sig1Valid = checkSig(s1, pk1) && ((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));
-        bool sig2Valid = checkSig(s2, pk2) && ((pk2 == signer1) || (pk2 == signer2) || (pk2 == signer3));
-        bool sig3Valid = checkSig(s3, pk3) && ((pk3 == signer1) || (pk3 == signer2) || (pk3 == signer3));
-        
-        // Count valid signatures efficiently
-        int validSigs = 0;
-        if (sig1Valid) validSigs = validSigs + 1;
-        if (sig2Valid) validSigs = validSigs + 1;
-        if (sig3Valid) validSigs = validSigs + 1;
-        
-        // Security: Require threshold signatures
-        require(validSigs >= approvalThreshold);
-        
-        // Validate payout parameters
+        int valid = 0;
+        int idx = 0;
+        do {
+            pubkey currentPk = pk1;
+            sig currentSig = s1;
+            if (idx == 1) {
+                currentPk = pk2;
+                currentSig = s2;
+            }
+            if (idx == 2) {
+                currentPk = pk3;
+                currentSig = s3;
+            }
+
+            bool signatureMatches = checkSig(currentSig, currentPk);
+            if (signatureMatches) {
+                bool authorized = false;
+                int innerIdx = 0;
+                do {
+                    pubkey signerCandidate = signer1;
+                    if (innerIdx == 1) {
+                        signerCandidate = signer2;
+                    }
+                    if (innerIdx == 2) {
+                        signerCandidate = signer3;
+                    }
+                    if (currentPk == signerCandidate) {
+                        authorized = true;
+                    }
+                    innerIdx = innerIdx + 1;
+                } while (innerIdx < 3);
+
+                if (authorized) {
+                    valid = valid + 1;
+                }
+            }
+
+            idx = idx + 1;
+        } while (idx < 3);
+        require(valid >= approvalThreshold);
+
         require(proposalId >= 0 && proposalId < 16);
         require(recipient != bytes20(0));
         require(amount > 0);
-        
-        // Enforce spending cap if set
         if (spendingCap > 0) {
             require(amount <= spendingCap);
         }
-        
-        // Security: State must change
-        require(newState != state);
+
+        int shift = 32 + proposalId * 2;
+
+        int bitUnit = 1;
+        if (shift > 0) {
+            int powIdx = 0;
+            do {
+                bitUnit = bitUnit * 2;
+                powIdx = powIdx + 1;
+            } while (powIdx < shift);
+        }
+
+        int shiftedState = state;
+        if (shift > 0) {
+            int shiftIdx = 0;
+            do {
+                shiftedState = shiftedState / 2;
+                shiftIdx = shiftIdx + 1;
+            } while (shiftIdx < shift);
+        }
+        int currentStatus = shiftedState % 4;
+        require(currentStatus == 2);
+
+        require(newStateCandidate == state + bitUnit);
     }
 }

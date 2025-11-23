@@ -318,17 +318,21 @@ export default function CreateVaultPage() {
                       value={formData.signerPubkeys[index]}
                       onChange={(e) => handlePubkeyChange(index, e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary font-mono text-sm"
-                      placeholder={`Signer ${index + 1} public key (hex format)`}
+                      placeholder={`Signer ${index + 1} public key (hex format, 66 chars for compressed)`}
                     />
                     {formData.signerPubkeys[index] && (
                       <p className="text-xs text-green-600">
                         ✓ Public key provided ({formData.signerPubkeys[index].length} chars)
+                        {formData.signerPubkeys[index].length !== 66 && formData.signerPubkeys[index].length > 0 && (
+                          <span className="text-yellow-600 ml-2">⚠ Expected 66 characters for compressed public key</span>
+                        )}
                       </p>
                     )}
                   </div>
                 ))}
                 <p className="text-sm text-gray-600">
-                  <strong>Note:</strong> Public keys must be in hex format. Ask each signer to provide their public key from their BCH wallet.
+                  <strong>Note:</strong> Public keys must be in hex format (66 characters for compressed keys, starting with 02 or 03). 
+                  Ask each signer to provide their public key from their BCH wallet. The public key is required for on-chain contract deployment.
                 </p>
               </div>
             </div>

@@ -281,6 +281,112 @@ For Blaze2025, define a minimum viable product that is realistic to build in a h
 
 ---
 
+## 8.5 Code Examples
+
+### Loops Example: Validating Transaction Inputs
+
+Loops are used to increase efficiency of transaction validation in FlowGuard. This example demonstrates iterating over all transaction inputs to ensure they meet specific criteria:
+
+```cashscript
+pragma cashscript ^0.13.0;
+
+contract ValidateInputs() {
+    function spend() {
+        int inputIndex = 0;
+        
+        // Loop over all inputs (variable length), and make sure that none of them contain tokens
+        do {
+            require(tx.inputs[inputIndex].tokenCategory == 0x);
+            inputIndex = inputIndex + 1;
+        } while (inputIndex < tx.inputs.length);
+    }
+}
+```
+
+**Key Benefits:**
+- **Efficiency:** Single loop handles variable number of inputs
+- **Flexibility:** Works with any transaction size
+- **Gas Optimization:** Reduces opcode count compared to repeated checks
+
+### Loops Example: Validating Multiple Signers
+
+Loops are used to increase efficiency of multi-signature validation in FlowGuard. Instead of hardcoding checks for each signer, we iterate over the signer set to verify approvals:
+
+```cashscript
+pragma cashscript ^0.13.0;
+
+contract FlowGuardLoopsExample(
+    pubkey signer1,
+    pubkey signer2,
+    pubkey signer3,
+    int approvalThreshold
+) {
+    function validateSignatures(
+        sig s1,
+        sig s2,
+        sig s3
+    ) {
+        // Array of signers and signatures
+        pubkey[3] signers = [signer1, signer2, signer3];
+        sig[3] signatures = [s1, s2, s3];
+        
+        int validCount = 0;
+        int signerIndex = 0;
+        
+        // Loop over all signers (variable length), and verify each signature
+        do {
+            if (checkSig(signatures[signerIndex], signers[signerIndex])) {
+                validCount = validCount + 1;
+            }
+            signerIndex = signerIndex + 1;
+        } while (signerIndex < 3);
+        
+        // Require threshold number of valid signatures
+        require(validCount >= approvalThreshold);
+    }
+}
+```
+
+**Key Benefits:**
+- **Efficiency:** Single loop handles variable number of signers
+- **Flexibility:** Easy to extend to larger signer sets (e.g., 5-of-7)
+- **Gas Optimization:** Reduces opcode count compared to repeated if-statements
+- **Maintainability:** Cleaner code structure for multi-party approval logic
+
+### Loops Example: Cycle Unlock Validation
+
+Another practical use of Loops in FlowGuard is validating that multiple cycles have been properly unlocked:
+
+```cashscript
+pragma cashscript ^0.13.0;
+
+contract CycleUnlockExample(
+    int state,
+    int cycleCount
+) {
+    function validateUnlockedCycles(
+        int[] unlockedCycles,
+        int newState
+    ) {
+        int cycleIndex = 0;
+        
+        // Loop over all unlocked cycles and verify they're in valid range
+        do {
+            require(unlockedCycles[cycleIndex] >= 0);
+            require(unlockedCycles[cycleIndex] < 16); // Max 16 cycles in state
+            cycleIndex = cycleIndex + 1;
+        } while (cycleIndex < cycleCount);
+        
+        // State must change to prevent replay attacks
+        require(newState != state);
+    }
+}
+```
+
+**Use Case:** When processing multiple cycle unlocks in a single transaction, Loops enable efficient batch validation without duplicating code for each cycle.
+
+---
+
 ## 9. Risks & Mitigations
 
 | Risk | Mitigation |

@@ -19,7 +19,7 @@ app.use(cors({
   origin: true, // Allow all origins for now (can restrict later)
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-address'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-address', 'x-signer-public-key'],
   exposedHeaders: ['Content-Length', 'Content-Type'],
   maxAge: 86400, // 24 hours
   optionsSuccessStatus: 200
@@ -33,7 +33,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/vaults', vaultsRouter);
-app.use('/api/proposals', proposalsRouter);
+app.use('/api', proposalsRouter);
 app.use('/api', cyclesRouter);
 app.use('/api/deployment', deploymentRouter);
 app.use('/api', transactionsRouter);

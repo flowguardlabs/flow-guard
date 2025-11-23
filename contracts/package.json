@@ -4,18 +4,18 @@
   "description": "FlowGuard Layla CHIPs smart contracts",
   "main": "index.js",
   "scripts": {
-    "build": "cashc FlowGuardEnhanced.cash -o artifacts/FlowGuardEnhanced.json",
+    "build": "cashc FlowGuardEnhanced.cash -o FlowGuardEnhanced.json",
     "test": "mocha",
-    "check": "cashc --check"
+    "check": "cashc --check FlowGuardEnhanced.cash"
   },
   "devDependencies": {
-    "cashc": "^0.10.0",
-    "cashscript": "^0.10.0",
+    "cashc": "0.13.0-next.1",
+    "cashscript": "0.13.0-next.1",
     "mocha": "^10.0.0",
     "chai": "^4.3.0"
   },
   "dependencies": {
-    "cashscript": "^0.10.0"
+    "cashscript": "0.13.0-next.1"
   }
 }
 

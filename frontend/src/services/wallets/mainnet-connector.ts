@@ -18,8 +18,9 @@ export class MainnetConnector implements IWalletConnector {
   private wallet: Wallet | TestNetWallet | RegTestWallet | null = null;
   private network: 'mainnet' | 'testnet' | 'chipnet' = 'chipnet';
 
-  constructor(network: 'mainnet' | 'testnet' | 'chipnet' = 'chipnet') {
-    this.network = network;
+  constructor(network?: 'mainnet' | 'testnet' | 'chipnet') {
+    // Read from environment variable if not provided, default to chipnet
+    this.network = network || (import.meta.env.VITE_BCH_NETWORK as 'mainnet' | 'testnet' | 'chipnet') || 'chipnet';
   }
 
   /**

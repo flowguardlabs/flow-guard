@@ -20,7 +20,7 @@ export class ProposalService {
     }
 
     // Get next proposal ID for this vault (on-chain proposal ID)
-    const vaultStmt = db.prepare('SELECT COUNT(*) as count FROM proposals WHERE vault_id = ?');
+    const vaultStmt = db!.prepare('SELECT COUNT(*) as count FROM proposals WHERE vault_id = ?');
     const vaultRow = vaultStmt.get(dto.vaultId) as any;
     const proposalId = (vaultRow?.count || 0) + 1;
 
@@ -37,7 +37,7 @@ export class ProposalService {
     }
     
     // Store proposal in database (off-chain metadata)
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       INSERT INTO proposals (
         id, vault_id, proposal_id, recipient, amount, reason, status, approval_count, approvals
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -117,7 +117,7 @@ export class ProposalService {
   }
   
   static getProposalById(id: string): Proposal | null {
-    const stmt = db.prepare('SELECT * FROM proposals WHERE id = ?');
+    const stmt = db!.prepare('SELECT * FROM proposals WHERE id = ?');
     const row = stmt.get(id) as any;
     
     if (!row) return null;
@@ -140,7 +140,7 @@ export class ProposalService {
   }
   
   static getVaultProposals(vaultId: string): Proposal[] {
-    const stmt = db.prepare('SELECT * FROM proposals WHERE vault_id = ? ORDER BY created_at DESC');
+    const stmt = db!.prepare('SELECT * FROM proposals WHERE vault_id = ? ORDER BY created_at DESC');
     const rows = stmt.all(vaultId) as any[];
     
     return rows.map(row => ({
@@ -198,7 +198,7 @@ export class ProposalService {
     const newApprovals = [...proposal.approvals, dto.approver];
     const newApprovalCount = newApprovals.length;
     
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       UPDATE proposals 
       SET approval_count = ?, approvals = ?, updated_at = CURRENT_TIMESTAMP,
           status = ?
@@ -279,7 +279,7 @@ export class ProposalService {
     const newState = StateService.setProposalExecuted(currentState, proposal.proposalId);
 
     // Update database
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       UPDATE proposals 
       SET status = ?, executed_at = CURRENT_TIMESTAMP, tx_hash = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?

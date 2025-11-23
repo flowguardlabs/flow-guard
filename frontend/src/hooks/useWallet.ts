@@ -96,16 +96,15 @@ export function useWallet(): UseWalletReturn {
           newConnector = new BCHExtensionConnector();
           break;
         case WalletType.MAINNET:
-          // Default to chipnet for development
-          newConnector = new MainnetConnector('chipnet');
+          // Network is read from VITE_BCH_NETWORK env var, defaults to chipnet
+          // (handled inside MainnetConnector constructor)
+          newConnector = new MainnetConnector();
           break;
         case WalletType.ELECTRON_CASH:
           // Electron Cash RPC connection
-          // Users can configure RPC settings via environment or localStorage
-          const rpcUrl = localStorage.getItem('electron_cash_rpc_url') || 'http://localhost:8332';
-          const rpcUser = localStorage.getItem('electron_cash_rpc_user') || 'user';
-          const rpcPassword = localStorage.getItem('electron_cash_rpc_password') || 'pass';
-          newConnector = new ElectronCashConnector(rpcUrl, rpcUser, rpcPassword);
+          // RPC settings are read from env vars first, then localStorage, then defaults
+          // (handled inside ElectronCashConnector constructor)
+          newConnector = new ElectronCashConnector();
           break;
         default:
           throw new Error('Unsupported wallet type');

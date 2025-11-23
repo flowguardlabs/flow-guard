@@ -56,7 +56,7 @@ export class BlockchainMonitor {
   private async checkAllVaults(): Promise<void> {
     try {
       // Get all vaults that have contract addresses
-      const stmt = db.prepare('SELECT * FROM vaults WHERE contract_address IS NOT NULL');
+      const stmt = db!.prepare('SELECT * FROM vaults WHERE contract_address IS NOT NULL');
       const vaults = stmt.all() as any[];
 
       if (vaults.length === 0) {
@@ -91,7 +91,7 @@ export class BlockchainMonitor {
       const balance = await this.contractService.getBalance(contractAddress);
 
       // Update database
-      const stmt = db.prepare(`
+      const stmt = db!.prepare(`
         UPDATE vaults
         SET balance = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ?

@@ -36,10 +36,19 @@ export class ElectronCashConnector implements IWalletConnector {
   private address: string | null = null;
 
   constructor(rpcUrl?: string, rpcUser?: string, rpcPassword?: string) {
-    // Default to Electron Cash's default RPC settings
-    this.rpcUrl = rpcUrl || 'http://localhost:8332';
-    this.rpcUser = rpcUser || 'user';
-    this.rpcPassword = rpcPassword || 'pass';
+    // Read from environment variables first, then localStorage, then defaults
+    this.rpcUrl = rpcUrl || 
+      import.meta.env.VITE_ELECTRON_CASH_RPC_URL || 
+      (typeof window !== 'undefined' ? localStorage.getItem('electron_cash_rpc_url') : null) || 
+      'http://localhost:8332';
+    this.rpcUser = rpcUser || 
+      import.meta.env.VITE_ELECTRON_CASH_RPC_USER || 
+      (typeof window !== 'undefined' ? localStorage.getItem('electron_cash_rpc_user') : null) || 
+      'user';
+    this.rpcPassword = rpcPassword || 
+      import.meta.env.VITE_ELECTRON_CASH_RPC_PASSWORD || 
+      (typeof window !== 'undefined' ? localStorage.getItem('electron_cash_rpc_password') : null) || 
+      'pass';
   }
 
   /**

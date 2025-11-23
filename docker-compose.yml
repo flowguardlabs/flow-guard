@@ -1,0 +1,64 @@
+services:
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flowguard-backend
+    environment:
+      NODE_ENV: production
+      PORT: ${BACKEND_PORT:-3001}
+      DATABASE_PATH: ${DATABASE_PATH:-/app/data/flowguard.db}
+      BCH_NETWORK: ${BCH_NETWORK:-chipnet}
+    ports:
+      - "${BACKEND_PORT:-3001}:${BACKEND_PORT:-3001}"
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    volumes:
+      - ./backend/src/contracts:/app/dist/contracts:ro
+      - flowguard_sqlite_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:${BACKEND_PORT:-3001}/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - flowguard-network
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:${BACKEND_PORT:-3001}/api}
+        VITE_BCH_NETWORK: ${VITE_BCH_NETWORK:-chipnet}
+    container_name: flowguard-frontend
+    environment:
+      FRONTEND_PORT: ${FRONTEND_PORT:-80}
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:${FRONTEND_PORT:-80}/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - flowguard-network
+    restart: unless-stopped
+
+volumes:
+  flowguard_sqlite_data:
+    driver: local
+
+networks:
+  flowguard-network:
+    driver: bridge
+

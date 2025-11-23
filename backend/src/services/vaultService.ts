@@ -49,7 +49,7 @@ export class VaultService {
     // Set start time to now (for cycle calculations)
     const startTime = new Date().toISOString();
 
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       INSERT INTO vaults (
         id, vault_id, name, description, creator, total_deposit, spending_cap, approval_threshold,
         signers, signer_pubkeys, state, cycle_duration, unlock_amount, is_public,
@@ -86,7 +86,7 @@ export class VaultService {
   }
   
   static getVaultById(id: string): Vault | null {
-    const stmt = db.prepare('SELECT * FROM vaults WHERE id = ?');
+    const stmt = db!.prepare('SELECT * FROM vaults WHERE id = ?');
     const row = stmt.get(id) as any;
 
     if (!row) return null;
@@ -116,7 +116,7 @@ export class VaultService {
     }
   
   static getVaultByVaultId(vaultId: string): Vault | null {
-    const stmt = db.prepare('SELECT * FROM vaults WHERE vault_id = ?');
+    const stmt = db!.prepare('SELECT * FROM vaults WHERE vault_id = ?');
     const row = stmt.get(vaultId) as any;
 
     if (!row) return null;
@@ -146,7 +146,7 @@ export class VaultService {
   }
   
   static getUserVaults(userAddress: string): Vault[] {
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       SELECT * FROM vaults
       WHERE creator = ? OR signers LIKE ?
     `);
@@ -176,7 +176,7 @@ export class VaultService {
   }
 
   static getPublicVaults(): Vault[] {
-    const stmt = db.prepare('SELECT * FROM vaults WHERE is_public = 1');
+    const stmt = db!.prepare('SELECT * FROM vaults WHERE is_public = 1');
     const rows = stmt.all() as any[];
 
     return rows.map(row => ({
@@ -222,7 +222,7 @@ export class VaultService {
   }
   
   static updateVaultState(vaultId: string, newState: number): void {
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       UPDATE vaults 
       SET state = ?, updated_at = CURRENT_TIMESTAMP 
       WHERE vault_id = ?
@@ -249,7 +249,7 @@ export class VaultService {
     // Add new signer
     const updatedSigners = [...vault.signers, newSignerAddress];
 
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       UPDATE vaults 
       SET signers = ?, updated_at = CURRENT_TIMESTAMP 
       WHERE vault_id = ?

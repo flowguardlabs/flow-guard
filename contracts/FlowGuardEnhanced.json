@@ -43,15 +43,15 @@
           "type": "int"
         },
         {
-          "name": "newState",
+          "name": "newStateCandidate",
           "type": "int"
         },
         {
-          "name": "pk1",
+          "name": "pk",
           "type": "pubkey"
         },
         {
-          "name": "s1",
+          "name": "s",
           "type": "sig"
         }
       ]
@@ -72,15 +72,15 @@
           "type": "int"
         },
         {
-          "name": "newState",
+          "name": "newStateCandidate",
           "type": "int"
         },
         {
-          "name": "pk1",
+          "name": "pk",
           "type": "pubkey"
         },
         {
-          "name": "s1",
+          "name": "s",
           "type": "sig"
         }
       ]
@@ -93,15 +93,15 @@
           "type": "int"
         },
         {
-          "name": "newState",
+          "name": "newStateCandidate",
           "type": "int"
         },
         {
-          "name": "pk1",
+          "name": "pk",
           "type": "pubkey"
         },
         {
-          "name": "s1",
+          "name": "s",
           "type": "sig"
         }
       ]
@@ -122,7 +122,7 @@
           "type": "int"
         },
         {
-          "name": "newState",
+          "name": "newStateCandidate",
           "type": "int"
         },
         {
@@ -152,106 +152,122 @@
       ]
     }
   ],
-  "bytecode": "OP_8 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_12 OP_ROLL OP_12 OP_PICK OP_CHECKSIGVERIFY OP_11 OP_PICK OP_EQUAL OP_11 OP_PICK OP_ROT OP_EQUAL OP_BOOLOR OP_10 OP_ROLL OP_ROT OP_EQUAL OP_BOOLOR OP_VERIFY OP_6 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_7 OP_ROLL OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY OP_ROT OP_0 OP_GREATERTHAN OP_3 OP_ROLL OP_0 OP_GREATERTHAN OP_BOOLAND OP_VERIFY OP_4 OP_ROLL OP_ROT OP_NUMNOTEQUAL OP_NIP OP_NIP OP_NIP OP_ELSE OP_8 OP_PICK OP_1 OP_NUMEQUAL OP_IF OP_14 OP_ROLL OP_14 OP_PICK OP_CHECKSIGVERIFY OP_13 OP_PICK OP_EQUAL OP_13 OP_PICK OP_ROT OP_EQUAL OP_BOOLOR OP_12 OP_ROLL OP_ROT OP_EQUAL OP_BOOLOR OP_VERIFY OP_8 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_9 OP_ROLL OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY OP_6 OP_ROLL OP_0 14 OP_NUM2BIN OP_EQUAL OP_NOT OP_VERIFY OP_6 OP_PICK OP_0 OP_GREATERTHAN OP_VERIFY OP_4 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_6 OP_PICK OP_5 OP_PICK OP_LESSTHANOREQUAL OP_VERIFY OP_ENDIF OP_7 OP_ROLL OP_ROT OP_NUMNOTEQUAL OP_VERIFY OP_2DROP OP_2DROP OP_2DROP OP_1 OP_ELSE OP_8 OP_PICK OP_2 OP_NUMEQUAL OP_IF OP_12 OP_ROLL OP_12 OP_PICK OP_CHECKSIGVERIFY OP_11 OP_PICK OP_EQUAL OP_11 OP_PICK OP_ROT OP_EQUAL OP_BOOLOR OP_10 OP_ROLL OP_ROT OP_EQUAL OP_BOOLOR OP_VERIFY OP_6 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_7 OP_ROLL OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY OP_6 OP_ROLL OP_ROT OP_NUMNOTEQUAL OP_VERIFY OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_8 OP_ROLL OP_3 OP_NUMEQUALVERIFY OP_13 OP_ROLL OP_13 OP_PICK OP_CHECKSIG OP_13 OP_PICK OP_2 OP_PICK OP_EQUAL OP_14 OP_PICK OP_4 OP_PICK OP_EQUAL OP_BOOLOR OP_14 OP_ROLL OP_5 OP_PICK OP_EQUAL OP_BOOLOR OP_BOOLAND OP_14 OP_ROLL OP_14 OP_PICK OP_CHECKSIG OP_14 OP_PICK OP_3 OP_PICK OP_EQUAL OP_15 OP_PICK OP_5 OP_PICK OP_EQUAL OP_BOOLOR OP_15 OP_ROLL OP_6 OP_PICK OP_EQUAL OP_BOOLOR OP_BOOLAND OP_15 OP_ROLL OP_15 OP_PICK OP_CHECKSIG OP_15 OP_PICK OP_4 OP_ROLL OP_EQUAL OP_15 OP_PICK OP_5 OP_ROLL OP_EQUAL OP_BOOLOR OP_14 OP_ROLL OP_5 OP_ROLL OP_EQUAL OP_BOOLOR OP_BOOLAND OP_0 OP_3 OP_ROLL OP_IF OP_DUP OP_1ADD OP_NIP OP_ENDIF OP_ROT OP_IF OP_DUP OP_1ADD OP_NIP OP_ENDIF OP_SWAP OP_IF OP_DUP OP_1ADD OP_NIP OP_ENDIF OP_LESSTHANOREQUAL OP_VERIFY OP_6 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_7 OP_ROLL OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY OP_4 OP_ROLL OP_0 14 OP_NUM2BIN OP_EQUAL OP_NOT OP_VERIFY OP_4 OP_PICK OP_0 OP_GREATERTHAN OP_VERIFY OP_3 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_4 OP_PICK OP_4 OP_PICK OP_LESSTHANOREQUAL OP_VERIFY OP_ENDIF OP_5 OP_ROLL OP_NUMNOTEQUAL OP_VERIFY OP_2DROP OP_2DROP OP_1 OP_ENDIF OP_ENDIF OP_ENDIF",
-  "source": "// FlowGuard Enhanced Contract\n// Optimized for CashScript 0.10.0 - Production Ready\n// Security: Signature verification, state tracking, spending limits\n// Efficiency: Minimal opcount, consolidated validation logic\n\npragma cashscript ^0.10.0;\n\ncontract FlowGuardEnhanced(\n    // Vault parameters\n    pubkey signer1,\n    pubkey signer2,\n    pubkey signer3,\n    int approvalThreshold,\n    \n    // State tracking (validated by backend, enforced on-chain)\n    int state,\n    \n    // Cycle parameters\n    int cycleDuration,\n    int vaultStartTime,\n    \n    // Spending guardrails\n    int spendingCap\n) {\n    // Unlock function - unlocks funds for a specific cycle\n    // Security: Requires valid signer signature, state must change\n    function unlock(\n        int cycleNumber,\n        int newState,\n        pubkey pk1,\n        sig s1\n    ) {\n        // Verify signature and signer\n        require(checkSig(s1, pk1));\n        require((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));\n        \n        // Validate cycle and parameters\n        require(cycleNumber >= 0 && cycleNumber < 16);\n        require(cycleDuration > 0 && vaultStartTime > 0);\n        \n        // Security: State must change (prevents replay attacks)\n        require(newState != state);\n    }\n    \n    // Create proposal function\n    // Security: Requires signer signature, validates amount and recipient\n    function createProposal(\n        bytes20 recipient,\n        int amount,\n        int proposalId,\n        int newState,\n        pubkey pk1,\n        sig s1\n    ) {\n        // Verify signature and signer\n        require(checkSig(s1, pk1));\n        require((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));\n        \n        // Validate proposal parameters\n        require(proposalId >= 0 && proposalId < 16);\n        require(recipient != bytes20(0));\n        require(amount > 0);\n        \n        // Enforce spending cap if set\n        if (spendingCap > 0) {\n            require(amount <= spendingCap);\n        }\n        \n        // Security: State must change\n        require(newState != state);\n    }\n    \n    // Approve proposal function\n    // Security: Requires signer signature, validates proposal ID\n    function approveProposal(\n        int proposalId,\n        int newState,\n        pubkey pk1,\n        sig s1\n    ) {\n        // Verify signature and signer\n        require(checkSig(s1, pk1));\n        require((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));\n        \n        // Validate proposal ID\n        require(proposalId >= 0 && proposalId < 16);\n        \n        // Security: State must change\n        require(newState != state);\n    }\n    \n    // Execute payout function - requires threshold signatures\n    // Security: Multi-sig verification, amount validation, state tracking\n    function executePayout(\n        bytes20 recipient,\n        int amount,\n        int proposalId,\n        int newState,\n        pubkey pk1,\n        sig s1,\n        pubkey pk2,\n        sig s2,\n        pubkey pk3,\n        sig s3\n    ) {\n        // Verify all signatures and count valid signers\n        bool sig1Valid = checkSig(s1, pk1) && ((pk1 == signer1) || (pk1 == signer2) || (pk1 == signer3));\n        bool sig2Valid = checkSig(s2, pk2) && ((pk2 == signer1) || (pk2 == signer2) || (pk2 == signer3));\n        bool sig3Valid = checkSig(s3, pk3) && ((pk3 == signer1) || (pk3 == signer2) || (pk3 == signer3));\n        \n        // Count valid signatures efficiently\n        int validSigs = 0;\n        if (sig1Valid) validSigs = validSigs + 1;\n        if (sig2Valid) validSigs = validSigs + 1;\n        if (sig3Valid) validSigs = validSigs + 1;\n        \n        // Security: Require threshold signatures\n        require(validSigs >= approvalThreshold);\n        \n        // Validate payout parameters\n        require(proposalId >= 0 && proposalId < 16);\n        require(recipient != bytes20(0));\n        require(amount > 0);\n        \n        // Enforce spending cap if set\n        if (spendingCap > 0) {\n            require(amount <= spendingCap);\n        }\n        \n        // Security: State must change\n        require(newState != state);\n    }\n}\n",
+  "bytecode": "OP_8 OP_PICK OP_0 OP_NUMEQUAL OP_IF OP_12 OP_ROLL OP_12 OP_PICK OP_CHECKSIGVERIFY OP_0 OP_0 OP_BEGIN OP_2 OP_PICK OP_OVER OP_1 OP_NUMEQUAL OP_IF OP_4 OP_PICK OP_NIP OP_ENDIF OP_OVER OP_2 OP_NUMEQUAL OP_IF OP_5 OP_PICK OP_NIP OP_ENDIF OP_14 OP_PICK OP_OVER OP_EQUAL OP_IF OP_1 OP_3 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_FROMALTSTACK OP_ENDIF OP_OVER OP_1ADD OP_ROT OP_DROP OP_NIP OP_DUP OP_3 OP_GREATERTHANOREQUAL OP_UNTIL OP_SWAP OP_VERIFY OP_6 OP_ROLL OP_0 OP_GREATERTHAN OP_7 OP_ROLL OP_0 OP_GREATERTHAN OP_BOOLAND OP_VERIFY OP_8 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_9 OP_PICK OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY OP_1 OP_9 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_MUL OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_11 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_6 OP_PICK OP_10 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_DIV OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_12 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_2 OP_MOD OP_0 OP_NUMEQUALVERIFY OP_10 OP_ROLL OP_7 OP_ROLL OP_ROT OP_ADD OP_NUMEQUALVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_8 OP_PICK OP_1 OP_NUMEQUAL OP_IF OP_14 OP_ROLL OP_14 OP_PICK OP_CHECKSIGVERIFY OP_0 OP_0 OP_BEGIN OP_2 OP_PICK OP_OVER OP_1 OP_NUMEQUAL OP_IF OP_4 OP_PICK OP_NIP OP_ENDIF OP_OVER OP_2 OP_NUMEQUAL OP_IF OP_5 OP_PICK OP_NIP OP_ENDIF OP_16 OP_PICK OP_OVER OP_EQUAL OP_IF OP_1 OP_3 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_FROMALTSTACK OP_ENDIF OP_OVER OP_1ADD OP_ROT OP_DROP OP_NIP OP_DUP OP_3 OP_GREATERTHANOREQUAL OP_UNTIL OP_SWAP OP_VERIFY OP_12 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_13 OP_PICK OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY OP_10 OP_ROLL OP_0 14 OP_NUM2BIN OP_EQUAL OP_NOT OP_VERIFY OP_10 OP_PICK OP_0 OP_GREATERTHAN OP_VERIFY OP_8 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_10 OP_PICK OP_9 OP_PICK OP_LESSTHANOREQUAL OP_VERIFY OP_ENDIF 20 OP_12 OP_ROLL OP_2 OP_MUL OP_ADD OP_1 OP_OVER OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_MUL OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_3 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_7 OP_PICK OP_2 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_DIV OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_4 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_4 OP_MOD OP_0 OP_NUMEQUALVERIFY OP_13 OP_ROLL OP_8 OP_ROLL OP_ROT OP_ADD OP_NUMEQUALVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_1 OP_ELSE OP_8 OP_PICK OP_2 OP_NUMEQUAL OP_IF OP_12 OP_ROLL OP_12 OP_PICK OP_CHECKSIGVERIFY OP_0 OP_0 OP_BEGIN OP_2 OP_PICK OP_OVER OP_1 OP_NUMEQUAL OP_IF OP_4 OP_PICK OP_NIP OP_ENDIF OP_OVER OP_2 OP_NUMEQUAL OP_IF OP_5 OP_PICK OP_NIP OP_ENDIF OP_14 OP_PICK OP_OVER OP_EQUAL OP_IF OP_1 OP_3 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_FROMALTSTACK OP_ENDIF OP_OVER OP_1ADD OP_ROT OP_DROP OP_NIP OP_DUP OP_3 OP_GREATERTHANOREQUAL OP_UNTIL OP_SWAP OP_VERIFY OP_10 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_11 OP_PICK OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY 20 OP_11 OP_ROLL OP_2 OP_MUL OP_ADD OP_1 OP_OVER OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_MUL OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_3 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_7 OP_PICK OP_2 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_DIV OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_4 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_4 OP_MOD OP_1 OP_NUMEQUALVERIFY OP_12 OP_ROLL OP_8 OP_ROLL OP_ROT OP_ADD OP_NUMEQUALVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_DROP OP_1 OP_ELSE OP_8 OP_ROLL OP_3 OP_NUMEQUALVERIFY OP_0 OP_0 OP_BEGIN OP_14 OP_PICK OP_16 OP_PICK OP_2 OP_PICK OP_1 OP_NUMEQUAL OP_IF 12 OP_PICK OP_ROT OP_DROP OP_SWAP 13 OP_PICK OP_NIP OP_ENDIF OP_2 OP_PICK OP_2 OP_NUMEQUAL OP_IF 14 OP_PICK OP_ROT OP_DROP OP_SWAP 15 OP_PICK OP_NIP OP_ENDIF OP_2DUP OP_SWAP OP_CHECKSIG OP_DUP OP_IF OP_0 OP_0 OP_BEGIN OP_7 OP_PICK OP_OVER OP_1 OP_NUMEQUAL OP_IF OP_9 OP_PICK OP_NIP OP_ENDIF OP_OVER OP_2 OP_NUMEQUAL OP_IF OP_10 OP_PICK OP_NIP OP_ENDIF OP_5 OP_PICK OP_OVER OP_EQUAL OP_IF OP_1 OP_3 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_FROMALTSTACK OP_ENDIF OP_OVER OP_1ADD OP_ROT OP_DROP OP_NIP OP_DUP OP_3 OP_GREATERTHANOREQUAL OP_UNTIL OP_OVER OP_IF OP_6 OP_PICK OP_1ADD OP_7 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_FROMALTSTACK OP_ENDIF OP_2DROP OP_ENDIF OP_3 OP_PICK OP_1ADD OP_4 OP_ROLL OP_DROP OP_SWAP OP_TOALTSTACK OP_SWAP OP_TOALTSTACK OP_SWAP OP_FROMALTSTACK OP_FROMALTSTACK OP_2DROP OP_DROP OP_DUP OP_3 OP_GREATERTHANOREQUAL OP_UNTIL OP_SWAP OP_5 OP_ROLL OP_GREATERTHANOREQUAL OP_VERIFY OP_10 OP_PICK OP_0 OP_GREATERTHANOREQUAL OP_11 OP_PICK OP_16 OP_LESSTHAN OP_BOOLAND OP_VERIFY OP_8 OP_ROLL OP_0 14 OP_NUM2BIN OP_EQUAL OP_NOT OP_VERIFY OP_8 OP_PICK OP_0 OP_GREATERTHAN OP_VERIFY OP_7 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_8 OP_PICK OP_8 OP_PICK OP_LESSTHANOREQUAL OP_VERIFY OP_ENDIF 20 OP_10 OP_ROLL OP_2 OP_MUL OP_ADD OP_1 OP_OVER OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_MUL OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_3 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_6 OP_PICK OP_2 OP_PICK OP_0 OP_GREATERTHAN OP_IF OP_0 OP_BEGIN OP_OVER OP_2 OP_DIV OP_ROT OP_DROP OP_SWAP OP_DUP OP_1ADD OP_NIP OP_DUP OP_4 OP_PICK OP_GREATERTHANOREQUAL OP_UNTIL OP_DROP OP_ENDIF OP_4 OP_MOD OP_2 OP_NUMEQUALVERIFY OP_11 OP_ROLL OP_7 OP_ROLL OP_ROT OP_ADD OP_NUMEQUALVERIFY OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_2DROP OP_DROP OP_1 OP_ENDIF OP_ENDIF OP_ENDIF",
+  "source": "// FlowGuard Enhanced Contract\n// Enforces Layla CHIP patterns (Loops, Bitwise, Functions)\n\npragma cashscript ^0.13.0;\n\ncontract FlowGuardEnhanced(\n    pubkey signer1,\n    pubkey signer2,\n    pubkey signer3,\n    int approvalThreshold,\n    int state,\n    int cycleDuration,\n    int vaultStartTime,\n    int spendingCap\n) {\n    function unlock(\n        int cycleNumber,\n        int newStateCandidate,\n        pubkey pk,\n        sig s\n    ) {\n        require(checkSig(s, pk));\n\n        bool authorized = false;\n        int idx = 0;\n        do {\n            pubkey current = signer1;\n            if (idx == 1) {\n                current = signer2;\n            }\n            if (idx == 2) {\n                current = signer3;\n            }\n            if (pk == current) {\n                authorized = true;\n            }\n            idx = idx + 1;\n        } while (idx < 3);\n        require(authorized);\n\n        require(cycleDuration > 0 && vaultStartTime > 0);\n        require(cycleNumber >= 0 && cycleNumber < 16);\n\n        int cycleMask = 1;\n        if (cycleNumber > 0) {\n            int powIdx = 0;\n            do {\n                cycleMask = cycleMask * 2;\n                powIdx = powIdx + 1;\n            } while (powIdx < cycleNumber);\n        }\n\n        int shiftedState = state;\n        if (cycleNumber > 0) {\n            int shiftIdx = 0;\n            do {\n                shiftedState = shiftedState / 2;\n                shiftIdx = shiftIdx + 1;\n            } while (shiftIdx < cycleNumber);\n        }\n        int cycleBit = shiftedState % 2;\n        require(cycleBit == 0);\n\n        require(newStateCandidate == state + cycleMask);\n    }\n\n    function createProposal(\n        bytes20 recipient,\n        int amount,\n        int proposalId,\n        int newStateCandidate,\n        pubkey pk,\n        sig s\n    ) {\n        require(checkSig(s, pk));\n\n        bool authorized = false;\n        int idx = 0;\n        do {\n            pubkey current = signer1;\n            if (idx == 1) {\n                current = signer2;\n            }\n            if (idx == 2) {\n                current = signer3;\n            }\n            if (pk == current) {\n                authorized = true;\n            }\n            idx = idx + 1;\n        } while (idx < 3);\n        require(authorized);\n\n        require(proposalId >= 0 && proposalId < 16);\n        require(recipient != bytes20(0));\n        require(amount > 0);\n        if (spendingCap > 0) {\n            require(amount <= spendingCap);\n        }\n\n        int shift = 32 + proposalId * 2;\n\n        int bitUnit = 1;\n        if (shift > 0) {\n            int powIdx = 0;\n            do {\n                bitUnit = bitUnit * 2;\n                powIdx = powIdx + 1;\n            } while (powIdx < shift);\n        }\n\n        int shiftedState = state;\n        if (shift > 0) {\n            int shiftIdx = 0;\n            do {\n                shiftedState = shiftedState / 2;\n                shiftIdx = shiftIdx + 1;\n            } while (shiftIdx < shift);\n        }\n        int currentStatus = shiftedState % 4;\n        require(currentStatus == 0);\n\n        require(newStateCandidate == state + bitUnit);\n    }\n\n    function approveProposal(\n        int proposalId,\n        int newStateCandidate,\n        pubkey pk,\n        sig s\n    ) {\n        require(checkSig(s, pk));\n\n        bool authorized = false;\n        int idx = 0;\n        do {\n            pubkey current = signer1;\n            if (idx == 1) {\n                current = signer2;\n            }\n            if (idx == 2) {\n                current = signer3;\n            }\n            if (pk == current) {\n                authorized = true;\n            }\n            idx = idx + 1;\n        } while (idx < 3);\n        require(authorized);\n\n        require(proposalId >= 0 && proposalId < 16);\n\n        int shift = 32 + proposalId * 2;\n\n        int bitUnit = 1;\n        if (shift > 0) {\n            int powIdx = 0;\n            do {\n                bitUnit = bitUnit * 2;\n                powIdx = powIdx + 1;\n            } while (powIdx < shift);\n        }\n\n        int shiftedState = state;\n        if (shift > 0) {\n            int shiftIdx = 0;\n            do {\n                shiftedState = shiftedState / 2;\n                shiftIdx = shiftIdx + 1;\n            } while (shiftIdx < shift);\n        }\n        int currentStatus = shiftedState % 4;\n        require(currentStatus == 1);\n\n        require(newStateCandidate == state + bitUnit);\n    }\n\n    function executePayout(\n        bytes20 recipient,\n        int amount,\n        int proposalId,\n        int newStateCandidate,\n        pubkey pk1,\n        sig s1,\n        pubkey pk2,\n        sig s2,\n        pubkey pk3,\n        sig s3\n    ) {\n        int valid = 0;\n        int idx = 0;\n        do {\n            pubkey currentPk = pk1;\n            sig currentSig = s1;\n            if (idx == 1) {\n                currentPk = pk2;\n                currentSig = s2;\n            }\n            if (idx == 2) {\n                currentPk = pk3;\n                currentSig = s3;\n            }\n\n            bool signatureMatches = checkSig(currentSig, currentPk);\n            if (signatureMatches) {\n                bool authorized = false;\n                int innerIdx = 0;\n                do {\n                    pubkey signerCandidate = signer1;\n                    if (innerIdx == 1) {\n                        signerCandidate = signer2;\n                    }\n                    if (innerIdx == 2) {\n                        signerCandidate = signer3;\n                    }\n                    if (currentPk == signerCandidate) {\n                        authorized = true;\n                    }\n                    innerIdx = innerIdx + 1;\n                } while (innerIdx < 3);\n\n                if (authorized) {\n                    valid = valid + 1;\n                }\n            }\n\n            idx = idx + 1;\n        } while (idx < 3);\n        require(valid >= approvalThreshold);\n\n        require(proposalId >= 0 && proposalId < 16);\n        require(recipient != bytes20(0));\n        require(amount > 0);\n        if (spendingCap > 0) {\n            require(amount <= spendingCap);\n        }\n\n        int shift = 32 + proposalId * 2;\n\n        int bitUnit = 1;\n        if (shift > 0) {\n            int powIdx = 0;\n            do {\n                bitUnit = bitUnit * 2;\n                powIdx = powIdx + 1;\n            } while (powIdx < shift);\n        }\n\n        int shiftedState = state;\n        if (shift > 0) {\n            int shiftIdx = 0;\n            do {\n                shiftedState = shiftedState / 2;\n                shiftIdx = shiftIdx + 1;\n            } while (shiftIdx < shift);\n        }\n        int currentStatus = shiftedState % 4;\n        require(currentStatus == 2);\n\n        require(newStateCandidate == state + bitUnit);\n    }\n}\n",
   "debug": {
-    "bytecode": "5879009c635c7a5c79ac695b79517a875b79527a879b5a7a527a879b69567900a2577a609f9a69527a00a0537a00a09a69547a527a9e777777675879519c635e7a5e79ac695d79517a875d79527a879b5c7a527a879b69587900a2597a609f9a69567a00011480879169567900a069547900a06356795579a16968577a527a9e6951777777777777675879529c635c7a5c79ac695b79517a875b79527a879b5a7a527a879b69567900a2577a609f9a69567a527a9e6951777777777767587a539c695d7a5d79ac5d795279875e795479879b5e7a5579879b9a5e7a5e79ac5e795379875f795579879b5f7a5679879b9a5f7a5f79ac5f79547a875f79557a879b5e7a557a879b9a00537a6300795193517a7568527a6300795193517a7568517a6300795193517a7568007a517aa269567900a2577a609f9a69547a00011480879169547900a069537900a06354795479a16968557a517a9e695177777777686868",
-    "sourceMap": "27:4:43:5;;;;;34:25:34:27;;:29::32;;:16::33:1;:8::35;35:17:35:20:0;;:24::31;;:17:::1;:37::40:0;;:44::51;;:37:::1;:16::52;:57::60:0;;:64::71;;:57:::1;:16::72;:8::74;38:16:38:27:0;;:31::32;:16:::1;:36::47:0;;:50::52;:36:::1;:16;:8::54;39:16:39:29:0;;:32::33;:16:::1;:37::51:0;;:54::55;:37:::1;:16;:8::57;42:16:42:24:0;;:28::33;;:16:::1;27:4:43:5;;;;47::71::0;;;;;56:25:56:27;;:29::32;;:16::33:1;:8::35;57:17:57:20:0;;:24::31;;:17:::1;:37::40:0;;:44::51;;:37:::1;:16::52;:57::60:0;;:64::71;;:57:::1;:16::72;:8::74;60:16:60:26:0;;:30::31;:16:::1;:35::45:0;;:48::50;:35:::1;:16;:8::52;61:16:61:25:0;;:37::38;:29::39:1;;:16;;:8::41;62:16:62:22:0;;:25::26;:16:::1;:8::28;65:12:65:23:0;;:26::27;:12:::1;:29:67:9:0;66:20:66:26;;:30::41;;:20:::1;:12::43;65:29:67:9;70:16:70:24:0;;:28::33;;:16:::1;:8::35;47:4:71:5;;;;;;;;75::90::0;;;;;82:25:82:27;;:29::32;;:16::33:1;:8::35;83:17:83:20:0;;:24::31;;:17:::1;:37::40:0;;:44::51;;:37:::1;:16::52;:57::60:0;;:64::71;;:57:::1;:16::72;:8::74;86:16:86:26:0;;:30::31;:16:::1;:35::45:0;;:48::50;:35:::1;:16;:8::52;89:16:89:24:0;;:28::33;;:16:::1;:8::35;75:4:90:5;;;;;;;94::132::0;;;;;107:34:107:36;;:38::41;;:25::42:1;:48::51:0;;:55::62;;:48:::1;:68::71:0;;:75::82;;:68:::1;:47::83;:88::91:0;;:95::102;;:88:::1;:47::103;:25::104;108:34:108:36:0;;:38::41;;:25::42:1;:48::51:0;;:55::62;;:48:::1;:68::71:0;;:75::82;;:68:::1;:47::83;:88::91:0;;:95::102;;:88:::1;:47::103;:25::104;109:34:109:36:0;;:38::41;;:25::42:1;:48::51:0;;:55::62;;:48:::1;:68::71:0;;:75::82;;:68:::1;:47::83;:88::91:0;;:95::102;;:88:::1;:47::103;:25::104;112:24:112:25:0;113:12:113:21;;:23::49;:35::44;;:47::48;:35:::1;:23::49;;;;114:12:114:21:0;;:23::49;:35::44;;:47::48;:35:::1;:23::49;;;;115:12:115:21:0;;:23::49;:35::44;;:47::48;:35:::1;:23::49;;;;118:16:118:25:0;;:29::46;;:16:::1;:8::48;121:16:121:26:0;;:30::31;:16:::1;:35::45:0;;:48::50;:35:::1;:16;:8::52;122:16:122:25:0;;:37::38;:29::39:1;;:16;;:8::41;123:16:123:22:0;;:25::26;:16:::1;:8::28;126:12:126:23:0;;:26::27;:12:::1;:29:128:9:0;127:20:127:26;;:30::41;;:20:::1;:12::43;126:29:128:9;131:16:131:24:0;;:28::33;;:16:::1;:8::35;94:4:132:5;;;;;8:0:133:1;;",
+    "bytecode": "5879009c635c7a5c79ad000065527978519c635479776878529c63557977685e7978876351537a757c6b7c6c68788b7b75777653a2667c69567a00a0577a00a09a69587900a25979609f9a6951597900a06300657852957b757c768b77765b79a266756856795a7900a06300657852967b757c768b77765c79a26675685297009d5a7a577a7b939d6d6d6d6d7551675879519c635e7a5e79ad000065527978519c635479776878529c6355797768607978876351537a757c6b7c6c68788b7b75777653a2667c695c7900a25d79609f9a695a7a000114808791695a7900a069587900a0635a795979a1696801205c7a529593517800a06300657852957b757c768b77765379a26675685779527900a06300657852967b757c768b77765479a26675685497009d5d7a587a7b939d6d6d6d6d6d6d51675879529c635c7a5c79ad000065527978519c635479776878529c63557977685e7978876351537a757c6b7c6c68788b7b75777653a2667c695a7900a25b79609f9a6901205b7a529593517800a06300657852957b757c768b77765379a26675685779527900a06300657852967b757c768b77765479a26675685497519d5c7a587a7b939d6d6d6d6d6d755167587a539d0000655e7960795279519c630112797b757c01137977685279529c630114797b757c01157977686e7cac7663000065577978519c635979776878529c635a797768557978876351537a757c6b7c6c68788b7b75777653a266786356798b577a757c6b7c6b7c6b7c6b7c6b7c6c6c6c6c6c686d6853798b547a757c6b7c6b7c6c6c6d757653a2667c557aa2695a7900a25b79609f9a69587a00011480879169587900a069577900a06358795879a1696801205a7a529593517800a06300657852957b757c768b77765379a26675685679527900a06300657852967b757c768b77765479a26675685497529d5b7a577a7b939d6d6d6d6d6d6d6d7551686868",
+    "sourceMap": "16:4:65:5;;;;;22:25:22:26;;:28::30;;:8::33:1;24:26:24:31:0;25:18:25:19;26:8:38:26;27:29:27:36;;28:16:28:19;:23::24;:16:::1;:26:30:13:0;29::29:33;;:16::34:1;28:26:30:13;31:16:31:19:0;:23::24;:16:::1;:26:33:13:0;32::32:33;;:16::34:1;31:26:33:13;34:16:34:18:0;;:22::29;:16:::1;:31:36:13:0;35:29:35:33;:16::34:1;;;;;;;34:31:36:13;37:18:37:21:0;:::25:1;:12::26;;26:11:38:9;38:17::20:0;:23::24;26:8::26:1;;39:16:39::0;:8::28:1;41:16:41:29:0;;:32::33;:16:::1;:37::51:0;;:54::55;:37:::1;:16;:8::57;42:16:42:27:0;;:31::32;:16:::1;:36::47:0;;:50::52;:36:::1;:16;:8::54;44:24:44:25:0;45:12:45:23;;:26::27;:12:::1;:29:51:9:0;46:25:46:26;47:12:50:43;48:28:48:37;:40::41;:28:::1;:16::42;;;49:25:49:31:0;:::35:1;:16::36;50:21:50:27:0;:30::41;;47:12::43:1;;45:29:51:9;;53:27:53:32:0;;54:12:54:23;;:26::27;:12:::1;:29:60:9:0;55:27:55:28;56:12:59:45;57:31:57:43;:46::47;:31:::1;:16::48;;;58:27:58:35:0;:::39:1;:16::40;59:21:59:29:0;:32::43;;56:12::45:1;;54:29:60:9;;61:38:61:39:0;:23:::1;62:28:62:29:0;:8::31:1;64:16:64:33:0;;:37::42;;:45::54;:37:::1;:8::56;16:4:65:5;;;;;;;67::124::0;;;;;75:25:75:26;;:28::30;;:8::33:1;77:26:77:31:0;78:18:78:19;79:8:91:26;80:29:80:36;;81:16:81:19;:23::24;:16:::1;:26:83:13:0;82::82:33;;:16::34:1;81:26:83:13;84:16:84:19:0;:23::24;:16:::1;:26:86:13:0;85::85:33;;:16::34:1;84:26:86:13;87:16:87:18:0;;:22::29;:16:::1;:31:89:13:0;88:29:88:33;:16::34:1;;;;;;;87:31:89:13;90:18:90:21:0;:::25:1;:12::26;;79:11:91:9;91:17::20:0;:23::24;79:8::26:1;;92:16:92::0;:8::28:1;94:16:94:26:0;;:30::31;:16:::1;:35::45:0;;:48::50;:35:::1;:16;:8::52;95:16:95:25:0;;:37::38;:29::39:1;;:16;;:8::41;96:16:96:22:0;;:25::26;:16:::1;:8::28;97:12:97:23:0;;:26::27;:12:::1;:29:99:9:0;98:20:98:26;;:30::41;;:20:::1;:12::43;97:29:99:9;101:20:101:22:0;:25::35;;:38::39;:25:::1;:20;103:22:103:23:0;104:12:104:17;:20::21;:12:::1;:23:110:9:0;105:25:105:26;106:12:109:37;107:26:107:33;:36::37;:26:::1;:16::38;;;108:25:108:31:0;:::35:1;:16::36;109:21:109:27:0;:30::35;;106:12::37:1;;104:23:110:9;;112:27:112:32:0;;113:12:113:17;;:20::21;:12:::1;:23:119:9:0;114:27:114:28;115:12:118:39;116:31:116:43;:46::47;:31:::1;:16::48;;;117:27:117:35:0;:::39:1;:16::40;118:21:118:29:0;:32::37;;115:12::39:1;;113:23:119:9;;120:43:120:44:0;:28:::1;121:33:121:34:0;:8::36:1;123:16:123:33:0;;:37::42;;:45::52;:37:::1;:8::54;67:4:124:5;;;;;;;;126::176::0;;;;;132:25:132:26;;:28::30;;:8::33:1;134:26:134:31:0;135:18:135:19;136:8:148:26;137:29:137:36;;138:16:138:19;:23::24;:16:::1;:26:140:13:0;139::139:33;;:16::34:1;138:26:140:13;141:16:141:19:0;:23::24;:16:::1;:26:143:13:0;142::142:33;;:16::34:1;141:26:143:13;144:16:144:18:0;;:22::29;:16:::1;:31:146:13:0;145:29:145:33;:16::34:1;;;;;;;144:31:146:13;147:18:147:21:0;:::25:1;:12::26;;136:11:148:9;148:17::20:0;:23::24;136:8::26:1;;149:16:149::0;:8::28:1;151:16:151:26:0;;:30::31;:16:::1;:35::45:0;;:48::50;:35:::1;:16;:8::52;153:20:153:22:0;:25::35;;:38::39;:25:::1;:20;155:22:155:23:0;156:12:156:17;:20::21;:12:::1;:23:162:9:0;157:25:157:26;158:12:161:37;159:26:159:33;:36::37;:26:::1;:16::38;;;160:25:160:31:0;:::35:1;:16::36;161:21:161:27:0;:30::35;;158:12::37:1;;156:23:162:9;;164:27:164:32:0;;165:12:165:17;;:20::21;:12:::1;:23:171:9:0;166:27:166:28;167:12:170:39;168:31:168:43;:46::47;:31:::1;:16::48;;;169:27:169:35:0;:::39:1;:16::40;170:21:170:29:0;:32::37;;167:12::39:1;;165:23:171:9;;172:43:172:44:0;:28:::1;173:33:173:34:0;:8::36:1;175:16:175:33:0;;:37::42;;:45::52;:37:::1;:8::54;126:4:176:5;;;;;;;;178::261::0;;;;190:20:190:21;191:18:191:19;192:8:228:26;193:31:193:34;;194:29:194:31;;195:16:195:19;;:23::24;:16:::1;:26:198:13:0;196:28:196:31;;:16::32:1;;;197:29:197:31:0;;:16::32:1;195:26:198:13;199:16:199:19:0;;:23::24;:16:::1;:26:202:13:0;200:28:200:31;;:16::32:1;;;201:29:201:31:0;;:16::32:1;199:26:202:13;204:45:204:66:0;;:36::67:1;205:16:205:32:0;:34:225:13;206::206:39;207:31:207:32;208:16:220:39;209:45:209:52;;210:24:210:32;:36::37;:24:::1;:39:212:21:0;211:42:211:49;;:24::50:1;210:39:212:21;213:24:213:32:0;:36::37;:24:::1;:39:215:21:0;214:42:214:49;;:24::50:1;213:39:215:21;216:24:216:33:0;;:37::52;:24:::1;:54:218:21:0;217:37:217:41;:24::42:1;;;;;;;216:54:218:21;219:31:219:39:0;:::43:1;:20::44;;208:19:220:17;220:25::33:0;:36::37;208:16::39:1;;222:20:222:30:0;:32:224:17;223:28:223:33;;:::37:1;:20::38;;;;;;;;;;;;;;;;;;;222:32:224:17;205:34:225:13;;227:18:227:21:0;;:::25:1;:12::26;;;;;;;;;;192:11:228:9;;228:17::20:0;:23::24;192:8::26:1;;229:16:229:21:0;:25::42;;:16:::1;:8::44;231:16:231:26:0;;:30::31;:16:::1;:35::45:0;;:48::50;:35:::1;:16;:8::52;232:16:232:25:0;;:37::38;:29::39:1;;:16;;:8::41;233:16:233:22:0;;:25::26;:16:::1;:8::28;234:12:234:23:0;;:26::27;:12:::1;:29:236:9:0;235:20:235:26;;:30::41;;:20:::1;:12::43;234:29:236:9;238:20:238:22:0;:25::35;;:38::39;:25:::1;:20;240:22:240:23:0;241:12:241:17;:20::21;:12:::1;:23:247:9:0;242:25:242:26;243:12:246:37;244:26:244:33;:36::37;:26:::1;:16::38;;;245:25:245:31:0;:::35:1;:16::36;246:21:246:27:0;:30::35;;243:12::37:1;;241:23:247:9;;249:27:249:32:0;;250:12:250:17;;:20::21;:12:::1;:23:256:9:0;251:27:251:28;252:12:255:39;253:31:253:43;:46::47;:31:::1;:16::48;;;254:27:254:35:0;:::39:1;:16::40;255:21:255:29:0;:32::37;;252:12::39:1;;250:23:256:9;;257:43:257:44:0;:28:::1;258:33:258:34:0;:8::36:1;260:16:260:33:0;;:37::42;;:45::52;:37:::1;:8::54;178:4:261:5;;;;;;;;;6:0:262:1;;",
     "logs": [],
     "requires": [
       {
-        "ip": 18,
-        "line": 34
+        "ip": 17,
+        "line": 22
       },
       {
-        "ip": 36,
-        "line": 35
-      },
-      {
-        "ip": 46,
-        "line": 38
-      },
-      {
-        "ip": 56,
+        "ip": 63,
         "line": 39
       },
       {
-        "ip": 62,
+        "ip": 73,
+        "line": 41
+      },
+      {
+        "ip": 83,
         "line": 42
       },
       {
-        "ip": 76,
-        "line": 56
-      },
-      {
-        "ip": 94,
-        "line": 57
-      },
-      {
-        "ip": 104,
-        "line": 60
-      },
-      {
-        "ip": 112,
-        "line": 61
-      },
-      {
-        "ip": 117,
+        "ip": 136,
         "line": 62
       },
       {
-        "ip": 128,
-        "line": 66
+        "ip": 143,
+        "line": 64
       },
       {
-        "ip": 135,
-        "line": 70
+        "ip": 160,
+        "line": 75
       },
       {
-        "ip": 154,
-        "line": 82
+        "ip": 206,
+        "line": 92
       },
       {
-        "ip": 172,
-        "line": 83
+        "ip": 216,
+        "line": 94
       },
       {
-        "ip": 182,
-        "line": 86
+        "ip": 224,
+        "line": 95
       },
       {
-        "ip": 188,
-        "line": 89
+        "ip": 229,
+        "line": 96
       },
       {
-        "ip": 309,
-        "line": 118
+        "ip": 240,
+        "line": 98
       },
       {
-        "ip": 319,
+        "ip": 299,
         "line": 121
       },
       {
-        "ip": 327,
-        "line": 122
-      },
-      {
-        "ip": 332,
+        "ip": 306,
         "line": 123
       },
       {
-        "ip": 343,
-        "line": 127
+        "ip": 324,
+        "line": 132
       },
       {
-        "ip": 350,
-        "line": 131
+        "ip": 370,
+        "line": 149
+      },
+      {
+        "ip": 380,
+        "line": 151
+      },
+      {
+        "ip": 438,
+        "line": 173
+      },
+      {
+        "ip": 445,
+        "line": 175
+      },
+      {
+        "ip": 592,
+        "line": 229
+      },
+      {
+        "ip": 602,
+        "line": 231
+      },
+      {
+        "ip": 610,
+        "line": 232
+      },
+      {
+        "ip": 615,
+        "line": 233
+      },
+      {
+        "ip": 626,
+        "line": 235
+      },
+      {
+        "ip": 685,
+        "line": 258
+      },
+      {
+        "ip": 692,
+        "line": 260
       }
     ]
   },
   "compiler": {
     "name": "cashc",
-    "version": "0.10.5"
+    "version": "0.13.0-next.1"
   },
-  "updatedAt": "2025-11-21T16:35:50.916Z"
+  "updatedAt": "2025-11-23T10:26:44.193Z"
 }

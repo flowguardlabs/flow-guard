@@ -147,7 +147,11 @@ export default function VaultDetailPage() {
       } else {
         // No contract address or wallet not fully connected - use database approval
         await approveProposal(proposalId, wallet.address);
-        alert('SUCCESS: Approval recorded in database.');
+        alert(
+          'SUCCESS: Approval recorded in FlowGuard database only.\n\n' +
+          'No blockchain transaction was created for this approval. ' +
+          'Use on-chain approvals when you are ready to exercise full covenant security.'
+        );
       }
 
       // Reload proposals
@@ -157,7 +161,16 @@ export default function VaultDetailPage() {
       }
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to approve proposal';
-      alert(`ERROR: Approval Failed\n\n${errorMsg}\n\nPlease try again or contact support if the issue persists.`);
+      // Provide more specific error messages for common covenant validation failures
+      let userFriendlyMsg = errorMsg;
+      if (errorMsg.includes('not pending') || errorMsg.includes('state')) {
+        userFriendlyMsg = 'Proposal state validation failed. The proposal may have already been approved or executed on-chain.';
+      } else if (errorMsg.includes('Signer not authorized') || errorMsg.includes('not authorized')) {
+        userFriendlyMsg = 'You are not authorized to approve this proposal. Only designated signers can approve proposals.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+        userFriendlyMsg = 'Network connection error. Please check your internet connection and try again.';
+      }
+      alert(`ERROR: Approval Failed\n\n${userFriendlyMsg}\n\nPlease try again or contact support if the issue persists.`);
     } finally {
       setApprovingProposalId(null);
     }
@@ -227,11 +240,23 @@ export default function VaultDetailPage() {
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to execute payout';
       console.error('Payout execution failed:', err);
+      // Provide more specific error messages for covenant validation failures
+      let userFriendlyMsg = errorMsg;
+      if (errorMsg.includes('not approved') || errorMsg.includes('state')) {
+        userFriendlyMsg = 'Proposal state validation failed. The proposal must be approved on-chain before execution.';
+      } else if (errorMsg.includes('threshold') || errorMsg.includes('signatures')) {
+        userFriendlyMsg = `Insufficient signatures. This payout requires ${vault.approvalThreshold} signer approvals.`;
+      } else if (errorMsg.includes('spending cap') || errorMsg.includes('exceeds')) {
+        userFriendlyMsg = 'Amount exceeds the vault spending cap. Please adjust the proposal amount.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+        userFriendlyMsg = 'Network connection error. Please check your internet connection and try again.';
+      }
       alert(
         `ERROR: Payout Execution Failed\n\n` +
-        `${errorMsg}\n\n` +
+        `${userFriendlyMsg}\n\n` +
         `Possible reasons:\n` +
-        `• Insufficient approvals\n` +
+        `• Insufficient approvals (requires ${vault.approvalThreshold} signers)\n` +
+        `• Proposal not approved on-chain\n` +
         `• Wallet signature rejected\n` +
         `• Network error\n\n` +
         `Please check the proposal status and try again.`
@@ -313,11 +338,23 @@ export default function VaultDetailPage() {
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to unlock cycle';
       console.error('Cycle unlock failed:', err);
+      // Provide more specific error messages for covenant validation failures
+      let userFriendlyMsg = errorMsg;
+      if (errorMsg.includes('cannot be unlocked') || errorMsg.includes('not eligible')) {
+        userFriendlyMsg = `Cycle #${cycleNumber} is not yet eligible for unlock. Cycles unlock based on the vault's cycle duration.`;
+      } else if (errorMsg.includes('state') || errorMsg.includes('already unlocked')) {
+        userFriendlyMsg = 'Cycle state validation failed. This cycle may have already been unlocked on-chain.';
+      } else if (errorMsg.includes('Signer not authorized') || errorMsg.includes('not authorized')) {
+        userFriendlyMsg = 'You are not authorized to unlock cycles. Only designated signers can unlock cycles.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+        userFriendlyMsg = 'Network connection error. Please check your internet connection and try again.';
+      }
       alert(
         `ERROR: Cycle Unlock Failed\n\n` +
-        `${errorMsg}\n\n` +
+        `${userFriendlyMsg}\n\n` +
         `Possible reasons:\n` +
-        `• Cycle not yet eligible for unlock\n` +
+        `• Cycle not yet eligible for unlock (check cycle duration)\n` +
+        `• Cycle already unlocked on-chain\n` +
         `• Insufficient signer approvals\n` +
         `• Wallet signature rejected\n` +
         `• Network error\n\n` +

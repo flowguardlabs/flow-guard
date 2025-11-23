@@ -9,7 +9,7 @@ const router = Router();
 // Get cycle history for a vault
 router.get('/vaults/:vaultId/cycles', (req, res) => {
   try {
-    const stmt = db.prepare('SELECT * FROM cycles WHERE vault_id = ? ORDER BY cycle_number DESC');
+    const stmt = db!.prepare('SELECT * FROM cycles WHERE vault_id = ? ORDER BY cycle_number DESC');
     const rows = stmt.all(req.params.vaultId) as any[];
     
     const cycles = rows.map(row => ({
@@ -33,7 +33,7 @@ router.get('/vaults/:vaultId/cycles', (req, res) => {
 // Get current cycle for a vault
 router.get('/vaults/:vaultId/cycles/current', (req, res) => {
   try {
-    const stmt = db.prepare(`
+    const stmt = db!.prepare(`
       SELECT * FROM cycles 
       WHERE vault_id = ? 
       ORDER BY cycle_number DESC 
