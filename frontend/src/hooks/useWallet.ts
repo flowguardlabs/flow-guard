@@ -14,6 +14,7 @@ import {
 } from '../types/wallet';
 import { BCHExtensionConnector } from '../services/wallets/bch-extension-connector';
 import { MainnetConnector } from '../services/wallets/mainnet-connector';
+import { ElectronCashConnector } from '../services/wallets/electron-cash-connector';
 
 type UseWalletReturn = WalletState & WalletActions;
 
@@ -98,6 +99,14 @@ export function useWallet(): UseWalletReturn {
           // Default to chipnet for development
           newConnector = new MainnetConnector('chipnet');
           break;
+        case WalletType.ELECTRON_CASH:
+          // Electron Cash RPC connection
+          // Users can configure RPC settings via environment or localStorage
+          const rpcUrl = localStorage.getItem('electron_cash_rpc_url') || 'http://localhost:8332';
+          const rpcUser = localStorage.getItem('electron_cash_rpc_user') || 'user';
+          const rpcPassword = localStorage.getItem('electron_cash_rpc_password') || 'pass';
+          newConnector = new ElectronCashConnector(rpcUrl, rpcUser, rpcPassword);
+          break;
         default:
           throw new Error('Unsupported wallet type');
       }
@@ -108,6 +117,8 @@ export function useWallet(): UseWalletReturn {
         throw new Error(
           walletType === WalletType.BCH_EXTENSION
             ? 'BCH wallet extension not found. Please install Badger or Paytaca wallet.'
+            : walletType === WalletType.ELECTRON_CASH
+            ? 'Electron Cash RPC not available. Please ensure Electron Cash is running with RPC enabled.'
             : 'mainnet.cash library not available'
         );
       }
@@ -209,6 +220,26 @@ export function useWallet(): UseWalletReturn {
   );
 
   /**
+   * Sign raw transaction hex (if supported by wallet)
+   * Electron Cash has excellent support for this
+   */
+  const signRawTransaction = useCallback(
+    async (txHex: string): Promise<string> => {
+      if (!connector) {
+        throw new Error('Wallet not connected');
+      }
+
+      // Check if connector supports raw transaction signing
+      if ('signRawTransaction' in connector && typeof (connector as any).signRawTransaction === 'function') {
+        return (connector as any).signRawTransaction(txHex);
+      }
+
+      throw new Error('Wallet does not support raw transaction signing');
+    },
+    [connector]
+  );
+
+  /**
    * Get public key from connected wallet
    */
   const getPublicKey = useCallback(async (): Promise<string | null> => {
@@ -246,6 +277,7 @@ export function useWallet(): UseWalletReturn {
     disconnect,
     getPublicKey, // NEW: Expose public key getter
     signTransaction,
+    signRawTransaction: state.walletType === WalletType.ELECTRON_CASH ? signRawTransaction : undefined,
     signMessage,
     refreshBalance,
   };

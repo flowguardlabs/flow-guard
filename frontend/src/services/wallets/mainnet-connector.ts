@@ -246,6 +246,7 @@ export class MainnetConnector implements IWalletConnector {
 
   /**
    * Sign and send transaction
+   * Note: For covenant transactions, we need raw hex signing
    */
   async signTransaction(tx: Transaction): Promise<SignedTransaction> {
     if (!this.wallet) {
@@ -253,7 +254,21 @@ export class MainnetConnector implements IWalletConnector {
     }
 
     try {
-      // Send BCH transaction
+      // Check if transaction has raw hex data (for covenant transactions)
+      if (tx.data && typeof tx.data === 'string' && tx.data.length > 100) {
+        // This is likely a raw transaction hex for a covenant transaction
+        // mainnet-js may support signing raw transactions differently
+        // For now, we'll need to handle this case specially
+        
+        // Try to use mainnet-js's ability to sign raw transactions if available
+        // Note: This may require additional implementation based on mainnet-js API
+        throw new Error(
+          'Covenant transaction signing requires special handling. ' +
+          'Please use the on-chain transaction flow through the backend API.'
+        );
+      }
+
+      // For simple sends, use the standard send method
       const response = await this.wallet.send([
         {
           cashaddr: tx.to,
@@ -278,6 +293,21 @@ export class MainnetConnector implements IWalletConnector {
       console.error('Failed to sign transaction:', error);
       throw new Error('Failed to sign transaction');
     }
+  }
+
+  /**
+   * Sign raw transaction hex (if supported)
+   * This is required for covenant transactions
+   */
+  async signRawTransaction?(_txHex: string): Promise<string> {
+    if (!this.wallet) {
+      throw new Error('Wallet not connected');
+    }
+
+    // mainnet-js may have methods to sign raw transactions
+    // This would need to be implemented based on mainnet-js API capabilities
+    // For now, throw error as this feature needs proper implementation
+    throw new Error('Raw transaction signing not yet implemented for mainnet.cash wallet');
   }
 
   /**
