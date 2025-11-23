@@ -3,9 +3,7 @@ services:
   - type: web
     name: flowguard-backend
     runtime: docker
-    repo: https://github.com/Goodnessmbakara/flow-guard.git
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: starter
     region: oregon
@@ -31,9 +29,7 @@ services:
   - type: web
     name: flowguard-frontend
     runtime: docker
-    repo: https://github.com/Goodnessmbakara/flow-guard.git
-    rootDir: frontend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     plan: starter
     region: oregon
@@ -42,8 +38,8 @@ services:
       - key: FRONTEND_PORT
         value: 80
       - key: VITE_API_URL
-        # This will be set to the backend's external URL
-        # Update this after deployment with the actual backend URL
+        # Update this after backend deployment with actual backend URL
+        # Format: https://flowguard-backend.onrender.com/api
         value: https://flowguard-backend.onrender.com/api
       - key: VITE_BCH_NETWORK
         value: chipnet
