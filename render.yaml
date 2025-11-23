@@ -1,10 +1,9 @@
 services:
-  # Backend API Service
+  # Unified FlowGuard Service (Backend + Frontend)
   - type: web
-    name: flowguard-backend
+    name: flowguard
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    dockerfilePath: ./Dockerfile
     plan: starter
     region: oregon
     healthCheckPath: /health
@@ -16,33 +15,15 @@ services:
       - key: BCH_NETWORK
         value: chipnet
       - key: DATABASE_PATH
-        value: /opt/data/flowguard.db
-    disk:
-      name: flowguard-data
-      mountPath: /opt/data
-      sizeGB: 1
-    scaling:
-      minInstances: 1
-      maxInstances: 1
-
-  # Frontend Web Service
-  - type: web
-    name: flowguard-frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: ./frontend
-    plan: starter
-    region: oregon
-    healthCheckPath: /
-    envVars:
-      - key: FRONTEND_PORT
-        value: 80
+        value: /app/data/flowguard.db
       - key: VITE_API_URL
-        # Update this after backend deployment with actual backend URL
-        # Format: https://flowguard-backend.onrender.com/api
-        value: https://flowguard-backend.onrender.com/api
+        value: http://localhost:3001/api
       - key: VITE_BCH_NETWORK
         value: chipnet
+    disk:
+      name: flowguard-data
+      mountPath: /app/data
+      sizeGB: 1
     scaling:
       minInstances: 1
       maxInstances: 1
