@@ -20,7 +20,9 @@
 
 ## 🎯 Mission
 
-Provide BCH-native teams, DAOs, and open-source projects with a safe, automated, on-chain treasury management system powered by Layla CHIPs (Loops, P2S, Bitwise, Functions).
+We're building a treasury management system for Bitcoin Cash teams that actually makes sense. No custodial risk, no manual spreadsheets, no trust required. Just on-chain rules that execute automatically.
+
+Think of it like a smart multisig wallet that can handle recurring payments, spending limits, and multi-party approvals - all enforced by Bitcoin Cash covenants.
 
 ## ✨ Features
 
@@ -46,7 +48,7 @@ Built for Bitcoin Cash's advanced covenant technology:
 - **Bitwise**: Efficient state encoding
 - **Functions**: Modular contract logic
 
-**Current Status**: FlowGuard is production-ready with basic multisig (FlowGuardDemo.cash) on chipnet NOW, with advanced Layla CHIP contracts (loops.cash, FlowGuard.cash, bitwise.cash, functions.cash) ready to deploy when CHIPs activate.
+**Current Status**: We've got a working version on chipnet right now. The basic multisig contract is deployed and handling real transactions. The advanced contracts using all four Layla CHIPs are written and tested, but they're waiting for the CHIPs to activate on chipnet (November 2025).
 
 ## 🏗️ Architecture
 
@@ -253,9 +255,9 @@ All contract code is open source and auditable. No black boxes, no hidden logic.
 
 ⚠️ **Testnet Notice**: FlowGuard is currently deployed on Bitcoin Cash chipnet (testnet). Do not use real funds. Contracts have not been formally audited.
 
-## 🏆 Chipnet Track & Layla CHIPs Mastery
+## 🏆 Chipnet Track & Layla CHIPs
 
-FlowGuard demonstrates **complete mastery** of all four Layla CHIPs for the Chipnet Track:
+We're participating in the Chipnet Track and have implemented all four Layla CHIPs:
 
 ### 📅 CHIP Activation Timeline
 All Layla CHIPs activate on:
@@ -264,115 +266,111 @@ All Layla CHIPs activate on:
 
 Source: [BCH Loops](https://github.com/bitjson/bch-loops), [BCH Bitwise](https://github.com/bitjson/bch-bitwise), [BCH P2S](https://github.com/bitjson/bch-p2s), [BCH Functions](https://github.com/bitjson/bch-functions)
 
-### ✅ Phase 1: Working on Chipnet NOW
-**FlowGuardEnhanced.cash** - Production-ready multisig treasury
-- ✅ Deployed and working on BCH chipnet
-- ✅ Multi-signature approvals (2-of-3, 3-of-3 configurable)
-- ✅ Real on-chain contract deployment and interaction
-- ✅ Live blockchain balance monitoring (30s intervals)
-- ✅ Full end-to-end flow: wallet connection → vault creation → contract deployment
-- ✅ On-chain proposal creation with wallet signing
-- ✅ On-chain proposal approvals with multi-signature validation
-- ✅ Execute payout functionality with transaction broadcasting
-- ✅ Unlock cycle functionality with time-based validation
-- ✅ Transaction history tracking with blockchain explorer integration
+### What's Live Right Now
 
-**🎯 Live Deployment Proof:**
-- **Contract Address:** `bchtest:pvwj657cm4wmjruparrs7c899370ldx6t3u0cyfj574rjh5mrjqajtue6w8dm`
-- **Balance:** 0.01015 BCH (1,015,000 satoshis)
-- **Explorer:** [View on Imaginary Cash](https://chipnet.imaginary.cash/address/bchtest:pvwj657cm4wmjruparrs7c899370ldx6t3u0cyfj574rjh5mrjqajtue6w8dm)
-- **Status:** ✅ Funded and operational with real on-chain transactions!
+**FlowGuardEnhanced.cash** - Our working multisig treasury contract
+- Deployed on BCH chipnet and handling real transactions
+- Multi-signature approvals (you can configure 2-of-3, 3-of-3, etc.)
+- Full workflow: create vault → make proposals → get approvals → execute payouts
+- Automatic balance tracking (checks every 30 seconds)
+- Transaction history with links to blockchain explorers
+- Wallet integration with Paytaca, Badger, and mainnet.cash
 
-### 🎯 Phase 2: CHIP Mastery Demonstrated
-**Advanced Contracts** - Complete implementation of all four Layla CHIPs
+You can actually use this right now on chipnet. It's not just a demo - it's a real working system.
 
-#### 1️⃣ **Loops** (`loops.cash`)
-Automated recurring unlock cycles for budget releases:
-```
-✓ OP_BEGIN / OP_UNTIL loop constructions
-✓ Time-based unlock windows (weekly/monthly/quarterly)
-✓ Cycle number calculation and tracking
-✓ Automated fund releases without manual triggers
-```
+### The Advanced Contracts (Ready to Deploy)
 
-#### 2️⃣ **Bitwise** (`bitwise.cash`)
-Compact on-chain state management:
-```
-✓ OP_INVERT, OP_LSHIFT, OP_RSHIFT operations
-✓ Efficient state encoding (cycles, proposals, approvals)
-✓ Bit flags for unlock/spend/proposal status
-✓ Reduces transaction size by 60%+
-```
+We've written contracts that use all four Layla CHIPs. They're tested and ready, but waiting for the CHIPs to activate.
 
-#### 3️⃣ **P2S - Pay to Script** (`FlowGuard.cash`)
-Direct covenant enforcement without P2SH wrapper:
-```
-✓ Direct locking bytecode usage
-✓ Enhanced security and validation
-✓ Supports 128-byte token commitments (vs 40-byte limit)
-✓ Removes standard input bytecode length limits
-```
+**Loops** (`loops.cash`) - For automated recurring unlocks
+- Uses OP_BEGIN / OP_UNTIL to handle time-based cycles
+- Calculates which unlock cycle we're in automatically
+- No manual triggers needed - it just works on schedule
 
-④ **Functions** (`functions.cash`)
-Modular, reusable contract logic:
-```
-✓ OP_DEFINE and OP_INVOKE for contract factoring
-✓ hasApproval() - Multi-signature validation
-✓ isSigner() - Permission checking
-✓ isAllowedSpending() - Budget guardrails
-✓ Reduced transaction sizes, improved auditability
-```
+**Bitwise** (`bitwise.cash`) - For efficient state management  
+- Uses bitwise operations to pack state into smaller transactions
+- Tracks cycles, proposals, and approvals in a compact format
+- Saves on transaction fees by reducing data size
 
-**Technical Achievement**: FlowGuard integrates ALL FOUR CHIPs into a cohesive treasury system, demonstrating advanced covenant programming and optimization techniques.
+**P2S** (`FlowGuard.cash`) - Direct covenant addressing
+- No P2SH wrapper needed - direct locking bytecode
+- More secure and flexible than traditional P2SH
+- Supports larger token commitments if needed
+
+**Functions** (`functions.cash`) - Modular contract logic
+- Reusable functions for common operations
+- Cleaner code, easier to audit
+- Functions like `hasApproval()`, `isSigner()`, `isAllowedSpending()`
+
+Once the CHIPs activate, we'll deploy these and they'll make the system more efficient and powerful. But the current version works great for now.
 
 ## 🛣️ Roadmap
 
-### ✅ Phase 1: Chipnet Track Submission (COMPLETE)
-**Working NOW on Chipnet:**
-- [x] Multi-signature vault creation (FlowGuardEnhanced.cash deployed)
-- [x] Real blockchain integration - contracts on BCH chipnet
-- [x] Live balance monitoring (30s intervals)
-- [x] Proposal creation and approval workflow (database + on-chain)
-- [x] On-chain proposal creation with wallet signing
-- [x] On-chain proposal approvals with signature validation
-- [x] Execute payout with multi-signature transaction broadcasting
-- [x] Unlock cycle with time-based validation
-- [x] Transaction history with blockchain explorer links
-- [x] Frontend wallet integration (Paytaca, Badger, mainnet.cash)
-- [x] Backend API with automatic balance tracking
-- [x] Lucide React icons for consistent UI
+### What We've Built So Far
 
-**CHIP Mastery Demonstrated:**
-- [x] Loops - Automated recurring unlocks (loops.cash written)
-- [x] Bitwise - Efficient state management (bitwise.cash written)
-- [x] P2S - Direct covenant enforcement (FlowGuard.cash written)
-- [x] Functions - Modular contract logic (functions.cash written)
-- [x] Technical documentation of all CHIP usage
-- [x] Integration examples and optimization metrics
+We've got a working MVP on chipnet right now. You can create vaults, make proposals, get approvals, and execute payouts - all on-chain. The basic multisig contract is deployed and handling real transactions.
 
-### 🔮 Phase 2: CHIP Activation (Nov 15, 2025)
-- [ ] Deploy advanced contracts when CHIPs activate on chipnet
-- [ ] Migrate existing vaults to CHIP-enabled contracts
-- [ ] Enable Loop-based recurring unlocks
-- [ ] Activate Bitwise state compression
-- [ ] Enable P2S direct addressing
-- [ ] Deploy modular Functions
+**What's Working:**
+- Multi-signature vault creation with on-chain deployment
+- Real-time balance monitoring every 30 seconds
+- Proposal workflow (create → approve → execute)
+- Wallet integration with Paytaca, Badger, and mainnet.cash
+- Transaction confirmation modals for better UX
+- Full transaction history with explorer links
+- Deposit flow with automatic balance updates
 
-### 🚀 Phase 3: Production
-- [ ] Security audit of all contracts
-- [ ] Mainnet deployment
-- [ ] Mobile wallet support
-- [ ] Enhanced analytics dashboard
+**The Advanced Contracts:**
+We've written contracts that use all four Layla CHIPs (Loops, Bitwise, P2S, Functions), but they're waiting for the CHIPs to activate on chipnet. Once that happens in November 2025, we'll deploy them and migrate existing vaults.
+
+### What's Next
+
+**Before CHIP Activation (Now - Nov 2025):**
+- Polish the UI/UX based on user feedback
+- Add more wallet options (mobile wallets, hardware wallets)
+- Improve error handling and edge cases
+- Write better documentation for end users
+- Maybe add some analytics so teams can track their spending
+
+**After CHIP Activation (Nov 2025 - May 2026):**
+- Deploy the advanced contracts that use Loops, Bitwise, P2S, and Functions
+- Migrate existing vaults to the new contracts (we'll make this seamless)
+- Enable true automated recurring unlocks (right now it's manual triggers)
+- Optimize transaction sizes with bitwise state compression
+- Test everything thoroughly on chipnet before mainnet
+
+**Mainnet Launch (May 2026+):**
+- Get a proper security audit (this is important for real money)
+- Deploy to mainnet once CHIPs activate there
+- Build out mobile support
+- Add more advanced features like spending categories, budgets, etc.
+- Maybe integrate with other BCH tools in the ecosystem
+
+**Long Term:**
+- Governance features for DAOs
+- Integration with other DeFi protocols on BCH
+- Multi-currency support (if tokens become a thing)
+- Whatever the community asks for
+
+We're building this in the open, so if you have ideas or want to contribute, jump in! The roadmap is flexible and we're always open to feedback.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
+We'd love your help! This is a community project and we're always looking for contributors.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Here's how to get started:
+1. Fork the repo and clone it
+2. Create a branch for your changes
+3. Make your changes (and test them!)
+4. Open a pull request with a clear description
+
+We're especially interested in:
+- Bug fixes and improvements
+- UI/UX enhancements
+- Documentation improvements
+- Testing and edge case handling
+- New features that make sense for treasury management
+
+If you're not sure where to start, check the issues or just ask. We're friendly!
 
 
 ## 📄 License
