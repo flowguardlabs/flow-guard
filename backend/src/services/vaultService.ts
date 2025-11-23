@@ -21,6 +21,8 @@ export class VaultService {
     try {
       const contractService = new ContractService('chipnet');
       const startTimeUnix = Math.floor(Date.now() / 1000);
+      // Convert spendingCap from BCH to satoshis for contract deployment
+      const spendingCapSatoshis = Math.floor((dto.spendingCap || 0) * 100000000);
       const deployment = await contractService.deployVault(
         dto.signerPubkeys[0],
         dto.signerPubkeys[1],
@@ -29,7 +31,7 @@ export class VaultService {
         0, // Initial state
         dto.cycleDuration,
         startTimeUnix,
-        dto.spendingCap
+        spendingCapSatoshis
       );
 
       contractAddress = deployment.contractAddress;
@@ -257,6 +259,48 @@ export class VaultService {
     stmt.run(JSON.stringify(updatedSigners), vaultId);
 
     return this.getVaultByVaultId(vaultId)!;
+  }
+
+  /**
+   * Update vault balance after deposit
+   * @param vaultId The vault database ID
+   * @param amount The amount to add to balance (in BCH)
+   * @param txid Optional transaction ID for tracking
+   */
+  static updateBalance(vaultId: string, amount: number, txid?: string): Vault {
+    const vault = this.getVaultById(vaultId);
+    if (!vault) {
+      throw new Error('Vault not found');
+    }
+
+    // Update balance (add to existing balance)
+    const newBalance = (vault.balance || 0) + amount;
+
+    const stmt = db!.prepare(`
+      UPDATE vaults 
+      SET balance = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `);
+    stmt.run(newBalance, vaultId);
+
+    // Optionally log the transaction
+    if (txid) {
+      const txStmt = db!.prepare(`
+        INSERT INTO transactions (id, txid, vault_id, type, amount, to_address, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      txStmt.run(
+        randomUUID(),
+        txid,
+        vault.vaultId,
+        'deposit',
+        amount,
+        vault.contractAddress || null,
+        'confirmed'
+      );
+    }
+
+    return this.getVaultById(vaultId)!;
   }
 }
 

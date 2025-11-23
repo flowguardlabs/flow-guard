@@ -152,5 +152,66 @@ router.post('/:id/signers', (req, res) => {
   }
 });
 
+// Get deposit information for a vault
+// Returns contract address and amount details for frontend to use
+router.get('/:id/deposit', (req, res) => {
+  try {
+    const vault = VaultService.getVaultById(req.params.id);
+    if (!vault) {
+      return res.status(404).json({ error: 'Vault not found' });
+    }
+
+    const userAddress = req.headers['x-user-address'] as string || 'unknown';
+    
+    // Only creator can deposit initially
+    if (!VaultService.isCreator(vault, userAddress)) {
+      return res.status(403).json({ error: 'Only the vault creator can deposit funds' });
+    }
+
+    if (!vault.contractAddress) {
+      return res.status(400).json({ error: 'Vault contract address not available' });
+    }
+
+    res.json({
+      contractAddress: vault.contractAddress,
+      totalDeposit: vault.totalDeposit,
+      currentBalance: vault.balance || 0,
+      amountToDeposit: vault.totalDeposit - (vault.balance || 0),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update vault balance after deposit
+router.post('/:id/update-balance', (req, res) => {
+  try {
+    const { txid, amount } = req.body;
+    const userAddress = req.headers['x-user-address'] as string || 'unknown';
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Valid amount is required' });
+    }
+
+    const vault = VaultService.getVaultById(req.params.id);
+    if (!vault) {
+      return res.status(404).json({ error: 'Vault not found' });
+    }
+
+    // Only creator can update balance (for initial deposit)
+    if (!VaultService.isCreator(vault, userAddress)) {
+      return res.status(403).json({ error: 'Only the vault creator can update balance' });
+    }
+
+    const updatedVault = VaultService.updateBalance(req.params.id, amount, txid);
+    res.json(updatedVault);
+  } catch (error: any) {
+    if (error.message.includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

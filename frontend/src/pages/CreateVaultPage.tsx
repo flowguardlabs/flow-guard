@@ -3,14 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useWallet } from '../hooks/useWallet';
-import { createVault } from '../utils/api';
+import { createVault, updateVaultBalance } from '../utils/api';
+import { depositToVault } from '../utils/blockchain';
 
 export default function CreateVaultPage() {
   const navigate = useNavigate();
   const wallet = useWallet();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [depositStatus, setDepositStatus] = useState<'idle' | 'creating' | 'depositing' | 'updating' | 'success' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [txid, setTxid] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -71,6 +74,8 @@ export default function CreateVaultPage() {
 
     setIsSubmitting(true);
     setError(null);
+    setDepositStatus('creating');
+    setTxid(null);
 
     try {
       // Filter out empty signers and public keys
@@ -85,7 +90,7 @@ export default function CreateVaultPage() {
         spendingCap: formData.spendingCap ? parseFloat(formData.spendingCap) : 0,
         approvalThreshold: parseInt(formData.approvalThreshold),
         signers: validSigners,
-        signerPubkeys: validPubkeys, // NEW: Include public keys for blockchain deployment
+        signerPubkeys: validPubkeys,
         cycleDuration: parseInt(formData.cycleDuration),
         unlockAmount: parseFloat(formData.unlockAmount),
         isPublic: formData.isPublic,
@@ -108,16 +113,71 @@ export default function CreateVaultPage() {
         throw new Error('Number of signers must be at least the approval threshold');
       }
 
-      // Create vault via API
+      // Validate wallet balance before proceeding
+      if (wallet.balance) {
+        const walletBalanceBCH = wallet.balance.bch || 0;
+        const requiredAmount = vaultData.totalDeposit + 0.0001; // Add small buffer for fees
+        
+        if (walletBalanceBCH < requiredAmount) {
+          throw new Error(
+            `Insufficient balance. You have ${walletBalanceBCH.toFixed(4)} BCH, but need ${requiredAmount.toFixed(4)} BCH (including fees).`
+          );
+        }
+      }
+
+      // Step 1: Create vault (deploy contract)
+      setDepositStatus('creating');
       const newVault = await createVault(vaultData, wallet.address);
 
-      // TODO: Sign transaction with wallet to deposit funds to vault
-      // This would involve calling wallet.signTransaction with the vault contract
+      if (!newVault.contractAddress) {
+        throw new Error('Vault created but contract address not available. Please try again.');
+      }
+
+      // Step 2: Deposit funds to vault contract
+      if (vaultData.totalDeposit > 0) {
+        setDepositStatus('depositing');
+        
+        try {
+          // Deposit BCH to the contract address
+          const depositTxid = await depositToVault(
+            wallet,
+            newVault.contractAddress,
+            vaultData.totalDeposit
+          );
+
+          setTxid(depositTxid);
+
+          // Step 3: Update vault balance in database
+          setDepositStatus('updating');
+          await updateVaultBalance(
+            newVault.id,
+            depositTxid,
+            vaultData.totalDeposit,
+            wallet.address
+          );
+
+          setDepositStatus('success');
+          
+          // Small delay to show success message
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch (depositError: any) {
+          // If deposit fails, vault is still created but not funded
+          // User can deposit later from vault detail page
+          setDepositStatus('error');
+          throw new Error(
+            `Vault created successfully, but deposit failed: ${depositError.message}. ` +
+            `You can deposit funds later from the vault detail page.`
+          );
+        }
+      } else {
+        setDepositStatus('success');
+      }
 
       // Navigate to vault detail page
       navigate(`/vaults/${newVault.id}`);
     } catch (err: any) {
       setError(err.message || 'Failed to create vault');
+      setDepositStatus('error');
       setIsSubmitting(false);
     }
   };
@@ -137,6 +197,60 @@ export default function CreateVaultPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-red-800 dark:text-red-200">{error}</p>
+          </div>
+        )}
+
+        {/* Deposit Status Display */}
+        {isSubmitting && depositStatus !== 'idle' && (
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            {depositStatus === 'creating' && (
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <p className="text-blue-800 dark:text-blue-200">
+                  Creating vault and deploying contract...
+                </p>
+              </div>
+            )}
+            {depositStatus === 'depositing' && (
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <p className="text-blue-800 dark:text-blue-200">
+                  Depositing {formData.depositAmount} BCH to vault... Please confirm the transaction in your wallet.
+                </p>
+              </div>
+            )}
+            {depositStatus === 'updating' && (
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <p className="text-blue-800 dark:text-blue-200">
+                  Updating vault balance...
+                </p>
+              </div>
+            )}
+            {depositStatus === 'success' && (
+              <div className="flex items-center gap-3">
+                <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
+                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="text-green-800 dark:text-green-200">
+                  Vault created and funded successfully!
+                  {txid && (
+                    <span className="block text-sm mt-1">
+                      Transaction: <a 
+                        href={`https://chipnet.imaginary.cash/tx/${txid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                      >
+                        {txid.substring(0, 16)}...
+                      </a>
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -442,7 +556,15 @@ export default function CreateVaultPage() {
               <Button onClick={handleNext}>Next</Button>
             ) : (
               <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? 'Creating Vault...' : 'Create Vault'}
+                {isSubmitting 
+                  ? depositStatus === 'creating' 
+                    ? 'Creating Vault...' 
+                    : depositStatus === 'depositing'
+                    ? 'Depositing Funds...'
+                    : depositStatus === 'updating'
+                    ? 'Updating Balance...'
+                    : 'Processing...'
+                  : 'Create Vault'}
               </Button>
             )}
           </div>

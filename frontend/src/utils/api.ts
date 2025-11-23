@@ -141,3 +141,38 @@ export async function broadcastTransaction(
   return response.json();
 }
 
+export async function getDepositInfo(vaultId: string, userAddress: string): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/vaults/${vaultId}/deposit`, {
+    method: 'GET',
+    headers: {
+      'x-user-address': userAddress,
+    },
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to get deposit info' }));
+    throw new Error(error.error || 'Failed to get deposit info');
+  }
+  return response.json();
+}
+
+export async function updateVaultBalance(
+  vaultId: string,
+  txid: string,
+  amount: number,
+  userAddress: string
+): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/vaults/${vaultId}/update-balance`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-user-address': userAddress,
+    },
+    body: JSON.stringify({ txid, amount }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Failed to update vault balance' }));
+    throw new Error(error.error || 'Failed to update vault balance');
+  }
+  return response.json();
+}
+

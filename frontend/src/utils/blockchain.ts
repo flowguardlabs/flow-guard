@@ -292,3 +292,58 @@ export async function unlockCycleOnChain(
     fromAddress: wallet.address || undefined,
   });
 }
+
+/**
+ * Deposit BCH to a vault contract
+ * This is a simple P2PKH → P2SH send using the wallet's native send() method
+ * @param wallet The wallet hook return value
+ * @param contractAddress The vault contract address (P2SH)
+ * @param amountBCH The amount to deposit in BCH
+ * @returns Transaction ID
+ */
+export async function depositToVault(
+  wallet: WalletInterface,
+  contractAddress: string,
+  amountBCH: number
+): Promise<string> {
+  try {
+    if (!wallet.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    if (amountBCH <= 0) {
+      throw new Error('Deposit amount must be greater than 0');
+    }
+
+    // Convert BCH to satoshis
+    const amountSatoshis = Math.floor(amountBCH * 100000000);
+
+    // Use wallet's signTransaction method to send BCH
+    // This will use the wallet's native send() method (mainnet.cash or extension)
+    const transaction: Transaction = {
+      to: contractAddress,
+      amount: amountSatoshis,
+    };
+
+    const signedTx = await wallet.signTransaction(transaction);
+
+    if (!signedTx.txId) {
+      throw new Error('Transaction ID not returned from wallet');
+    }
+
+    return signedTx.txId;
+  } catch (error: any) {
+    console.error('Failed to deposit to vault:', error);
+    
+    // Provide more specific error messages
+    if (error.message.includes('insufficient') || error.message.includes('balance')) {
+      throw new Error('Insufficient balance in wallet. Please ensure you have enough BCH to cover the deposit and transaction fees.');
+    }
+    
+    if (error.message.includes('user') || error.message.includes('cancel')) {
+      throw new Error('Transaction cancelled by user');
+    }
+
+    throw new Error(`Deposit failed: ${error.message || 'Unknown error'}`);
+  }
+}
