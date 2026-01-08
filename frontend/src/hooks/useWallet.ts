@@ -1,6 +1,6 @@
 /**
  * Unified Wallet Hook
- * Provides a React hook interface for both Selene and mainnet.cash wallets
+ * Provides a React hook interface for Paytaca, WalletConnect v2, and mainnet.cash wallets
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,8 +11,10 @@ import {
   Transaction,
   SignedTransaction,
   IWalletConnector,
+  CashScriptSignOptions,
+  CashScriptSignResponse,
 } from '../types/wallet';
-import { BCHExtensionConnector } from '../services/wallets/bch-extension-connector';
+import { PaytacaConnector } from '../services/wallets/paytaca-connector';
 import { MainnetConnector } from '../services/wallets/mainnet-connector';
 
 type UseWalletReturn = WalletState & WalletActions;
@@ -21,7 +23,7 @@ export function useWallet(): UseWalletReturn {
   const [state, setState] = useState<WalletState>({
     walletType: null,
     address: null,
-    publicKey: null, // NEW: Store public key
+    publicKey: null,
     balance: null,
     isConnected: false,
     isConnecting: false,
@@ -54,30 +56,39 @@ export function useWallet(): UseWalletReturn {
 
     initWallet();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // connect is stable, no need to include in deps
+  }, []);
 
   /**
-   * Listen for BCH wallet events (account changes)
+   * Listen for wallet events (address changes, disconnection)
    */
   useEffect(() => {
-    const handleAccountChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const newAddress = customEvent.detail.address;
+    if (!connector) return;
 
-      setState((prev) => ({
-        ...prev,
-        address: newAddress,
-      }));
+    // Set up event listeners if connector supports them
+    if (connector.on) {
+      const handleAddressChange = (newAddress: string) => {
+        setState((prev) => ({
+          ...prev,
+          address: newAddress,
+        }));
+        localStorage.setItem('wallet_address', newAddress);
+      };
 
-      localStorage.setItem('wallet_address', newAddress);
-    };
+      const handleDisconnect = () => {
+        disconnect();
+      };
 
-    window.addEventListener('bch:accountChanged', handleAccountChange);
+      connector.on('addressChanged', handleAddressChange);
+      connector.on('disconnect', handleDisconnect);
 
-    return () => {
-      window.removeEventListener('bch:accountChanged', handleAccountChange);
-    };
-  }, []);
+      return () => {
+        if (connector.off) {
+          connector.off('addressChanged', handleAddressChange);
+          connector.off('disconnect', handleDisconnect);
+        }
+      };
+    }
+  }, [connector]);
 
   /**
    * Connect to a wallet
@@ -92,12 +103,13 @@ export function useWallet(): UseWalletReturn {
 
       // Create appropriate connector
       switch (walletType) {
-        case WalletType.BCH_EXTENSION:
-          newConnector = new BCHExtensionConnector();
+        case WalletType.PAYTACA:
+          newConnector = new PaytacaConnector();
           break;
+        case WalletType.WALLETCONNECT:
+          // TODO: Implement WalletConnect v2 connector
+          throw new Error('WalletConnect v2 support coming soon. Use Paytaca extension for now.');
         case WalletType.MAINNET:
-          // Network is read from VITE_BCH_NETWORK env var, defaults to chipnet
-          // (handled inside MainnetConnector constructor)
           newConnector = new MainnetConnector();
           break;
         default:
@@ -107,11 +119,12 @@ export function useWallet(): UseWalletReturn {
       // Check availability
       const isAvailable = await newConnector.isAvailable();
       if (!isAvailable) {
-        throw new Error(
-          walletType === WalletType.BCH_EXTENSION
-            ? 'BCH wallet extension not found. Please install Paytaca wallet.'
-            : 'mainnet.cash library not available'
-        );
+        const messages: Record<WalletType, string> = {
+          [WalletType.PAYTACA]: 'Paytaca wallet not found. Please install the Paytaca browser extension from the Chrome Web Store.',
+          [WalletType.WALLETCONNECT]: 'WalletConnect not available',
+          [WalletType.MAINNET]: 'mainnet.cash library not available',
+        };
+        throw new Error(messages[walletType] || 'Wallet not available');
       }
 
       // Connect (pass seed phrase if provided for mainnet.cash)
@@ -122,7 +135,7 @@ export function useWallet(): UseWalletReturn {
         walletInfo = await newConnector.connect();
       }
 
-      // Update state - use functional update to ensure we're working with latest state
+      // Update state
       setState((prev) => ({
         ...prev,
         walletType,
@@ -145,7 +158,6 @@ export function useWallet(): UseWalletReturn {
       }
 
       // Force a microtask to ensure state update is processed
-      // This helps React batch and process the state update before any dependent operations
       await new Promise<void>(resolve => queueMicrotask(() => resolve()));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to connect wallet';
@@ -171,7 +183,7 @@ export function useWallet(): UseWalletReturn {
     setState({
       walletType: null,
       address: null,
-      publicKey: null, // NEW: Clear public key
+      publicKey: null,
       balance: null,
       isConnected: false,
       isConnecting: false,
@@ -184,11 +196,11 @@ export function useWallet(): UseWalletReturn {
     // Clear localStorage
     localStorage.removeItem('wallet_type');
     localStorage.removeItem('wallet_address');
-    localStorage.removeItem('wallet_publickey'); // NEW: Clear public key
+    localStorage.removeItem('wallet_publickey');
   }, [connector]);
 
   /**
-   * Sign transaction
+   * Sign a simple send transaction
    */
   const signTransaction = useCallback(
     async (tx: Transaction): Promise<SignedTransaction> => {
@@ -197,6 +209,25 @@ export function useWallet(): UseWalletReturn {
       }
 
       return connector.signTransaction(tx);
+    },
+    [connector]
+  );
+
+  /**
+   * Sign a CashScript contract transaction
+   * This is the proper method for covenant interactions with Paytaca
+   */
+  const signCashScriptTransaction = useCallback(
+    async (options: CashScriptSignOptions): Promise<CashScriptSignResponse> => {
+      if (!connector) {
+        throw new Error('Wallet not connected');
+      }
+
+      if (!connector.signCashScriptTransaction) {
+        throw new Error('Connected wallet does not support CashScript transactions');
+      }
+
+      return connector.signCashScriptTransaction(options);
     },
     [connector]
   );
@@ -215,9 +246,9 @@ export function useWallet(): UseWalletReturn {
     [connector]
   );
 
-
   /**
    * Get public key from connected wallet
+   * Note: Paytaca uses placeholder substitution instead of exposing raw pubkey
    */
   const getPublicKey = useCallback(async (): Promise<string | null> => {
     if (!connector) {
@@ -252,11 +283,10 @@ export function useWallet(): UseWalletReturn {
     ...state,
     connect,
     disconnect,
-    getPublicKey, // NEW: Expose public key getter
+    getPublicKey,
     signTransaction,
-    signRawTransaction: undefined, // Not currently supported by available wallets
+    signCashScriptTransaction,
     signMessage,
     refreshBalance,
   };
 }
-

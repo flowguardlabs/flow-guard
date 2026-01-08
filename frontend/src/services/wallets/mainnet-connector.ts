@@ -113,6 +113,13 @@ export class MainnetConnector implements IWalletConnector {
   }
 
   /**
+   * Check if wallet is currently connected
+   */
+  async isConnected(): Promise<boolean> {
+    return this.wallet !== null;
+  }
+
+  /**
    * Create a new wallet based on network
    */
   private async createWallet(): Promise<Wallet | TestNetWallet | RegTestWallet> {
@@ -215,7 +222,7 @@ export class MainnetConnector implements IWalletConnector {
       // mainnet-js exposes publicKey property as Uint8Array
       // Try accessing it multiple ways in case it's not immediately available
       let publicKeyBytes = this.wallet.publicKey;
-      
+
       // If publicKey is not directly available, try alternative methods
       if (!publicKeyBytes && 'getPublicKey' in this.wallet && typeof (this.wallet as any).getPublicKey === 'function') {
         publicKeyBytes = await (this.wallet as any).getPublicKey();
@@ -294,7 +301,7 @@ export class MainnetConnector implements IWalletConnector {
         // This is likely a raw transaction hex for a covenant transaction
         // mainnet-js may support signing raw transactions differently
         // For now, we'll need to handle this case specially
-        
+
         // Try to use mainnet-js's ability to sign raw transactions if available
         // Note: This may require additional implementation based on mainnet-js API
         throw new Error(

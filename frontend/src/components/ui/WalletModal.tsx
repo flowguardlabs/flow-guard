@@ -1,11 +1,11 @@
 /**
  * Wallet Selection Modal
- * Allows users to choose between BCH browser extensions and mainnet.cash wallets
+ * Allows users to choose between Paytaca, WalletConnect v2, and mainnet.cash
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WalletType } from '../../types/wallet';
-import { Wallet, X, ExternalLink, Chrome, Coins, Download, Key } from 'lucide-react';
+import { Wallet, X, ExternalLink, Smartphone, Coins, Download, Key, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface WalletOption {
@@ -14,20 +14,28 @@ interface WalletOption {
   description: string;
   Icon: LucideIcon;
   installUrl?: string;
+  recommended?: boolean;
 }
 
 const walletOptions: WalletOption[] = [
   {
-    type: WalletType.BCH_EXTENSION,
-    name: 'Browser Extension',
-    description: 'Connect your Paytaca wallet extension',
-    Icon: Chrome,
-    installUrl: 'https://chromewebstore.google.com/detail/paytaca/pakphhpnneopheifihmjcjnbdbhaaiaa',
+    type: WalletType.PAYTACA,
+    name: 'Paytaca',
+    description: 'Connect your Paytaca browser extension',
+    Icon: Wallet,
+    installUrl: 'https://chrome.google.com/webstore/detail/paytaca/pakphhpnneopheifihmjcjnbdbhaaiaa',
+    recommended: true,
+  },
+  {
+    type: WalletType.WALLETCONNECT,
+    name: 'WalletConnect',
+    description: 'Cashonize, Zapit, or mobile wallets',
+    Icon: Smartphone,
   },
   {
     type: WalletType.MAINNET,
     name: 'mainnet.cash',
-    description: 'Create new wallet or import existing seed phrase',
+    description: 'Use seed phrase wallet (for testing)',
     Icon: Coins,
   },
 ];
@@ -51,6 +59,21 @@ export function WalletModal({
   const [showSeedInput, setShowSeedInput] = useState(false);
   const [seedPhrase, setSeedPhrase] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [paytacaAvailable, setPaytacaAvailable] = useState<boolean | null>(null);
+
+  // Check if Paytaca is available on mount
+  useEffect(() => {
+    if (isOpen) {
+      const checkPaytaca = async () => {
+        // Quick check for window.paytaca
+        const available = typeof window !== 'undefined' &&
+          !!window.paytaca &&
+          typeof window.paytaca.address === 'function';
+        setPaytacaAvailable(available ?? false);
+      };
+      checkPaytaca();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -62,25 +85,27 @@ export function WalletModal({
       return;
     }
 
+    // For WalletConnect, show coming soon message
+    if (walletType === WalletType.WALLETCONNECT) {
+      setLocalError('WalletConnect v2 support coming soon. Use Paytaca extension for now.');
+      return;
+    }
+
     setSelectedWallet(walletType);
     setLocalError(null);
 
     try {
       await onSelectWallet(walletType, seedPhrase || undefined);
-      // Wait for React to process the state update and re-render components
-      // This ensures the wallet connection is reflected in the UI before closing the modal
+      // Wait for React to process the state update
       await new Promise(resolve => {
-        // Use requestAnimationFrame to wait for the next render cycle
         requestAnimationFrame(() => {
-          // Then use setTimeout to ensure state has propagated
           setTimeout(resolve, 50);
         });
       });
-      onClose(); // Close modal on success
+      onClose();
       setShowSeedInput(false);
       setSeedPhrase('');
     } catch (err) {
-      // Error is handled by parent component
       setSelectedWallet(null);
     }
   };
@@ -98,7 +123,6 @@ export function WalletModal({
       return;
     }
 
-    // Validate seed phrase (basic check for 12 words)
     const words = seedPhrase.trim().split(/\s+/);
     if (words.length !== 12) {
       setLocalError('Seed phrase must be 12 words');
@@ -148,14 +172,18 @@ export function WalletModal({
               <div className="space-y-3">
                 {walletOptions.map((wallet) => {
                   const WalletIcon = wallet.Icon;
+                  const isPending = isConnecting && selectedWallet === wallet.type;
+                  const isPaytaca = wallet.type === WalletType.PAYTACA;
+                  const showInstallHint = isPaytaca && paytacaAvailable === false;
+
                   return (
                     <button
                       key={wallet.type}
                       onClick={() => handleConnect(wallet.type)}
                       disabled={isConnecting}
-                      className={`w-full p-4 border rounded-xl transition-all hover:border-[#b2ac88] hover:shadow-md group bg-white dark:bg-[#1a1a1a] ${isConnecting && selectedWallet === wallet.type
-                          ? 'border-[#b2ac88] bg-[#b2ac88]/5 dark:bg-[#b2ac88]/10'
-                          : 'border-gray-200 dark:border-gray-700'
+                      className={`w-full p-4 border rounded-xl transition-all hover:border-[#b2ac88] hover:shadow-md group bg-white dark:bg-[#1a1a1a] ${isPending
+                        ? 'border-[#b2ac88] bg-[#b2ac88]/5 dark:bg-[#b2ac88]/10'
+                        : 'border-gray-200 dark:border-gray-700'
                         } ${isConnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <div className="flex items-center justify-between">
@@ -164,17 +192,29 @@ export function WalletModal({
                             <WalletIcon className="w-6 h-6 text-[#b2ac88] dark:text-[#b2ac88]" />
                           </div>
                           <div className="text-left">
-                            <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-[#b2ac88] transition-colors">
-                              {wallet.name}
-                            </h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-[#b2ac88] transition-colors">
+                                {wallet.name}
+                              </h3>
+                              {wallet.recommended && (
+                                <span className="px-2 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
+                                  Recommended
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
                               {wallet.description}
                             </p>
+                            {showInstallHint && (
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                Extension not detected - install below
+                              </p>
+                            )}
                           </div>
                         </div>
 
-                        {isConnecting && selectedWallet === wallet.type ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#b2ac88] border-t-transparent" />
+                        {isPending ? (
+                          <Loader2 className="w-5 h-5 text-[#b2ac88] animate-spin" />
                         ) : wallet.installUrl ? (
                           <a
                             href={wallet.installUrl}
@@ -182,6 +222,7 @@ export function WalletModal({
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                            title="Install extension"
                           >
                             <ExternalLink className="w-4 h-4 text-gray-400 dark:text-gray-500 hover:text-[#b2ac88] dark:hover:text-[#b2ac88]" />
                           </a>

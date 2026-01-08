@@ -4,4 +4,5 @@
  */
 
 export { MainnetConnector } from './mainnet-connector';
-export { BCHExtensionConnector } from './bch-extension-connector';
+export { PaytacaConnector } from './paytaca-connector';
+export { LegacyBCHExtensionConnector } from './legacy-bch-connector';
