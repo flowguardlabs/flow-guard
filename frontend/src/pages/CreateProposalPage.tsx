@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Textarea } from '../components/ui/Textarea';
 import { useWallet } from '../hooks/useWallet';
 import { createProposal } from '../utils/api';
+import { ChevronLeft, Send, AlertCircle } from 'lucide-react';
 
 export default function CreateProposalPage() {
   const { id } = useParams<{ id: string }>();
@@ -88,63 +91,100 @@ export default function CreateProposalPage() {
   };
 
   return (
-    <div className="section-spacious">
-      <div className="max-w-2xl mx-auto">
+    <div className="p-8">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
         <div className="mb-8">
-          <Link to={`/vaults/${id}`} className="text-[--color-primary] hover:underline">
-            ← Back to Vault
+          <Link
+            to={`/vaults/${id}`}
+            className="inline-flex items-center gap-2 text-primary hover:text-primaryHover font-mono mb-4 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back to Treasury
           </Link>
+          <h1 className="text-5xl font-display font-bold text-textPrimary mb-2">Create Proposal</h1>
+          <p className="text-textMuted font-mono">
+            Submit a payment proposal for multi-sig approval
+          </p>
         </div>
 
-        <h1 className="text-4xl font-bold mb-8 section-bold">Create Proposal</h1>
-
+        {/* Error Alert */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-red-800 dark:text-red-200">{error}</p>
-          </div>
+          <Card padding="lg" className="mb-6 bg-error/5 border-error/20">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
+              <p className="text-error font-mono text-sm">{error}</p>
+            </div>
+          </Card>
         )}
 
+        {/* Form */}
         <Card padding="lg">
           <div className="space-y-6">
+            {/* Recipient Address */}
             <div>
-              <label className="block text-sm font-medium mb-2">Recipient Address</label>
-              <input
-                type="text"
-                value={formData.recipient}
-                onChange={(e) => handleInputChange('recipient', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary font-mono"
-                placeholder="bchtest:qq... (BCH cash address)"
-              />
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Send className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-display font-bold text-textPrimary mb-1">
+                    Recipient
+                  </h3>
+                  <p className="text-sm text-textMuted font-mono mb-4">
+                    BCH address that will receive the funds
+                  </p>
+                  <Input
+                    type="text"
+                    value={formData.recipient}
+                    onChange={(e) => handleInputChange('recipient', e.target.value)}
+                    placeholder="bitcoincash:qr2x3uy3... or bchtest:qq..."
+                    helpText="Must be a valid Bitcoin Cash address"
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Amount (BCH)</label>
-              <input
+            {/* Amount */}
+            <div className="pt-6 border-t border-border">
+              <Input
+                label="Amount (BCH)"
                 type="number"
                 value={formData.amount}
                 onChange={(e) => handleInputChange('amount', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
                 placeholder="0.00"
-                step="0.01"
+                step="0.00000001"
+                helpText="Must not exceed vault spending cap"
+                required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Reason / Description</label>
-              <textarea
+            {/* Reason */}
+            <div className="pt-6 border-t border-border">
+              <Textarea
+                label="Reason / Description"
                 value={formData.reason}
                 onChange={(e) => handleInputChange('reason', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
                 rows={4}
-                placeholder="Describe the purpose of this payment..."
+                placeholder="e.g., 'Q1 2024 contractor payment for backend development'"
+                helpText="Explain the purpose of this payment for other signers"
+                required
               />
             </div>
 
-            <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
-              <Link to={`/vaults/${id}`}>
-                <Button variant="outline" disabled={isSubmitting}>Cancel</Button>
+            {/* Action Buttons */}
+            <div className="flex gap-4 pt-6 border-t border-border">
+              <Link to={`/vaults/${id}`} className="flex-1">
+                <Button variant="outline" disabled={isSubmitting} className="w-full">
+                  Cancel
+                </Button>
               </Link>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
+              <Button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="flex-1"
+              >
                 {isSubmitting ? 'Creating Proposal...' : 'Create Proposal'}
               </Button>
             </div>

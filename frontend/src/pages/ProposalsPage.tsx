@@ -1,14 +1,39 @@
+/**
+ * ProposalsPage - Professional Proposal Management
+ * Sablier-quality with DataTable, circular progress, CSV import/export
+ */
+
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
+import { useNavigate } from 'react-router-dom';
+import { FileText, CheckCircle, Clock, XCircle, TrendingUp, Users } from 'lucide-react';
 import { fetchVaults, fetchProposals } from '../utils/api';
 import { useWallet } from '../hooks/useWallet';
+import { Button } from '../components/ui/Button';
+import { DataTable, Column } from '../components/shared/DataTable';
+import { StatsCard } from '../components/shared/StatsCard';
+
+type ProposalStatus = 'pending' | 'approved' | 'executed' | 'rejected';
+
+interface Proposal {
+  id: string;
+  amount: number;
+  recipient: string;
+  reason: string;
+  status: ProposalStatus;
+  approvalCount: number;
+  approvalThreshold: number;
+  vaultId: string;
+  vaultName: string;
+  createdAt: string;
+}
 
 export default function ProposalsPage() {
   const wallet = useWallet();
-  const [proposals, setProposals] = useState<any[]>([]);
+  const navigate = useNavigate();
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | ProposalStatus>('all');
 
   useEffect(() => {
     const loadAllProposals = async () => {
@@ -48,17 +73,154 @@ export default function ProposalsPage() {
       }
     };
 
-    loadAllProposals();
+    if (wallet.address) {
+      loadAllProposals();
+    } else {
+      setLoading(false);
+    }
   }, [wallet.address]);
 
-  if (loading) {
+  // Calculate stats
+  const pendingProposals = proposals.filter((p) => p.status === 'pending');
+  const approvedProposals = proposals.filter((p) => p.status === 'approved');
+  const executedProposals = proposals.filter((p) => p.status === 'executed');
+  const rejectedProposals = proposals.filter((p) => p.status === 'rejected');
+  const totalAmount = proposals.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+  // Filter proposals
+  const filteredProposals = proposals.filter((proposal) => {
+    if (statusFilter !== 'all' && proposal.status !== statusFilter) return false;
+    return true;
+  });
+
+  // Table columns
+  const columns: Column<Proposal>[] = [
+    {
+      key: 'id',
+      label: 'Proposal',
+      sortable: true,
+      render: (row) => (
+        <div>
+          <p className="font-sans font-medium text-textPrimary">{row.reason || 'Untitled'}</p>
+          <p className="text-xs text-textMuted font-mono">{row.id}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'vaultName',
+      label: 'Vault',
+      sortable: true,
+      render: (row) => (
+        <p className="font-mono text-sm text-textPrimary">{row.vaultName}</p>
+      ),
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      sortable: true,
+      className: 'text-right',
+      render: (row) => (
+        <p className="font-display font-bold text-primary text-right">
+          {row.amount?.toFixed(4) || '0.0000'} BCH
+        </p>
+      ),
+    },
+    {
+      key: 'recipient',
+      label: 'Recipient',
+      sortable: true,
+      render: (row) => (
+        <p className="font-mono text-sm text-textMuted">
+          {row.recipient?.slice(0, 15)}...{row.recipient?.slice(-10)}
+        </p>
+      ),
+    },
+    {
+      key: 'approvalCount',
+      label: 'Approvals',
+      sortable: true,
+      className: 'text-center',
+      render: (row) => {
+        const progress = row.approvalThreshold > 0
+          ? (row.approvalCount / row.approvalThreshold) * 100
+          : 0;
+        return (
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2 w-full">
+              <div className="flex-1 bg-surfaceAlt rounded-full h-2 overflow-hidden min-w-[80px]">
+                <div
+                  className="h-full bg-accent rounded-full transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+            <span className="text-xs font-mono text-textMuted">
+              {row.approvalCount} / {row.approvalThreshold}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      className: 'text-center',
+      render: (row) => {
+        const statusColors = {
+          pending: 'bg-secondary/10 text-secondary border-secondary',
+          approved: 'bg-accent/10 text-accent border-accent',
+          executed: 'bg-primary/10 text-primary border-primary',
+          rejected: 'bg-surfaceAlt text-textMuted border-border',
+        };
+        return (
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-sans font-medium border ${
+              statusColors[row.status]
+            }`}
+          >
+            {row.status.toUpperCase()}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      sortable: true,
+      render: (row) => {
+        const date = new Date(row.createdAt);
+        return (
+          <div>
+            <p className="text-sm font-sans text-textPrimary">
+              {date.toLocaleDateString()}
+            </p>
+            <p className="text-xs text-textMuted font-mono">
+              {date.toLocaleTimeString()}
+            </p>
+          </div>
+        );
+      },
+    },
+  ];
+
+  const handleImport = (data: any[]) => {
+    console.log('Imported proposals:', data);
+    // Could navigate to batch create or handle import
+  };
+
+  if (!wallet.isConnected) {
     return (
-      <div className="section-spacious">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-8 section-bold">Proposals</h1>
-          <Card padding="lg" className="text-center py-16">
-            <p className="text-gray-600">Loading proposals...</p>
-          </Card>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md">
+          <FileText className="w-16 h-16 text-textMuted mx-auto mb-4" />
+          <h2 className="text-2xl font-display font-bold text-textPrimary mb-2">
+            Connect Your Wallet
+          </h2>
+          <p className="text-textMuted font-sans mb-6">
+            Please connect your wallet to view and manage proposals.
+          </p>
+          <Button onClick={() => {}}>Connect Wallet</Button>
         </div>
       </div>
     );
@@ -66,77 +228,115 @@ export default function ProposalsPage() {
 
   if (error) {
     return (
-      <div className="section-spacious">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-8 section-bold">Proposals</h1>
-          <Card padding="lg" className="text-center py-16 border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
-            <h2 className="text-2xl font-semibold mb-4 text-red-800 dark:text-red-200">Error loading proposals</h2>
-            <p className="text-red-600 dark:text-red-300">{error}</p>
-          </Card>
+      <div className="min-h-screen pb-20 bg-background">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+          <div className="mb-6 md:mb-8">
+            <h1 className="font-display font-medium text-3xl md:text-5xl lg:text-6xl text-textPrimary mb-4">
+              Proposals
+            </h1>
+          </div>
+          <div className="text-center py-12 bg-surface rounded-lg border border-border">
+            <XCircle className="w-16 h-16 text-textMuted mx-auto mb-4" />
+            <h2 className="text-2xl font-display font-bold text-textPrimary mb-2">
+              Unable to load proposals
+            </h2>
+            <p className="text-textMuted font-mono">{error}</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="section-spacious">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 section-bold">Proposals</h1>
+    <div className="min-h-screen pb-20 bg-background">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+        {/* Header */}
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6 mb-8">
+            <div>
+              <h1 className="font-display font-medium text-3xl md:text-5xl lg:text-6xl text-textPrimary mb-4">
+                Proposals
+              </h1>
+              <p className="font-sans text-textMuted max-w-2xl text-sm leading-relaxed">
+                Multi-signature proposal management across all your vaults. Track approvals and execution status.
+              </p>
+            </div>
+          </div>
 
-        {proposals.length === 0 ? (
-          <Card padding="lg" className="text-center">
-            <h2 className="text-2xl font-semibold mb-4">No proposals yet</h2>
-            <p className="text-gray-600">
-              Proposals will appear here when they are created in your vaults
-            </p>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {proposals.map((proposal) => (
-              <Link key={proposal.id} to={`/proposals/${proposal.id}`}>
-                <Card padding="lg" className="hover:shadow-lg transition-shadow cursor-pointer">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-1">{proposal.amount} BCH</h3>
-                      <p className="text-gray-600">{proposal.reason}</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        From: <span className="font-medium">{proposal.vaultName}</span>
-                      </p>
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        proposal.status === 'approved'
-                          ? 'bg-green-100 text-green-800'
-                          : proposal.status === 'executed'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}
-                    >
-                      {proposal.status}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                    <div className="text-sm text-gray-600">
-                      To: <span className="font-mono">{proposal.recipient}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-gray-600">Approvals: </span>
-                      <span className="font-semibold">
-                        {proposal.approvalCount || 0}/{proposal.approvalThreshold || 0}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {new Date(proposal.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </Card>
-              </Link>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatsCard
+              label="Total Proposals"
+              value={proposals.length}
+              subtitle={`${pendingProposals.length} pending`}
+              icon={FileText}
+              color="primary"
+            />
+            <StatsCard
+              label="Pending Approval"
+              value={pendingProposals.length}
+              subtitle="Awaiting signatures"
+              icon={Clock}
+              color="secondary"
+              progress={{
+                percentage: proposals.length > 0 ? (pendingProposals.length / proposals.length) * 100 : 0,
+                label: 'Pending',
+              }}
+            />
+            <StatsCard
+              label="Approved"
+              value={approvedProposals.length + executedProposals.length}
+              subtitle="Ready or executed"
+              icon={CheckCircle}
+              color="accent"
+            />
+            <StatsCard
+              label="Total Value"
+              value={`${totalAmount.toFixed(4)} BCH`}
+              subtitle="All proposals"
+              icon={TrendingUp}
+              color="muted"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-textMuted font-sans">Status:</span>
+            {(['all', 'pending', 'approved', 'executed', 'rejected'] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-colors ${
+                  statusFilter === status
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-surface text-textSecondary hover:bg-surfaceAlt border border-border'
+                }`}
+              >
+                {status.toUpperCase()}
+              </button>
             ))}
           </div>
+        </div>
+
+        {/* Data Table */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent mx-auto mb-4" />
+            <p className="text-textSecondary font-sans">Loading proposals...</p>
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredProposals}
+            onRowClick={(proposal) => navigate(`/vaults/${proposal.vaultId}`)}
+            enableSearch
+            enableExport
+            enableImport
+            onImport={handleImport}
+            emptyMessage="No proposals found. Proposals will appear here when created in your vaults."
+          />
         )}
       </div>
     </div>
   );
 }
-
