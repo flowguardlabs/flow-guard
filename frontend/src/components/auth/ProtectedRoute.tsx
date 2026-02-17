@@ -19,10 +19,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Show loading state while checking wallet connection
   if (wallet.isConnecting) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50 dark:from-[#1a1a1a] dark:to-[#0a0a0a]">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#b2ac88] border-t-transparent mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Connecting wallet...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#00E676] border-t-transparent mx-auto mb-4" />
+          <p className="text-textSecondary">Connecting wallet...</p>
         </div>
       </div>
     );
@@ -32,19 +32,19 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // This prevents redirect loops and gives better UX
   if (!wallet.isConnected) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50 dark:from-[#1a1a1a] dark:to-[#0a0a0a] p-4">
-        <div className="max-w-md w-full bg-white dark:bg-[#2d2d2d] rounded-2xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-gray-50 p-4">
+        <div className="max-w-md w-full bg-surface rounded-2xl shadow-2xl p-8 border border-border">
           <div className="flex justify-center mb-6">
-            <div className="p-4 bg-[#b2ac88]/10 rounded-full">
-              <AlertCircle className="w-12 h-12 text-[#b2ac88]" />
+            <div className="p-4 bg-[#00E676]/10 rounded-full">
+              <AlertCircle className="w-12 h-12 text-[#00E676]" />
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-3">
+          <h2 className="text-2xl font-bold text-textPrimary text-center mb-3">
             Wallet Connection Required
           </h2>
 
-          <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+          <p className="text-textSecondary text-center mb-6">
             You need to connect your wallet to access this page. Please connect your Selene or mainnet.cash wallet to continue.
           </p>
 
@@ -69,8 +69,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             </Button>
           </div>
 
-          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+          <div className="mt-6 p-4 bg-whiteAlt rounded-lg">
+            <p className="text-xs text-textSecondary">
               <strong>Note:</strong> FlowGuard is a non-custodial treasury management system. Your wallet remains in your control at all times.
             </p>
           </div>
