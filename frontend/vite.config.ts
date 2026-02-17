@@ -22,9 +22,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      // Manual fallback for WalletConnect process shim
-      'vite-plugin-node-polyfills/shims/process': 'vite-plugin-node-polyfills/shims/process',
-      process: 'vite-plugin-node-polyfills/shims/process',
     },
   },
   build: {
@@ -32,10 +29,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         format: 'es',
-      },
-      // Tell Rollup to ignore polyfill shim imports - the plugin will handle them
-      external: (id) => {
-        return id.includes('vite-plugin-node-polyfills/shims');
       },
     },
   },
