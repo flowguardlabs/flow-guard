@@ -9,11 +9,12 @@ interface Box {
   color: string;
 }
 
+// Sage Palette (Color Hunt) - FlowGuard brand colors
 const COLOR_PALETTE = [
-  '#a7f3d0', // mint green
-  '#fef3c7', // lemon yellow
-  '#d1fae5', // light green
-  '#fde68a', // pale yellow
+  '#F1F3E0', // brand50 - lightest sage
+  '#D2DCB6', // brand100 - light sage
+  '#A1BC98', // brand300 - mid sage
+  '#778873', // brand700 - dark sage (use sparingly for contrast)
 ];
 
 // Responsive box sizes
