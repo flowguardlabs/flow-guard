@@ -1,0 +1,344 @@
+/**
+ * PaymentsPage - Professional Recurring Payments Management
+ * Sablier-quality with DataTable, circular progress, CSV import/export
+ */
+
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Repeat, Plus, DollarSign, Clock, Zap, TrendingUp, Calendar } from 'lucide-react';
+import { useWallet } from '../hooks/useWallet';
+import { Button } from '../components/ui/Button';
+import { DataTable, Column } from '../components/shared/DataTable';
+import { StatsCard } from '../components/shared/StatsCard';
+
+type PaymentStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED' | 'COMPLETED';
+type PaymentInterval = 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'YEARLY';
+
+interface RecurringPayment {
+  id: string;
+  payment_id: string;
+  sender: string;
+  recipient: string;
+  recipient_name?: string;
+  token_type: 'BCH' | 'CASHTOKENS';
+  amount_per_period: number;
+  interval: PaymentInterval;
+  start_date: number;
+  end_date?: number;
+  next_payment_date: number;
+  total_paid: number;
+  payment_count: number;
+  status: PaymentStatus;
+  pausable: boolean;
+  created_at: number;
+}
+
+export default function PaymentsPage() {
+  const wallet = useWallet();
+  const navigate = useNavigate();
+  const [payments, setPayments] = useState<RecurringPayment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<'sent' | 'received'>('sent');
+  const [statusFilter, setStatusFilter] = useState<'all' | PaymentStatus>('all');
+
+  useEffect(() => {
+    if (!wallet.address) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchPayments = async () => {
+      try {
+        setLoading(true);
+        const endpoint =
+          viewMode === 'sent'
+            ? `/api/payments?sender=${wallet.address}`
+            : `/api/payments?recipient=${wallet.address}`;
+
+        const response = await fetch(endpoint);
+        const data = await response.json();
+        setPayments(data.payments || []);
+      } catch (error) {
+        console.error('Failed to fetch payments:', error);
+        setPayments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPayments();
+  }, [wallet.address, viewMode]);
+
+  // Calculate stats
+  const activePayments = payments.filter((p) => p.status === 'ACTIVE');
+  const totalPaid = payments.reduce((sum, p) => sum + p.total_paid, 0);
+  const avgPaymentAmount =
+    payments.length > 0
+      ? payments.reduce((sum, p) => sum + p.amount_per_period, 0) / payments.length
+      : 0;
+
+  // Calculate monthly equivalent outflow
+  const totalMonthlyOutflow = activePayments
+    .filter((p) => viewMode === 'sent')
+    .reduce((sum, p) => {
+      const multiplier =
+        p.interval === 'DAILY' ? 30 :
+        p.interval === 'WEEKLY' ? 4.33 :
+        p.interval === 'BIWEEKLY' ? 2.17 :
+        p.interval === 'MONTHLY' ? 1 :
+        p.interval === 'YEARLY' ? 0.083 : 1;
+      return sum + p.amount_per_period * multiplier;
+    }, 0);
+
+  // Filter payments
+  const filteredPayments = payments.filter((payment) => {
+    if (statusFilter !== 'all' && payment.status !== statusFilter) return false;
+    return true;
+  });
+
+  // Table columns
+  const columns: Column<RecurringPayment>[] = [
+    {
+      key: 'payment_id',
+      label: 'Payment ID',
+      sortable: true,
+      render: (row) => (
+        <div>
+          <p className="font-sans font-medium text-textPrimary">
+            {row.recipient_name || row.payment_id}
+          </p>
+          <p className="text-xs text-textMuted font-mono">{row.payment_id}</p>
+        </div>
+      ),
+    },
+    {
+      key: viewMode === 'sent' ? 'recipient' : 'sender',
+      label: viewMode === 'sent' ? 'Recipient' : 'Sender',
+      sortable: true,
+      render: (row) => {
+        const address = viewMode === 'sent' ? row.recipient : row.sender;
+        return (
+          <p className="font-mono text-sm text-textMuted">
+            {address.slice(0, 15)}...{address.slice(-10)}
+          </p>
+        );
+      },
+    },
+    {
+      key: 'amount_per_period',
+      label: 'Amount per Period',
+      sortable: true,
+      className: 'text-right',
+      render: (row) => (
+        <div className="text-right">
+          <p className="font-display font-bold text-primary">
+            {row.amount_per_period.toFixed(4)} {row.token_type}
+          </p>
+          <p className="text-xs text-textMuted font-mono">{row.interval}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'total_paid',
+      label: 'Total Paid',
+      sortable: true,
+      className: 'text-right',
+      render: (row) => (
+        <div className="text-right">
+          <p className="font-display font-bold text-accent">
+            {row.total_paid.toFixed(4)} {row.token_type}
+          </p>
+          <p className="text-xs text-textMuted font-mono">{row.payment_count} payments</p>
+        </div>
+      ),
+    },
+    {
+      key: 'next_payment_date',
+      label: 'Next Payment',
+      sortable: true,
+      render: (row) => {
+        if (row.status !== 'ACTIVE') {
+          return <span className="text-xs text-textMuted font-sans">-</span>;
+        }
+        const nextDate = new Date(row.next_payment_date * 1000);
+        const isUpcoming = nextDate.getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+        return (
+          <div>
+            <p className={`text-sm font-sans ${isUpcoming ? 'text-accent font-medium' : 'text-textPrimary'}`}>
+              {nextDate.toLocaleDateString()}
+            </p>
+            <p className="text-xs text-textMuted font-mono">
+              {nextDate.toLocaleTimeString()}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortable: true,
+      className: 'text-center',
+      render: (row) => {
+        const statusColors = {
+          ACTIVE: 'bg-accent/10 text-accent border-accent',
+          PAUSED: 'bg-secondary/10 text-secondary border-secondary',
+          CANCELLED: 'bg-surfaceAlt text-textMuted border-border',
+          COMPLETED: 'bg-primary/10 text-primary border-primary',
+        };
+        return (
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-sans font-medium border ${
+              statusColors[row.status]
+            }`}
+          >
+            {row.status}
+          </span>
+        );
+      },
+    },
+  ];
+
+  const handleImport = (data: any[]) => {
+    console.log('Imported payments:', data);
+    navigate('/payments/batch-create', { state: { importedData: data } });
+  };
+
+  if (!wallet.isConnected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md">
+          <Repeat className="w-16 h-16 text-textMuted mx-auto mb-4" />
+          <h2 className="text-2xl font-display font-bold text-textPrimary mb-2">
+            Connect Your Wallet
+          </h2>
+          <p className="text-textMuted font-sans mb-6">
+            Please connect your wallet to view and manage recurring payments.
+          </p>
+          <Button onClick={() => {}}>Connect Wallet</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pb-20 bg-background">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+        {/* Header */}
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 md:gap-6 mb-6 md:mb-8">
+            <div>
+              <h1 className="font-display font-medium text-3xl md:text-5xl lg:text-6xl text-textPrimary mb-3 md:mb-4">
+                Recurring Payments
+              </h1>
+              <p className="font-sans text-textMuted max-w-2xl text-sm leading-relaxed">
+                Automated recurring payments for salaries, subscriptions, allowances, and invoices.
+              </p>
+            </div>
+            <Button
+              size="lg"
+              onClick={() => navigate('/payments/create')}
+              className="shadow-lg"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Payment
+            </Button>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+            <StatsCard
+              label="Active Payments"
+              value={activePayments.length}
+              subtitle={`${payments.length} total`}
+              icon={Repeat}
+              color="primary"
+            />
+            <StatsCard
+              label="Total Paid"
+              value={`${totalPaid.toFixed(4)} BCH`}
+              subtitle="All time"
+              icon={DollarSign}
+              color="accent"
+              progress={{
+                percentage: Math.min(100, (totalPaid / 100) * 100),
+                label: 'Paid',
+              }}
+            />
+            <StatsCard
+              label="Monthly Outflow"
+              value={`${totalMonthlyOutflow.toFixed(4)} BCH`}
+              subtitle="Active payments"
+              icon={TrendingUp}
+              color="secondary"
+            />
+            <StatsCard
+              label="Avg Payment"
+              value={`${avgPaymentAmount.toFixed(4)} BCH`}
+              subtitle="Per period"
+              icon={Zap}
+              color="muted"
+            />
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              variant={viewMode === 'sent' ? 'primary' : 'outline'}
+              onClick={() => setViewMode('sent')}
+              className="flex items-center gap-2"
+            >
+              <DollarSign className="w-4 h-4" />
+              Payments Sent
+            </Button>
+            <Button
+              variant={viewMode === 'received' ? 'primary' : 'outline'}
+              onClick={() => setViewMode('received')}
+              className="flex items-center gap-2"
+            >
+              <Calendar className="w-4 h-4" />
+              Payments Received
+            </Button>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-textMuted font-sans">Status:</span>
+            {(['all', 'ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED'] as const).map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-colors ${
+                  statusFilter === status
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-surface text-textSecondary hover:bg-surfaceAlt border border-border'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Data Table */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent mx-auto mb-4" />
+            <p className="text-textSecondary font-sans">Loading payments...</p>
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filteredPayments}
+            onRowClick={(payment) => navigate(`/payments/${payment.id}`)}
+            enableSearch
+            enableExport
+            enableImport
+            onImport={handleImport}
+            emptyMessage="No recurring payments found. Create your first payment to get started."
+          />
+        )}
+      </div>
+    </div>
+  );
+}
