@@ -340,7 +340,7 @@ export class CashonizeConnector implements IWalletConnector {
 
     // Extract addresses from session namespaces
     const accounts = this.session.namespaces.bch?.accounts || [];
-    return accounts.map(account => account.split(':')[2]);
+    return accounts.map((account: string) => account.split(':')[2]);
   }
 
   /**

@@ -17,9 +17,18 @@ importers:
       '@walletconnect/sign-client':
         specifier: ^2.23.4
         version: 2.23.5(typescript@5.9.3)
+      '@walletconnect/types':
+        specifier: ^2.16.0
+        version: 2.23.5
+      '@walletconnect/utils':
+        specifier: ^2.16.0
+        version: 2.23.5(typescript@5.9.3)
       '@web3modal/standalone':
         specifier: ^2.4.3
         version: 2.4.3(react@18.3.1)
+      cashscript:
+        specifier: ^0.10.0
+        version: 0.10.5
       framer-motion:
         specifier: ^12.29.2
         version: 12.34.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -205,6 +214,9 @@ packages:
   '@bitauth/libauth@3.1.0-next.8':
     resolution: {integrity: sha512-Pm+Ju+YP3JeBLLTiVrBnia2wwE4G17r4XqpvPRMcklElJTe8J6x3JgKRg1by0Xm3ZY6UFxACkEAoSA+x419/zA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  '@cashscript/utils@0.10.5':
+    resolution: {integrity: sha512-5AJxZBIxyMArFYb/FUeMmkmij1AfSPdfBee8w3uRECiuRd7twhw8O+xf3iqIDBo1KYAPmpJtyNyGGMybr2dDEw==}
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
@@ -446,6 +458,9 @@ packages:
   '@motionone/vue@10.16.4':
     resolution: {integrity: sha512-z10PF9JV6SbjFq+/rYabM+8CVlMokgl8RFGvieSGNTmrkQanfHn+15XBrhG3BgUfvmTeSeyShfOHpG0i9zEdcg==}
     deprecated: Motion One for Vue is deprecated. Use Oku Motion instead https://oku-ui.com/motion
+
+  '@mr-zwets/bchn-api-wrapper@1.0.2':
+    resolution: {integrity: sha512-hgtnepLQcR+ea2Qz2Kiua0LrtCO3Vx6JcgZMThml2KAut8/Y7w6Qb6g5tOjpE2ysFZfC3MGqYnFmxiBLfToxwA==}
 
   '@msgpack/msgpack@3.1.3':
     resolution: {integrity: sha512-47XIizs9XZXvuJgoaJUIE2lFoID8ugvc0jzSHP+Ptfk8nTbnR8g788wv48N03Kx0UkAv559HWRQ3yzOgzlRNUA==}
@@ -873,6 +888,9 @@ packages:
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
+  '@types/ws@7.4.7':
+    resolution: {integrity: sha512-JQbbmxZTZehdc2iszGKs5oC3NFnjeay7mtAWrdt7qNtAVK0g19muApzAy4bm9byz79xa2ZnO/BOBC2R8RC5Lww==}
+
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
@@ -1088,6 +1106,9 @@ packages:
   assert@2.1.0:
     resolution: {integrity: sha512-eLHpSK/Y4nhMJ07gDaAzoX/XAKS8PSaojml3M0DM4JpV1LAi5JOJ/p6H/XWrl8L+DzVEvVCW1z3vWAaB9oTsQw==}
 
+  async-mutex@0.3.2:
+    resolution: {integrity: sha512-HuTK7E7MT7jZEh1P9GtRW9+aTWiDWWi9InbZ5hjxrnRa39KS4BW04+xLBhYNS2aXhHUIKZSw3gj4Pn1pj+qGAA==}
+
   async-mutex@0.5.0:
     resolution: {integrity: sha512-1A94B18jkJ3DYq284ohPxoXbfTA5HsQ7/Mf4DEhcyLx3Bz27Rh59iScbB6EPiP+B+joue6YCxcMXSbFC1tZKwA==}
 
@@ -1202,6 +1223,9 @@ packages:
   caniuse-lite@1.0.30001770:
     resolution: {integrity: sha512-x/2CLQ1jHENRbHg5PSId2sXq1CIO1CISvwWAj027ltMVG2UNgW+w9oH2+HzgEIRFembL8bUlXtfbBHR1fCg2xw==}
 
+  cashscript@0.10.5:
+    resolution: {integrity: sha512-YG0OkUGzMHTlqqJ559YIzpbDtMDjH+uExNT2MmKqa3zPfmu7/VbxwdBOLRFnlDaHh3bOMFUlke0XpnGzm30Q9Q==}
+
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
     engines: {node: '>=10'}
@@ -1303,6 +1327,10 @@ packages:
   defu@6.1.4:
     resolution: {integrity: sha512-mEQCMmwJu317oSz8CwdIOdwf3xMif1ttiM8LTufzc3g6kR+9Pe236twL8j3IYT1F7GfRgGcW6MWxzZjLIkuHIg==}
 
+  delay@5.0.0:
+    resolution: {integrity: sha512-ReEBKkIfe4ya47wlPYf/gu5ib6yUG0/Aez0JQZQz94kiWtRQvZIQbTiehsnwHvLSWJnQdhVeqYue7Id1dKr0qw==}
+    engines: {node: '>=10'}
+
   des.js@1.1.0:
     resolution: {integrity: sha512-r17GxjhUCjSRy8aiJpr8/UadFIzMzJGexI3Nmz4ADi9LYSFx4gTBp80+NaX/YsXWWLhpZ7v/v/ubEc/bCNfKwg==}
 
@@ -1350,6 +1378,10 @@ packages:
 
   electron-to-chromium@1.5.286:
     resolution: {integrity: sha512-9tfDXhJ4RKFNerfjdCcZfufu49vg620741MNs26a9+bhLThdB+plgMeou98CAaHu/WATj2iHOOHTp1hWtABj2A==}
+
+  electrum-cash@2.0.10:
+    resolution: {integrity: sha512-xxKXWyDsnUR2pkqzb7r7ANf6yzlHO8+Rkq8HOFkKiH1tF1BJwyh6sDhGAy4lkTv2sU8Uv1em/itYZ5n2Cr6zaA==}
+    deprecated: electrum cash packages have been moved to the @electrum-cash/* namespace.
 
   elliptic@6.6.1:
     resolution: {integrity: sha512-RaddvvMatK2LJHqFJ+YA4WysVN5Ita9E35botqIYspQ4TkRAlCicdzKOjlyv/1Za5RyTNn7di//eEV0uTAfe3g==}
@@ -1720,6 +1752,11 @@ packages:
     resolution: {integrity: sha512-u4sej9B1LPSxTGKB/HiuzvEQnXH0ECYkSVQU39koSwmFAxhlEAFl9RdTvLv4TOTQUgBS5O3O5fwUxk6byBZ+IQ==}
     engines: {node: '>=10'}
 
+  isomorphic-ws@4.0.1:
+    resolution: {integrity: sha512-BhBvN2MBpWTaSHdWRb/bwdZJ1WaehQ2L1KngkCkfLUGF0mAWAT1sQUQacEmQ0jXkFw/czDXPNQSL5u2/Krsz1w==}
+    peerDependencies:
+      ws: '*'
+
   its-fine@1.2.5:
     resolution: {integrity: sha512-fXtDA0X0t0eBYAGLVM5YsgJGsJ5jEmqZEPrGbzdf5awjv0xE7nqv3TVnvtUF060Tkes15DbDAKW/I48vsb6SyA==}
     peerDependencies:
@@ -2039,6 +2076,9 @@ packages:
 
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
+
+  pako@2.1.0:
+    resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
 
   papaparse@5.5.3:
     resolution: {integrity: sha512-5QvjGxYVjxO59MGU2lHVYpRWBBtKHnlIAcSe1uNFCkkptUh63NFRj0FJQm7nR67puEruUci/ZkjmEFrjCAyP4A==}
@@ -2908,6 +2948,10 @@ snapshots:
 
   '@bitauth/libauth@3.1.0-next.8': {}
 
+  '@cashscript/utils@0.10.5':
+    dependencies:
+      '@bitauth/libauth': 3.0.0
+
   '@dimforge/rapier3d-compat@0.12.0': {}
 
   '@electrum-cash/debug-logs@1.0.0':
@@ -3127,6 +3171,8 @@ snapshots:
     dependencies:
       '@motionone/dom': 10.18.0
       tslib: 2.8.1
+
+  '@mr-zwets/bchn-api-wrapper@1.0.2': {}
 
   '@msgpack/msgpack@3.1.3': {}
 
@@ -3507,6 +3553,10 @@ snapshots:
   '@types/trusted-types@2.0.7': {}
 
   '@types/webxr@0.5.24': {}
+
+  '@types/ws@7.4.7':
+    dependencies:
+      '@types/node': 25.2.3
 
   '@types/ws@8.18.1':
     dependencies:
@@ -3969,6 +4019,10 @@ snapshots:
       object.assign: 4.1.7
       util: 0.12.5
 
+  async-mutex@0.3.2:
+    dependencies:
+      tslib: 2.8.1
+
   async-mutex@0.5.0:
     dependencies:
       tslib: 2.8.1
@@ -4107,6 +4161,20 @@ snapshots:
 
   caniuse-lite@1.0.30001770: {}
 
+  cashscript@0.10.5:
+    dependencies:
+      '@bitauth/libauth': 3.0.0
+      '@cashscript/utils': 0.10.5
+      '@mr-zwets/bchn-api-wrapper': 1.0.2
+      delay: 5.0.0
+      electrum-cash: 2.0.10
+      fast-deep-equal: 3.1.3
+      pako: 2.1.0
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
   chalk@4.1.2:
     dependencies:
       ansi-styles: 4.3.0
@@ -4225,6 +4293,8 @@ snapshots:
 
   defu@6.1.4: {}
 
+  delay@5.0.0: {}
+
   des.js@1.1.0:
     dependencies:
       inherits: 2.0.4
@@ -4270,6 +4340,18 @@ snapshots:
       gopd: 1.2.0
 
   electron-to-chromium@1.5.286: {}
+
+  electrum-cash@2.0.10:
+    dependencies:
+      '@types/ws': 7.4.7
+      async-mutex: 0.3.2
+      debug: 4.4.3
+      isomorphic-ws: 4.0.1(ws@7.5.10)
+      ws: 7.5.10
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
 
   elliptic@6.6.1:
     dependencies:
@@ -4687,6 +4769,10 @@ snapshots:
 
   isomorphic-timers-promises@1.0.1: {}
 
+  isomorphic-ws@4.0.1(ws@7.5.10):
+    dependencies:
+      ws: 7.5.10
+
   its-fine@1.2.5(@types/react@18.3.28)(react@18.3.1):
     dependencies:
       '@types/react-reconciler': 0.28.9(@types/react@18.3.28)
@@ -5020,6 +5106,8 @@ snapshots:
   p-try@2.2.0: {}
 
   pako@1.0.11: {}
+
+  pako@2.1.0: {}
 
   papaparse@5.5.3: {}
 
