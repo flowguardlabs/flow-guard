@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Users, Calendar, Clock, Pause, DollarSign, Check } from 'lucide-react';
 import { Footer } from '../../components/layout/Footer';
 import { SolutionsDropdown } from '../../components/ui/SolutionsDropdown';
+import { NoiseBackground } from '../../components/ui/NoiseBackground';
 
 export default function PayrollPage() {
   return (
@@ -236,8 +237,10 @@ export default function PayrollPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 px-6 lg:px-12 bg-accent/5">
-        <div className="max-w-4xl mx-auto text-center">
+      {/* CTA */}
+      <section className="relative overflow-hidden py-24 px-6 lg:px-12 bg-accent/5">
+        <NoiseBackground />
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
           <h2 className="font-display text-4xl md:text-5xl mb-6 text-textPrimary">
             Ready to automate payroll?
           </h2>
