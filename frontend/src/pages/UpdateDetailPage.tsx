@@ -16,6 +16,221 @@ interface BlogPost {
 }
 
 const BLOG_POSTS: Record<string, BlogPost> = {
+    'how-flowguard-uses-cashtokens-nfts-to-track-vesting-state': {
+        slug: 'how-flowguard-uses-cashtokens-nfts-to-track-vesting-state',
+        title: 'How FlowGuard Uses CashTokens NFTs to Track Vesting State',
+        date: '2026-02-21',
+        summary: 'FlowGuard streams are not database-driven vesting promises. They are covenant-enforced schedules backed by NFT commitments on Bitcoin Cash.',
+        tags: ['Education', 'Vesting', 'CashTokens', 'BCH'],
+        readingTime: 7,
+        author: 'FlowGuard Team',
+        content: `
+# How FlowGuard Uses CashTokens NFTs to Track Vesting State
+
+## Introduction
+
+Vesting sounds simple:
+
+"Release funds gradually over time."
+
+But on-chain vesting requires something specific:
+
+The contract must remember state.
+
+It must track:
+
+- How much has already been released
+- Whether the stream is active or paused
+- Where in the schedule we are
+- Who the recipient is
+
+FlowGuard solves this using NFT commitments built on Bitcoin Cash through CashTokens.
+
+## Why State Tracking Matters
+
+Without persistent on-chain state, a vesting contract cannot:
+
+- Prevent over-claiming
+- Know how much has already been withdrawn
+- Track partial releases
+- Enforce cliffs and step schedules
+
+If vesting logic depends on a database, it is not enforced by consensus.
+
+FlowGuard moves state tracking fully into the UTXO model.
+
+## The 40-Byte Commitment Structure
+
+Each vesting stream mints a mutable NFT.
+
+Inside that NFT is a 40-byte commitment.
+
+That commitment encodes:
+
+**Status (1 byte)**
+- Active
+- Paused
+- Cancelled
+- Completed
+
+**Flags (1 byte)**
+- Cancelable
+- Transferable
+- Token-based stream
+
+**Total Released (8 bytes)**
+Tracks how much has already been claimed.
+
+**Time Cursor (5 bytes)**
+Used to compute vesting progression.
+
+**Pause Timestamp (5 bytes)**
+Tracks when pause began.
+
+**Recipient Hash (20 bytes)**
+Locks claims to a specific address.
+
+This structure fits within the CashTokens commitment limit and allows deterministic state updates.
+
+## What Happens During a Claim
+
+When a recipient claims vested funds:
+
+1. The contract calculates how much should be vested at the current block time.
+2. It subtracts the totalReleased value.
+3. It determines the claimable amount.
+4. It updates the NFT commitment:
+   - totalReleased increases.
+   - Time cursor advances if needed.
+5. It creates a new contract output with the updated commitment.
+6. It sends the claimable amount to the recipient.
+
+If someone attempts to claim more than allowed, validation fails.
+
+The blockchain rejects the transaction.
+
+## Why Use NFTs Instead of Pure Script Variables?
+
+Because Bitcoin Cash uses the UTXO model.
+
+Contracts do not store mutable variables like account-based systems.
+
+State must live inside UTXOs.
+
+By embedding state inside an NFT commitment:
+
+- The contract always has access to current state.
+- State moves forward with each transaction.
+- Every update is validated by consensus.
+
+The NFT becomes the state container.
+
+## Linear vs Step Vesting
+
+FlowGuard supports:
+
+**Linear Vesting**
+
+Funds unlock gradually over time.
+
+The contract calculates:
+
+elapsed_time / total_duration x total_amount
+
+**Step Vesting**
+
+Funds unlock in discrete intervals.
+
+Example:
+
+- 1 BCH every 30 days
+- 6 milestones total
+
+The contract enforces release boundaries based on timestamp and stored cursor.
+
+Both models rely on the same NFT commitment state.
+
+## What This Prevents
+
+Using NFT-based state prevents:
+
+- Double-claiming
+- Over-claiming
+- Skipping vesting periods
+- Backend-adjusted balances
+- Manual overrides
+
+The only way to release funds is through a valid covenant transaction.
+
+## Why This Is BCH-Specific Innovation
+
+CashTokens enable:
+
+- Native token support
+- NFT commitments
+- Mutable state within UTXOs
+
+FlowGuard leverages these features to implement vesting without:
+
+- External oracles
+- Off-chain accounting
+- Centralized execution services
+
+This keeps treasury logic inside Bitcoin Cash itself.
+
+## Practical Example
+
+Imagine:
+
+- 12 BCH total stream
+- 12-month duration
+- Cancelable
+- Linear release
+
+After 3 months:
+
+- 3 BCH should be vested
+- If 1 BCH was already claimed
+- Only 2 BCH can be released now
+
+The contract calculates this based on:
+
+- Current block time
+- Stored totalReleased
+- Start and end timestamps
+
+The NFT commitment updates accordingly.
+
+There is no spreadsheet tracking.
+
+## Why This Matters for the Ecosystem
+
+BCH projects need:
+
+- Contributor vesting
+- Long-term alignment
+- Structured grant releases
+- On-chain payroll
+
+NFT-based state tracking allows these without relying on centralized infrastructure.
+
+It turns vesting into enforceable protocol logic.
+
+## Closing
+
+FlowGuard streams are not database-driven vesting promises.
+
+They are covenant-enforced schedules backed by NFT commitments on Bitcoin Cash.
+
+The NFT is the state machine.
+
+The contract is the enforcer.
+
+The blockchain is the judge.
+
+Next, we'll break down how FlowGuard handles airdrops using Merkle roots and on-chain proof validation.
+`
+    },
     'how-flowguard-vaults-enforce-spending-rules': {
         slug: 'how-flowguard-vaults-enforce-spending-rules',
         title: 'How FlowGuard Vaults Enforce Spending Rules On-Chain',

@@ -18,6 +18,17 @@ interface BlogPost {
 
 const BLOG_POSTS: BlogPost[] = [
     {
+        slug: 'how-flowguard-uses-cashtokens-nfts-to-track-vesting-state',
+        title: 'How FlowGuard Uses CashTokens NFTs to Track Vesting State',
+        date: '2026-02-21',
+        summary: 'FlowGuard streams are not database-driven vesting promises. They are covenant-enforced schedules backed by NFT commitments on Bitcoin Cash.',
+        tags: ['Education', 'Vesting', 'CashTokens', 'BCH'],
+        readingTime: 7,
+        featured: true,
+        status: 'published',
+        author: 'FlowGuard Team'
+    },
+    {
         slug: 'how-flowguard-vaults-enforce-spending-rules',
         title: 'How FlowGuard Vaults Enforce Spending Rules On-Chain',
         date: '2026-02-20',
