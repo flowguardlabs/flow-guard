@@ -20,7 +20,7 @@ The executor monitors all active covenant UTXOs and submits transactions when:
 flowchart TD
     BM[blockchain-monitor.ts\nIndexes new blocks] --> DB[(SQLite DB\nCovenant states)]
     DB --> CUS[cycle-unlock-scheduler.ts\nChecks next_payment timestamps]
-    CUS >|interval elapsed| TB[TransactionBuilder.ts\nBuilds pay tx]
+    CUS  -->|interval elapsed| TB[TransactionBuilder.ts\nBuilds pay tx]
     TB --> TM[TransactionMonitor.ts\nBroadcasts + confirms]
     TM --> DB
 ```

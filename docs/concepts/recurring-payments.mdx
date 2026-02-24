@@ -11,12 +11,12 @@ icon: "arrows-rotate"
 ```mermaid
 flowchart LR
     A([Deploy\nfund pool]) --> B[ACTIVE\nnext_payment = startTimestamp]
-    B >|pay - permissionless\nwhen locktime >= next_payment| C[Release amountPerInterval\nto recipientHash\nnext_payment += intervalSeconds]
+    B  -->|pay - permissionless\nwhen locktime >= next_payment| C[Release amountPerInterval\nto recipientHash\nnext_payment += intervalSeconds]
     C --> B
-    B >|pause - sender| D[PAUSED]
-    D >|resume - sender\nnextPayment = now + interval| B
-    B >|cancel - sender| E([Pool returned to sender])
-    C >|totalPaid >= totalAmount| F([COMPLETED])
+    B  -->|pause - sender| D[PAUSED]
+    D  -->|resume - sender\nnextPayment = now + interval| B
+    B  -->|cancel - sender| E([Pool returned to sender])
+    C  -->|totalPaid >= totalAmount| F([COMPLETED])
 ```
 
 ## Key Parameters

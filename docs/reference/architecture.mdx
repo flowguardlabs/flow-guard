@@ -10,44 +10,45 @@ FlowGuard is composed of three layers: on-chain contracts, an off-chain backend 
 
 ```mermaid
 flowchart TD
-    subgraph Contracts ["On-Chain Contracts (BCH)"]
-        VC[VaultCovenant]
-        PC[ProposalCovenant]
-        VLC[VoteLockCovenant]
-        VSC[VestingCovenant]
-        RPC[RecurringPaymentCovenant]
-        AC[AirdropCovenant]
-        GC[GrantCovenant]
-        BC[BountyCovenant]
-        RC[RewardCovenant]
-        VC -->|vaultId| VSC
-        VC -->|vaultId| RPC
-        VC -->|vaultId| AC
-        VC -->|vaultId| GC
-        VC -->|vaultId| BC
-        VC -->|vaultId| RC
-        PC -->|proposalId| VLC
-        PC -->|vaultId| VC
-    end
-
-    subgraph Backend ["Backend (Node.js)"]
-        IDX["Indexer\nblockchain-monitor\nUTXO scanner"]
-        DB[(SQLite DB)]
-        API["REST API\nExpress"]
-        EXE["Executor\ncycle-unlock-scheduler\ntransaction builder"]
-        IDX --> DB
-        EXE --> DB
-        API --> DB
-    end
-
-    subgraph Frontend ["Frontend (React/Vite)"]
-        APP["Web App\nDashboard + Public pages"]
-    end
-
-    BCH["BCH Node\nElectrum protocol"] --> IDX
+    BCH["BCH Node"] --> IDX
+    IDX --> DB
+    EXE --> DB
     EXE --> BCH
+    API --> DB
     APP --> API
-    APP -->|"wallet tx"| BCH
+    APP -->|wallet tx| BCH
+
+    VC -->|vaultId| VSC
+    VC -->|vaultId| RPC
+    VC -->|vaultId| AC
+    VC -->|vaultId| GC
+    VC -->|vaultId| BC
+    VC -->|vaultId| RC
+    PC -->|proposalId| VLC
+    PC -->|vaultId| VC
+
+    VC["VaultCovenant"]
+    PC["ProposalCovenant"]
+    VLC["VoteLockCovenant"]
+    VSC["VestingCovenant"]
+    RPC["RecurringPaymentCovenant"]
+    AC["AirdropCovenant"]
+    GC["GrantCovenant"]
+    BC["BountyCovenant"]
+    RC["RewardCovenant"]
+    IDX["Indexer"]
+    DB[("SQLite DB")]
+    API["REST API"]
+    EXE["Executor"]
+    APP["Frontend App"]
+
+    classDef contract fill:#00C896,stroke:#00A37A,color:#000
+    classDef backend fill:#1a2e27,stroke:#00C896,color:#fff
+    classDef node fill:#0A0F0D,stroke:#444,color:#ccc
+
+    class VC,PC,VLC,VSC,RPC,AC,GC,BC,RC contract
+    class IDX,DB,API,EXE backend
+    class BCH,APP node
 ```
 
 ## Contract Dependency Map

@@ -29,9 +29,9 @@ Every FlowGuard product follows the same pattern:
 flowchart LR
     A([Deploy]) --> B[Covenant UTXO\nNFT: initial state]
     B --> C{Function Call}
-    C >|claim/pay/release| B
-    C >|cancel| D([Sender gets funds back])
-    C >|complete| E([Recipient gets remainder])
+    C  -->|claim/pay/release| B
+    C  -->|cancel| D([Sender gets funds back])
+    C  -->|complete| E([Recipient gets remainder])
 ```
 
 ## State Machine
@@ -65,12 +65,12 @@ Covenants are linked to a Vault via `vaultId` compiled into the bytecode. This t
 
 ```mermaid
 flowchart TD
-    V[VaultCovenant] >|vaultId| WS[VestingCovenant]
-    V >|vaultId| RP[RecurringPaymentCovenant]
-    V >|vaultId| AD[AirdropCovenant]
-    V >|vaultId| GR[GrantCovenant]
-    V >|vaultId| BN[BountyCovenant]
-    V >|vaultId| RW[RewardCovenant]
-    PR[ProposalCovenant] >|vaultId| V
-    VL[VoteLockCovenant] >|proposalId| PR
+    V[VaultCovenant]  -->|vaultId| WS[VestingCovenant]
+    V  -->|vaultId| RP[RecurringPaymentCovenant]
+    V  -->|vaultId| AD[AirdropCovenant]
+    V  -->|vaultId| GR[GrantCovenant]
+    V  -->|vaultId| BN[BountyCovenant]
+    V  -->|vaultId| RW[RewardCovenant]
+    PR[ProposalCovenant]  -->|vaultId| V
+    VL[VoteLockCovenant]  -->|proposalId| PR
 ```
