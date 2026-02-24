@@ -98,7 +98,7 @@ export interface GovernanceRules {
   majorityThreshold: number; // Percentage (e.g., 50 = 50%)
 
   // Vote Tallying
-  maxVotesPre Layla: number; // Max voters for trustless on-chain tally
+  maxVotesPerTally: number; // Max voters for trustless on-chain tally
   hybridFallback: boolean; // Use M-of-N attested tally if exceeded
 }
 
