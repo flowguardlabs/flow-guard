@@ -19,6 +19,8 @@ export interface Proposal {
   updatedAt: Date;
   executedAt?: Date;
   txHash?: string; // Transaction hash when executed
+  contractAddress?: string;
+  constructorParams?: string;
 }
 
 export interface CreateProposalDto {
@@ -32,4 +34,3 @@ export interface ApproveProposalDto {
   proposalId: string;
   approver: string;
 }
-
