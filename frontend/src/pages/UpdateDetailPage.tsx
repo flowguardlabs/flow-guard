@@ -16,6 +16,209 @@ interface BlogPost {
 }
 
 const BLOG_POSTS: Record<string, BlogPost> = {
+    'how-flowguard-implements-on-chain-governance': {
+        slug: 'how-flowguard-implements-on-chain-governance',
+        title: 'How FlowGuard Implements On-Chain Governance on Bitcoin Cash',
+        date: '2026-02-24',
+        summary: 'FlowGuard governance turns voting from community sentiment into enforceable treasury action. Tokens are locked, votes are validated, and contracts enforce the outcome.',
+        tags: ['Education', 'Governance', 'Voting', 'BCH'],
+        readingTime: 6,
+        author: 'FlowGuard Team',
+        content: `
+# How FlowGuard Implements On-Chain Governance on Bitcoin Cash
+
+## Introduction
+
+Governance is often treated as a signaling mechanism.
+
+Projects run:
+
+- Off-chain polls
+- Snapshot votes
+- Community surveys
+
+Then someone manually executes the outcome.
+
+This creates a gap:
+
+The vote may pass, but execution still depends on trust.
+
+FlowGuard closes that gap by implementing governance logic directly on Bitcoin Cash.
+
+Voting is enforced.
+Execution is conditional.
+Treasury actions depend on contract validation.
+
+## The Core Components
+
+FlowGuard governance is built around three elements:
+
+- Token locking
+- Vote recording
+- Tally validation
+
+Each step is enforced by covenant contracts.
+
+## 1. Token Locking
+
+To vote, tokens must be locked.
+
+This prevents:
+
+- Flash voting
+- Temporary borrowing for voting power
+- Double-use of tokens
+
+The locking contract verifies:
+
+- Token ownership
+- Lock duration
+- Voting eligibility
+
+Locked tokens remain inaccessible until the voting period ends.
+
+Voting power equals locked amount.
+
+## 2. Vote Recording
+
+When a voter casts a vote:
+
+- Their locked tokens are referenced
+- Their vote choice is recorded
+- The contract validates eligibility
+
+Votes cannot exceed the locked amount.
+
+Votes cannot be cast after the deadline.
+
+The blockchain enforces voting period rules.
+
+## 3. Tally Commitment
+
+At the end of the voting period:
+
+- Votes are tallied
+- A tally commitment is generated
+- Execution is allowed only if conditions are met
+
+This includes:
+
+- Minimum quorum
+- Required majority
+- Time-based restrictions
+
+If a proposal fails quorum, execution is impossible.
+
+If it passes, execution becomes valid.
+
+## Connecting Governance to Treasury
+
+The important part:
+
+Governance is not isolated.
+
+Proposals can trigger:
+
+- Vault payouts
+- Budget releases
+- Parameter updates
+
+Execution of treasury actions depends on governance outcome.
+
+This prevents:
+
+- Manual bypass
+- Off-chain reinterpretation
+- Silent policy changes
+
+If governance fails, treasury cannot move.
+
+## Example Scenario
+
+Imagine:
+
+- A treasury proposal to release 5 BCH for development
+- Voting period: 7 days
+- Minimum quorum: 30%
+- Majority required: >50%
+
+If after 7 days:
+
+- Quorum not met → execution invalid
+- Majority not achieved → execution invalid
+- Both satisfied → execution allowed
+
+The contract enforces the result.
+
+No one "decides" afterward.
+
+## Why This Matters
+
+Without enforcement:
+
+Votes are advisory.
+
+With covenant enforcement:
+
+Votes become binding.
+
+This is important for:
+
+- DAO-managed treasuries
+- Community funding
+- Long-term ecosystem governance
+- Grant review processes
+
+Execution follows validation, not interpretation.
+
+## BCH-Specific Advantage
+
+Because Bitcoin Cash supports:
+
+- Covenant logic
+- Native token locking
+- Deterministic validation
+
+Governance can be integrated directly with treasury contracts.
+
+This avoids:
+
+- Separate governance tokens on another chain
+- Off-chain tally infrastructure
+- Centralized execution services
+
+Everything stays inside the BCH ecosystem.
+
+## What Governance Does Not Mean
+
+Governance does not remove:
+
+- Disagreement
+- Debate
+- Community discussion
+
+It removes ambiguity at execution time.
+
+Once rules are defined and encoded, the outcome is deterministic.
+
+## Closing
+
+FlowGuard governance turns voting from:
+
+"Community sentiment"
+
+into
+
+"Enforceable treasury action."
+
+Tokens are locked.
+Votes are validated.
+Tally determines execution.
+Contracts enforce the outcome.
+
+In the next post, we'll move from mechanics to proof — how FlowGuard is tested end-to-end on Chipnet and verifiable on-chain.
+`
+    },
     'how-flowguard-enforces-milestone-based-funding-on-chain': {
         slug: 'how-flowguard-enforces-milestone-based-funding-on-chain',
         title: 'How FlowGuard Enforces Milestone-Based Funding On-Chain',

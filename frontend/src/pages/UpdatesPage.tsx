@@ -18,6 +18,16 @@ interface BlogPost {
 
 const BLOG_POSTS: BlogPost[] = [
     {
+        slug: 'how-flowguard-implements-on-chain-governance',
+        title: 'How FlowGuard Implements On-Chain Governance on Bitcoin Cash',
+        date: '2026-02-24',
+        summary: 'FlowGuard governance turns voting from community sentiment into enforceable treasury action. Tokens are locked, votes are validated, and contracts enforce the outcome.',
+        tags: ['Education', 'Governance', 'Voting', 'BCH'],
+        readingTime: 6,
+        status: 'published',
+        author: 'FlowGuard Team'
+    },
+    {
         slug: 'how-flowguard-enforces-milestone-based-funding-on-chain',
         title: 'How FlowGuard Enforces Milestone-Based Funding On-Chain',
         date: '2026-02-24',
