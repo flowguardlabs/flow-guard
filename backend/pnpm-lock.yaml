@@ -18,8 +18,8 @@ importers:
         specifier: ^12.4.6
         version: 12.4.6
       cashscript:
-        specifier: ^0.10.5
-        version: 0.10.5
+        specifier: ^0.12.1
+        version: 0.12.1
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -245,8 +245,8 @@ packages:
     resolution: {integrity: sha512-Pm+Ju+YP3JeBLLTiVrBnia2wwE4G17r4XqpvPRMcklElJTe8J6x3JgKRg1by0Xm3ZY6UFxACkEAoSA+x419/zA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  '@cashscript/utils@0.10.5':
-    resolution: {integrity: sha512-5AJxZBIxyMArFYb/FUeMmkmij1AfSPdfBee8w3uRECiuRd7twhw8O+xf3iqIDBo1KYAPmpJtyNyGGMybr2dDEw==}
+  '@cashscript/utils@0.12.1':
+    resolution: {integrity: sha512-dGVbbFMUHZJFjmLkGQNrM0/hzoXlJgM8bYU1J5cX80Vo5n7dmopctmxplgXGd3u/h6hBUt3V7lTawGi8DBupJQ==}
 
   '@electrum-cash/debug-logs@1.0.0':
     resolution: {integrity: sha512-GU/CvRR9lZ0d8gy9CXGW7f//OHCIydBavv9q+JcxjGj8Xr7HwlGqHx+Wzhx9y3YmJrXfExpgClcd++gTjdEmzA==}
@@ -657,9 +657,6 @@ packages:
     resolution: {integrity: sha512-HVyk8nj2m+jcFRNazzqyVKiZezyhDKrGUA3jlEcg/nZ6Ms+qHwocba1Y/AaVaznJTAM9xpdFSh+ptbNrhOGvZA==}
     deprecated: This is a stub types definition. uuid provides its own type definitions, so you do not need this installed.
 
-  '@types/ws@7.4.7':
-    resolution: {integrity: sha512-JQbbmxZTZehdc2iszGKs5oC3NFnjeay7mtAWrdt7qNtAVK0g19muApzAy4bm9byz79xa2ZnO/BOBC2R8RC5Lww==}
-
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
@@ -803,9 +800,6 @@ packages:
     resolution: {integrity: sha512-HGyxoOTYUyCM6stUe6EJgnd4EoewAI7zMdfqO+kGjnlZmBDz/cR5pf8r/cR4Wq60sL/p0IkcjUEEPwS3GFrIyw==}
     engines: {node: '>=8'}
 
-  async-mutex@0.3.2:
-    resolution: {integrity: sha512-HuTK7E7MT7jZEh1P9GtRW9+aTWiDWWi9InbZ5hjxrnRa39KS4BW04+xLBhYNS2aXhHUIKZSw3gj4Pn1pj+qGAA==}
-
   async-mutex@0.5.0:
     resolution: {integrity: sha512-1A94B18jkJ3DYq284ohPxoXbfTA5HsQ7/Mf4DEhcyLx3Bz27Rh59iScbB6EPiP+B+joue6YCxcMXSbFC1tZKwA==}
 
@@ -913,8 +907,8 @@ packages:
   caniuse-lite@1.0.30001754:
     resolution: {integrity: sha512-x6OeBXueoAceOmotzx3PO4Zpt4rzpeIFsSr6AAePTZxSkXiYDUmpypEl7e2+8NCd9bD7bXjqyef8CJYPC1jfxg==}
 
-  cashscript@0.10.5:
-    resolution: {integrity: sha512-YG0OkUGzMHTlqqJ559YIzpbDtMDjH+uExNT2MmKqa3zPfmu7/VbxwdBOLRFnlDaHh3bOMFUlke0XpnGzm30Q9Q==}
+  cashscript@0.12.1:
+    resolution: {integrity: sha512-IGKipstPw+/N+Nr5YyZf7LH89o32cmoMZFYZsEYQdOhMJQKp/m8lxkug8bPTm3oee+zzO4vYpDCbsBCaAhuj/A==}
 
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
@@ -1041,10 +1035,6 @@ packages:
     resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
     engines: {node: '>=0.10.0'}
 
-  delay@5.0.0:
-    resolution: {integrity: sha512-ReEBKkIfe4ya47wlPYf/gu5ib6yUG0/Aez0JQZQz94kiWtRQvZIQbTiehsnwHvLSWJnQdhVeqYue7Id1dKr0qw==}
-    engines: {node: '>=10'}
-
   delegates@1.0.0:
     resolution: {integrity: sha512-bd2L678uiWATM6m5Z1VzNCErI3jiGzt6HGY8OVICs40JQq/HALfbyNJmp0UDakEY4pMMaN0Ly5om/B1VI/+xfQ==}
 
@@ -1093,10 +1083,6 @@ packages:
 
   electron-to-chromium@1.5.253:
     resolution: {integrity: sha512-O0tpQ/35rrgdiGQ0/OFWhy1itmd9A6TY9uQzlqj3hKSu/aYpe7UIn5d7CU2N9myH6biZiWF3VMZVuup8pw5U9w==}
-
-  electrum-cash@2.0.10:
-    resolution: {integrity: sha512-xxKXWyDsnUR2pkqzb7r7ANf6yzlHO8+Rkq8HOFkKiH1tF1BJwyh6sDhGAy4lkTv2sU8Uv1em/itYZ5n2Cr6zaA==}
-    deprecated: electrum cash packages have been moved to the @electrum-cash/* namespace.
 
   emittery@0.13.1:
     resolution: {integrity: sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ==}
@@ -1347,7 +1333,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   globals@13.24.0:
     resolution: {integrity: sha512-AhO5QUcj8llrbG09iWhPU2B204J1xnPeL8kQmVorSsy+Sjj1sk8gIyh6cUocGmH4L0UuhAJy+hJMRA4mgA4mFQ==}
@@ -1500,11 +1486,6 @@ packages:
 
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
-
-  isomorphic-ws@4.0.1:
-    resolution: {integrity: sha512-BhBvN2MBpWTaSHdWRb/bwdZJ1WaehQ2L1KngkCkfLUGF0mAWAT1sQUQacEmQ0jXkFw/czDXPNQSL5u2/Krsz1w==}
-    peerDependencies:
-      ws: '*'
 
   istanbul-lib-coverage@3.2.2:
     resolution: {integrity: sha512-O8dpsF+r0WV/8MNRKfnmrtCWhuKjxrq2w+jpzBL5UZKTi2LeVWnWOmWRxFlesJONmc+wLAGvKQZEOanko0LFTg==}
@@ -2269,6 +2250,7 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   test-exclude@6.0.0:
     resolution: {integrity: sha512-cAGWPIyOHU6zlmg88jwm7VRyXnMN7iV68OGAbYDk/Mh/xC/pzVPlQtY6ngoIH/5/tciuhGfvESU8GrHrcxD56w==}
@@ -2396,18 +2378,6 @@ packages:
   write-file-atomic@4.0.2:
     resolution: {integrity: sha512-7KxauUdBmSdWnmpaGFg+ppNjKF8uNLry8LyzjauQDOVONfFLNKrKvQOxZ/VuTIcS/gge/YNahf5RIIQWTSarlg==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
-
-  ws@7.5.10:
-    resolution: {integrity: sha512-+dbF1tHwZpXcbOJdVOkzLDxZP1ailvSxM6ZweXTegylPny803bFhA+vqBYw4s31NSAk4S2Qz+AKXK9a4wkdjcQ==}
-    engines: {node: '>=8.3.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: ^5.0.2
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
 
   ws@8.18.3:
     resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
@@ -2638,9 +2608,9 @@ snapshots:
 
   '@bitauth/libauth@3.1.0-next.8': {}
 
-  '@cashscript/utils@0.10.5':
+  '@cashscript/utils@0.12.1':
     dependencies:
-      '@bitauth/libauth': 3.0.0
+      '@bitauth/libauth': 3.1.0-next.8
 
   '@electrum-cash/debug-logs@1.0.0':
     dependencies:
@@ -3128,10 +3098,6 @@ snapshots:
     dependencies:
       uuid: 13.0.0
 
-  '@types/ws@7.4.7':
-    dependencies:
-      '@types/node': 20.19.25
-
   '@types/ws@8.18.1':
     dependencies:
       '@types/node': 20.19.25
@@ -3304,10 +3270,6 @@ snapshots:
   array-flatten@1.1.1: {}
 
   array-union@2.1.0: {}
-
-  async-mutex@0.3.2:
-    dependencies:
-      tslib: 2.8.1
 
   async-mutex@0.5.0:
     dependencies:
@@ -3482,15 +3444,14 @@ snapshots:
 
   caniuse-lite@1.0.30001754: {}
 
-  cashscript@0.10.5:
+  cashscript@0.12.1:
     dependencies:
-      '@bitauth/libauth': 3.0.0
-      '@cashscript/utils': 0.10.5
+      '@bitauth/libauth': 3.1.0-next.8
+      '@cashscript/utils': 0.12.1
+      '@electrum-cash/network': 4.1.4
       '@mr-zwets/bchn-api-wrapper': 1.0.1
-      delay: 5.0.0
-      electrum-cash: 2.0.10
-      fast-deep-equal: 3.1.3
       pako: 2.1.0
+      semver: 7.7.3
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -3596,8 +3557,6 @@ snapshots:
 
   deepmerge@4.3.1: {}
 
-  delay@5.0.0: {}
-
   delegates@1.0.0:
     optional: true
 
@@ -3633,18 +3592,6 @@ snapshots:
   ee-first@1.1.1: {}
 
   electron-to-chromium@1.5.253: {}
-
-  electrum-cash@2.0.10:
-    dependencies:
-      '@types/ws': 7.4.7
-      async-mutex: 0.3.2
-      debug: 4.4.3
-      isomorphic-ws: 4.0.1(ws@7.5.10)
-      ws: 7.5.10
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
 
   emittery@0.13.1: {}
 
@@ -4130,10 +4077,6 @@ snapshots:
   is-stream@2.0.1: {}
 
   isexe@2.0.0: {}
-
-  isomorphic-ws@4.0.1(ws@7.5.10):
-    dependencies:
-      ws: 7.5.10
 
   istanbul-lib-coverage@3.2.2: {}
 
@@ -5240,8 +5183,6 @@ snapshots:
     dependencies:
       imurmurhash: 0.1.4
       signal-exit: 3.0.7
-
-  ws@7.5.10: {}
 
   ws@8.18.3: {}
 
