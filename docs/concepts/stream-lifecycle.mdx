@@ -1,8 +1,8 @@
----
+-
 title: "Stream Lifecycle"
 description: "The shared status and flags model used by every FlowGuard covenant."
 icon: "arrow-progress"
----
+-
 
 Every FlowGuard covenant — vesting, recurring payment, airdrop, grant, bounty, reward — follows the same status lifecycle and flags bitmap. This consistency means the same indexer, explorer, and frontend can handle all products uniformly.
 
@@ -10,20 +10,20 @@ Every FlowGuard covenant — vesting, recurring payment, airdrop, grant, bounty,
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ACTIVE : deploy()
-    ACTIVE --> PAUSED : pause()
-    PAUSED --> ACTIVE : resume()
-    ACTIVE --> CANCELLED : cancel()
-    PAUSED --> CANCELLED : cancel()
-    ACTIVE --> COMPLETED : all funds distributed
-    COMPLETED --> [*]
-    CANCELLED --> [*]
+    [*] > ACTIVE : deploy()
+    ACTIVE > PAUSED : pause()
+    PAUSED > ACTIVE : resume()
+    ACTIVE > CANCELLED : cancel()
+    PAUSED > CANCELLED : cancel()
+    ACTIVE > COMPLETED : all funds distributed
+    COMPLETED > [*]
+    CANCELLED > [*]
 ```
 
 ## Status Values
 
 | Status | Byte | Description |
-|---|---|---|
+|-|-|-|
 | `ACTIVE` | `0x00` | Normal operating state. All function paths available. |
 | `PAUSED` | `0x01` | Frozen by authority. Claims and payments blocked. |
 | `CANCELLED` | `0x02` | Terminated early. Remaining funds returned to sender/authority. |
@@ -34,7 +34,7 @@ stateDiagram-v2
 The `flags` byte at position `[1]` of every NFT commitment is a bitfield:
 
 | Bit | Hex | Name | Effect |
-|---|---|---|---|
+|-|-|-|-|
 | 0 | `0x01` | `FLAG_CANCELABLE` | Sender/authority may call `cancel()` |
 | 1 | `0x02` | `FLAG_TRANSFERABLE` | Recipient may call `transfer()` to reassign |
 | 2 | `0x04` | `FLAG_USES_TOKENS` | Covenant holds CashToken FTs, not BCH |

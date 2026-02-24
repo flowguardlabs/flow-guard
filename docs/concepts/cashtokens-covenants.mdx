@@ -1,8 +1,8 @@
----
+-
 title: "CashTokens and Covenants"
 description: "How CashScript covenants and CashTokens NFT commitments enforce all FlowGuard state transitions without trusted intermediaries."
 icon: "microchip"
----
+-
 
 ## CashScript Covenants
 
@@ -18,11 +18,11 @@ sequenceDiagram
     BCH Node->>Covenant Script: Execute input script
     Covenant Script->>Covenant Script: Validate outputs match rules
     alt Valid
-        Covenant Script-->>BCH Node: PASS
-        BCH Node-->>Caller: Transaction confirmed
+        Covenant Script>>BCH Node: PASS
+        BCH Node>>Caller: Transaction confirmed
     else Invalid
-        Covenant Script-->>BCH Node: FAIL
-        BCH Node-->>Caller: Transaction rejected
+        Covenant Script>>BCH Node: FAIL
+        BCH Node>>Caller: Transaction rejected
     end
 ```
 
@@ -88,9 +88,9 @@ Every covenant UTXO holds a CashTokens NFT. The `tokenCategory` (32-byte identif
 ```mermaid
 flowchart LR
     UTXO[Covenant UTXO]
-    UTXO -->|satoshis: BCH amount| BCH[BCH value]
-    UTXO -->|token.category: 32 bytes| CAT[Token Category]
-    CAT -->|nft.commitment: 40 bytes| STATE[Mutable State]
-    CAT -->|nft.capability: mutable| CAP[Mutable NFT]
-    CAT -->|amount: FT units| FT[Fungible Token escrow]
+    UTXO >|satoshis: BCH amount| BCH[BCH value]
+    UTXO >|token.category: 32 bytes| CAT[Token Category]
+    CAT >|nft.commitment: 40 bytes| STATE[Mutable State]
+    CAT >|nft.capability: mutable| CAP[Mutable NFT]
+    CAT >|amount: FT units| FT[Fungible Token escrow]
 ```

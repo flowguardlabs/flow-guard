@@ -1,8 +1,8 @@
----
+-
 title: "Rewards"
 description: "Variable achievement-based distributions issued by authority with a configurable per-event cap and total pool budget."
 icon: "star"
----
+-
 
 `RewardCovenant` lets an authority issue variable amounts to recipients for arbitrary events — achievements, referrals, loyalty milestones, or custom categories. Unlike airdrops (fixed, self-claim), rewards require the authority to sign each payout and set the exact amount.
 
@@ -17,11 +17,11 @@ icon: "star"
 
 ```mermaid
 flowchart LR
-    A([Deploy\nfund totalPool]) --> B[ACTIVE]
-    B -->|reward - authority\nvariable amount per event| C[Recipient receives\nrewardAmount]
-    C -->|totalDistributed < totalPool| B
-    C -->|totalDistributed >= totalPool| D([COMPLETED])
-    B -->|cancel - authority| E([Remainder returned])
+    A([Deploy\nfund totalPool]) > B[ACTIVE]
+    B >|reward - authority\nvariable amount per event| C[Recipient receives\nrewardAmount]
+    C >|totalDistributed < totalPool| B
+    C >|totalDistributed >= totalPool| D([COMPLETED])
+    B >|cancel - authority| E([Remainder returned])
 ```
 
 ## Reward Categories
@@ -29,7 +29,7 @@ flowchart LR
 The `reward_category` byte in the NFT state records the type for indexing and display:
 
 | Value | Category |
-|---|---|
+|-|-|
 | `1` | ACHIEVEMENT |
 | `2` | REFERRAL |
 | `3` | LOYALTY |
@@ -38,7 +38,7 @@ The `reward_category` byte in the NFT state records the type for indexing and di
 ## Key Properties
 
 | Property | Detail |
-|---|---|
+|-|-|
 | Amount per event | Variable. Must satisfy `0 < rewardAmount <= maxRewardAmount` |
 | Recipients | Different address per reward event |
 | Pool | Fixed at deployment — auto-completes when exhausted |

@@ -1,8 +1,8 @@
----
+-
 title: "Governance"
 description: "On-chain proposal lifecycle with M-of-N approval counting and token-weighted vote locking."
 icon: "landmark"
----
+-
 
 FlowGuard governance is composed of two contracts: `ProposalCovenant` (manages spending proposal lifecycle) and `VoteLockCovenant` (locks governance tokens as immutable vote commitments).
 
@@ -10,21 +10,21 @@ FlowGuard governance is composed of two contracts: `ProposalCovenant` (manages s
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING : create proposal
-    PENDING --> APPROVED : M-of-N approvals reached
-    PENDING --> EXPIRED : votingEnd elapsed (permissionless)
-    PENDING --> CANCELLED : M-of-N cancel
-    APPROVED --> CANCELLED : M-of-N cancel
-    APPROVED --> EXECUTED : executionTimelock passed
-    EXECUTED --> [*]
-    EXPIRED --> [*]
-    CANCELLED --> [*]
+    [*] > PENDING : create proposal
+    PENDING > APPROVED : M-of-N approvals reached
+    PENDING > EXPIRED : votingEnd elapsed (permissionless)
+    PENDING > CANCELLED : M-of-N cancel
+    APPROVED > CANCELLED : M-of-N cancel
+    APPROVED > EXECUTED : executionTimelock passed
+    EXECUTED > [*]
+    EXPIRED > [*]
+    CANCELLED > [*]
 ```
 
 ### ProposalCovenant Status Codes
 
 | Status | Value | Description |
-|---|---|---|
+|-|-|-|
 | `PENDING` | `0` | Awaiting approvals |
 | `APPROVED` | `1` | Quorum reached, waiting for execution timelock |
 | `EXECUTED` | `2` | Proposal carried out, NFT burned |
@@ -63,7 +63,7 @@ sequenceDiagram
 ### VoteLockCovenant Parameters
 
 | Parameter | Description |
-|---|---|
+|-|-|
 | `proposalId` | Links vote to specific proposal (`bytes32`) |
 | `voteChoice` | Immutable: 0=AGAINST, 1=FOR, 2=ABSTAIN |
 | `voterHash` | `hash160` of voter pubkey — prevents theft |

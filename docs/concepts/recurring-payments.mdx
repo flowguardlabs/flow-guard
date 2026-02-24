@@ -1,8 +1,8 @@
----
+-
 title: "Recurring Payments"
 description: "Fixed-interval payroll, subscriptions, and allowances enforced on-chain with permissionless execution."
 icon: "arrows-rotate"
----
+-
 
 `RecurringPaymentCovenant` enforces a fixed-interval payment schedule. Each interval, a fixed `amountPerInterval` is released to a fixed `recipientHash`. The `pay()` function is **permissionless** — anyone can submit it when the interval has elapsed.
 
@@ -10,19 +10,19 @@ icon: "arrows-rotate"
 
 ```mermaid
 flowchart LR
-    A([Deploy\nfund pool]) --> B[ACTIVE\nnext_payment = startTimestamp]
-    B -->|pay - permissionless\nwhen locktime >= next_payment| C[Release amountPerInterval\nto recipientHash\nnext_payment += intervalSeconds]
-    C --> B
-    B -->|pause - sender| D[PAUSED]
-    D -->|resume - sender\nnextPayment = now + interval| B
-    B -->|cancel - sender| E([Pool returned to sender])
-    C -->|totalPaid >= totalAmount| F([COMPLETED])
+    A([Deploy\nfund pool]) > B[ACTIVE\nnext_payment = startTimestamp]
+    B >|pay - permissionless\nwhen locktime >= next_payment| C[Release amountPerInterval\nto recipientHash\nnext_payment += intervalSeconds]
+    C > B
+    B >|pause - sender| D[PAUSED]
+    D >|resume - sender\nnextPayment = now + interval| B
+    B >|cancel - sender| E([Pool returned to sender])
+    C >|totalPaid >= totalAmount| F([COMPLETED])
 ```
 
 ## Key Parameters
 
 | Parameter | Description |
-|---|---|
+|-|-|
 | `amountPerInterval` | Satoshis or FT units per payment |
 | `intervalSeconds` | Seconds between payments |
 | `totalAmount` | Total pool cap (0 = unlimited until cancelled) |

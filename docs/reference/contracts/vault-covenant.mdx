@@ -1,8 +1,8 @@
----
+-
 title: "VaultCovenant"
 description: "Complete technical reference for the VaultCovenant contract — parameters, functions, NFT state, and access control."
 icon: "vault"
----
+-
 
 `VaultCovenant` is the treasury enforcement contract. It holds funds and enforces M-of-N multi-party approval for all spending, with optional period caps and recipient allowlists.
 
@@ -14,7 +14,7 @@ icon: "vault"
 All parameters are compiled into the P2SH32 bytecode at deployment. They are immutable.
 
 | Parameter | Type | Description |
-|---|---|---|
+|-|-|-|
 | `vaultId` | `bytes32` | Unique vault identifier. Non-zero required. |
 | `requiredApprovals` | `int` | M in M-of-N (must be ≥ 1, ≤ 3 pre-Loops CHIP) |
 | `signer1Hash` | `bytes20` | `hash160(pubkey)` of signer 1 |

@@ -1,8 +1,8 @@
----
+-
 title: "VestingCovenant"
 description: "Full parameter, function, and state reference for the VestingCovenant contract."
 icon: "lock-keyhole"
----
+-
 
 `VestingCovenant` enforces linear or step-based token vesting schedules with cliff, pause/resume, cancel, and recipient transfer.
 
@@ -12,7 +12,7 @@ icon: "lock-keyhole"
 ## Parameters
 
 | Parameter | Type | Description |
-|---|---|---|
+|-|-|-|
 | `vaultId` | `bytes32` | Links to source vault |
 | `senderHash` | `bytes20` | `hash160(sender pubkey)` — controls pause/cancel |
 | `scheduleType` | `int` | `1` = LINEAR_VESTING, `2` = STEP_VESTING |

@@ -1,15 +1,15 @@
----
+-
 title: "Supported Assets"
 description: "FlowGuard covenants support both BCH (satoshis) and any CashToken fungible token."
 icon: "coins"
----
+-
 
 ## Asset Types
 
 Every FlowGuard covenant supports two asset modes selected by `FLAG_USES_TOKENS` (`0x04` in the flags byte):
 
 | Mode | Flag | What is held | Output enforcement |
-|---|---|---|---|
+|-|-|-|-|
 | BCH mode | `FLAG_USES_TOKENS = 0` | Satoshis in the UTXO value | `tx.outputs[0].value == amount` |
 | Token mode | `FLAG_USES_TOKENS = 1` | CashToken FT units | `tx.outputs[0].tokenAmount == amount` |
 

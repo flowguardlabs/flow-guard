@@ -1,8 +1,8 @@
----
+-
 title: "Distribution"
 description: "Airdrops, grants, bounties, and rewards — four distinct on-chain distribution patterns for different funding scenarios."
 icon: "parachute-box"
----
+-
 
 FlowGuard provides four distribution covenant types, each tailored to a specific payout pattern.
 
@@ -12,13 +12,13 @@ FlowGuard provides four distribution covenant types, each tailored to a specific
 
 ```mermaid
 flowchart LR
-    A([Deploy Airdrop\nfund totalPool]) --> B[ACTIVE]
-    B -->|claim - anyone\nwithin time window| C[Claimer receives\namountPerClaim]
-    C -->|totalClaimed < totalPool| B
-    C -->|totalClaimed >= totalPool| D([COMPLETED])
-    B -->|pause - authority| E[PAUSED]
-    E -->|resume - authority| B
-    B -->|cancel - authority| F([Remaining pool\nreturned to authority])
+    A([Deploy Airdrop\nfund totalPool]) > B[ACTIVE]
+    B >|claim - anyone\nwithin time window| C[Claimer receives\namountPerClaim]
+    C >|totalClaimed < totalPool| B
+    C >|totalClaimed >= totalPool| D([COMPLETED])
+    B >|pause - authority| E[PAUSED]
+    E >|resume - authority| B
+    B >|cancel - authority| F([Remaining pool\nreturned to authority])
 ```
 
 **Key parameters:** `amountPerClaim`, `totalPool`, `startTimestamp`, `endTimestamp`
@@ -29,10 +29,10 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A([Deploy Grant\nN milestones]) --> B[Milestone 0\nmilestonesCompleted = 0]
-    B -->|releaseMilestone - authority| C[amountPerMilestone\nto recipient]
-    C -->|milestonesCompleted < milestonesTotal| B
-    C -->|milestonesCompleted = milestonesTotal| D([COMPLETED])
+    A([Deploy Grant\nN milestones]) > B[Milestone 0\nmilestonesCompleted = 0]
+    B >|releaseMilestone - authority| C[amountPerMilestone\nto recipient]
+    C >|milestonesCompleted < milestonesTotal| B
+    C >|milestonesCompleted = milestonesTotal| D([COMPLETED])
 ```
 
 **Key parameters:** `milestonesTotal`, `amountPerMilestone`, `totalAmount`
@@ -56,7 +56,7 @@ The contract tracks `winners_count` and auto-completes when `winners_count >= ma
 ## Comparison
 
 | Feature | Airdrop | Grant | Bounty | Reward |
-|---|---|---|---|---|
+|-|-|-|-|-|
 | Claimer | Anyone (self-claim) | Authority triggers | Authority co-signs | Authority triggers |
 | Amount per event | Fixed | Fixed per milestone | Fixed per winner | Variable (0..maxReward) |
 | Multi-recipient | Yes (sequential) | No (single) | Yes (up to maxWinners) | Yes (sequential) |

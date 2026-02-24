@@ -1,8 +1,8 @@
----
+-
 title: "Executor Network"
 description: "The permissionless executor layer that triggers time-dependent covenant functions when intervals elapse."
 icon: "robot"
----
+-
 
 Several FlowGuard covenants have functions that are **permissionless** — anyone can call them at the right time. The executor network is the infrastructure layer that makes this automatic.
 
@@ -18,11 +18,11 @@ The executor monitors all active covenant UTXOs and submits transactions when:
 
 ```mermaid
 flowchart TD
-    BM[blockchain-monitor.ts\nIndexes new blocks] --> DB[(SQLite DB\nCovenant states)]
-    DB --> CUS[cycle-unlock-scheduler.ts\nChecks next_payment timestamps]
-    CUS -->|interval elapsed| TB[TransactionBuilder.ts\nBuilds pay tx]
-    TB --> TM[TransactionMonitor.ts\nBroadcasts + confirms]
-    TM --> DB
+    BM[blockchain-monitor.ts\nIndexes new blocks] > DB[(SQLite DB\nCovenant states)]
+    DB > CUS[cycle-unlock-scheduler.ts\nChecks next_payment timestamps]
+    CUS >|interval elapsed| TB[TransactionBuilder.ts\nBuilds pay tx]
+    TB > TM[TransactionMonitor.ts\nBroadcasts + confirms]
+    TM > DB
 ```
 
 ## Running Your Own Executor
@@ -38,7 +38,7 @@ Anyone running an executor participates in the liveness guarantee for FlowGuard 
 ## Supported Permissionless Functions
 
 | Contract | Function | Trigger Condition |
-|---|---|---|
+|-|-|-|
 | `RecurringPaymentCovenant` | `pay()` | `tx.locktime >= next_payment_timestamp` |
 | `ProposalCovenant` | `expire()` | `tx.locktime >= voting_end_timestamp` |
 | `VestingCovenant` | `complete()` | `tx.locktime >= endTimestamp` |

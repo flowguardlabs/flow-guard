@@ -1,8 +1,8 @@
----
+-
 title: "VoteLockCovenant"
 description: "Full parameter, function, and state reference for the VoteLockCovenant contract."
 icon: "square-check"
----
+-
 
 `VoteLockCovenant` locks governance FTs with an immutable vote choice. The UTXO model eliminates double-voting cryptographically.
 
@@ -11,7 +11,7 @@ icon: "square-check"
 ## Parameters
 
 | Parameter | Type | Description |
-|---|---|---|
+|-|-|-|
 | `proposalId` | `bytes32` | Links vote to specific proposal |
 | `voteChoice` | `int` | `0` = AGAINST, `1` = FOR, `2` = ABSTAIN |
 | `voterHash` | `bytes20` | `hash160(voter pubkey)` — only owner can reclaim |

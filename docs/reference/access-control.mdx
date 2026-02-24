@@ -1,15 +1,15 @@
----
+-
 title: "Access Control"
 description: "Who can call what on every FlowGuard contract — a complete role and permission matrix."
 icon: "shield-check"
----
+-
 
 FlowGuard contracts enforce access control using signature verification against compiled-in pubkey hashes. There are no on-chain role registries — roles are baked into the bytecode at deployment.
 
 ## Role Definitions
 
 | Role | How Identified |
-|---|---|
+|-|-|
 | **Sender** | `hash160(pubkey) == senderHash` compiled into bytecode |
 | **Authority** | `hash160(pubkey) == authorityHash` compiled into bytecode |
 | **Recipient** | `hash160(pubkey) == recipient_hash` from NFT commitment (mutable) |
@@ -23,7 +23,7 @@ FlowGuard contracts enforce access control using signature verification against 
 ### Streaming Covenants
 
 | Function | VestingCovenant | RecurringPaymentCovenant |
-|---|---|---|
+|-|-|-|
 | `claim()` | Recipient | — |
 | `pay()` | — | **Permissionless** |
 | `complete()` | **Permissionless** (after end) | — |
@@ -35,7 +35,7 @@ FlowGuard contracts enforce access control using signature verification against 
 ### Distribution Covenants
 
 | Function | Airdrop | Grant | Bounty | Reward |
-|---|---|---|---|---|
+|-|-|-|-|-|
 | `claim()` | **Permissionless** (self-sign) | — | Authority co-sign | — |
 | `releaseMilestone()` | — | Authority | — | — |
 | `reward()` | — | — | — | Authority |
@@ -47,7 +47,7 @@ FlowGuard contracts enforce access control using signature verification against 
 ### Treasury Covenants
 
 | Function | VaultCovenant | ProposalCovenant |
-|---|---|---|
+|-|-|-|
 | `spend()` | M-of-N Vault Signers | — |
 | `unlockPeriod()` | Any single Vault Signer | — |
 | `approve()` | — | Any single Vault Signer |
@@ -61,7 +61,7 @@ FlowGuard contracts enforce access control using signature verification against 
 ### Governance Covenants
 
 | Function | VoteLockCovenant |
-|---|---|
+|-|-|
 | `reclaim()` | Voter (after unlockTimestamp) |
 | `earlyReclaim()` | Voter (after proposal is EXECUTED/CANCELLED/EXPIRED) |
 

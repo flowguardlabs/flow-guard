@@ -1,8 +1,8 @@
----
+-
 title: "Vaults"
 description: "The primary treasury primitive in FlowGuard. M-of-N multisig enforcement with period spending caps, recipient allowlists, and emergency lock."
 icon: "vault"
----
+-
 
 A **Vault** is the foundational treasury contract in FlowGuard. Every streaming, distribution, or governance covenant links back to a Vault via `vaultId`. The Vault enforces multi-party control over funds without any custodian.
 
@@ -10,20 +10,20 @@ A **Vault** is the foundational treasury contract in FlowGuard. Every streaming,
 
 ```mermaid
 flowchart TD
-    A([Create Vault]) --> B[VaultCovenant UTXO\nM-of-N signers\nSpending cap\nAllowlist]
-    B --> C{Action}
-    C -->|spend - M-of-N sigs| D[Payout to recipient\nUpdated period accounting]
-    D --> B
-    C -->|pause - any signer| E[PAUSED state]
-    E -->|resume - M-of-N sigs| B
-    C -->|emergencyLock - all N signers| F[EMERGENCY_LOCK\nNo spending possible]
-    C -->|unlockPeriod - any signer| B
+    A([Create Vault]) > B[VaultCovenant UTXO\nM-of-N signers\nSpending cap\nAllowlist]
+    B > C{Action}
+    C >|spend - M-of-N sigs| D[Payout to recipient\nUpdated period accounting]
+    D > B
+    C >|pause - any signer| E[PAUSED state]
+    E >|resume - M-of-N sigs| B
+    C >|emergencyLock - all N signers| F[EMERGENCY_LOCK\nNo spending possible]
+    C >|unlockPeriod - any signer| B
 ```
 
 ## Key Parameters
 
 | Parameter | Type | Description |
-|---|---|---|
+|-|-|-|
 | `vaultId` | `bytes32` | Unique identifier linking covenants to this vault |
 | `requiredApprovals` | `int` | M in M-of-N (currently max 2-of-3 pre-Loops CHIP) |
 | `signer1Hash` | `bytes20` | `hash160` of signer 1 pubkey |
@@ -80,7 +80,7 @@ Bytes 25-31: reserved
 ## Spending Roles
 
 | Who | Can Do |
-|---|---|
+|-|-|
 | Any single signer | `pause()`, `unlockPeriod()` |
 | M-of-N signers | `spend()`, `resume()` |
 | All N signers | `emergencyLock()` |

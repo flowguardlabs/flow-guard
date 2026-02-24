@@ -1,8 +1,8 @@
----
+-
 title: "Security"
 description: "FlowGuard's security model — what is enforced on-chain by BCH, what runs off-chain, and the honest trust boundaries."
 icon: "shield"
----
+-
 
 FlowGuard uses Bitcoin Cash's UTXO model and CashScript covenants to enforce treasury rules at the protocol level. No one — not FlowGuard, not signers, not the executor — can bypass math that is hardcoded into the blockchain itself.
 
@@ -25,7 +25,7 @@ FlowGuard uses Bitcoin Cash's UTXO model and CashScript covenants to enforce tre
 These rules are part of the blockchain itself. A transaction violating them is rejected by every BCH node — FlowGuard's servers have no role in this enforcement.
 
 | Rule | Contract Enforcement |
-|---|---|
+|-|-|
 | **Spending limits** | Period cap and per-recipient cap checked in `VaultCovenant.spend()`. Exceeding cap causes transaction rejection. |
 | **Approval requirements** | `VaultCovenant.spend()` verifies two distinct registered signers. `ProposalCovenant.execute()` verifies quorum was reached before allowing spend. |
 | **Time-based locks** | `require(tx.locktime >= timestamp)` enforced in `VestingCovenant.claim()`, `RecurringPaymentCovenant.pay()`, and `VoteLockCovenant.reclaim()`. Premature attempts fail at mempool. |

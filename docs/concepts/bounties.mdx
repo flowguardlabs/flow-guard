@@ -1,8 +1,8 @@
----
+-
 title: "Bounties"
 description: "On-chain competition funding where the authority co-signs each verified claim with a proof hash."
 icon: "trophy"
----
+-
 
 `BountyCovenant` funds a competition with a fixed prize per winner, up to `maxWinners`. The authority reviews submissions off-chain and co-signs each `claim()` with a non-zero `proofHash` identifying the work.
 
@@ -28,13 +28,13 @@ sequenceDiagram
     Authority->>BountyCovenant: claim(authSig, winnerHash, proofHash)
     BountyCovenant->>Contestant: Receives rewardPerWinner
     Note right of BountyCovenant: Repeats until maxWinners reached
-    BountyCovenant-->>Creator: COMPLETED
+    BountyCovenant>>Creator: COMPLETED
 ```
 
 ## Key Properties
 
 | Property | Detail |
-|---|---|
+|-|-|
 | Prize | Fixed per winner — `rewardPerWinner` |
 | Winners | Up to `maxWinners`. Auto-completes at limit. |
 | Proof | `proofHash` (non-zero `bytes32`) recorded per claim |
