@@ -1,0 +1,26 @@
+{
+  "name": "@flowguard/indexer",
+  "version": "0.1.0",
+  "description": "FlowGuard blockchain indexer service",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "watch": "tsc --watch",
+    "db:migrate": "psql $DATABASE_URL -f schema.sql",
+    "db:reset": "psql $DATABASE_URL -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' && npm run db:migrate"
+  },
+  "dependencies": {
+    "@flowguard/shared": "workspace:*",
+    "cashscript": "^0.13.0-next.3",
+    "pg": "^8.11.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.10.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
