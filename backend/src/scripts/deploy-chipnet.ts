@@ -1,7 +1,7 @@
 /**
  * Chipnet Deployment Script
  * 
- * This script deploys FlowGuardEnhanced contract to chipnet (Bitcoin Cash testnet).
+ * This script instantiates a FlowGuard v2 VaultCovenant on chipnet.
  * 
  * Usage:
  *   pnpm tsx src/scripts/deploy-chipnet.ts
@@ -25,17 +25,17 @@ function generateTestPubkey(): string {
 }
 
 interface DeploymentConfig {
-  signer1: string;
-  signer2: string;
-  signer3: string;
-  approvalThreshold: number;
-  cycleDuration: number; // in seconds
-  vaultStartTime: number; // Unix timestamp
-  spendingCap: number; // in satoshis
+  signerPubkeys: string[];
+  requiredApprovals: number;
+  periodDuration: number; // in seconds
+  periodCap: number; // in satoshis
+  recipientCap: number; // in satoshis
+  allowlistEnabled: boolean;
+  allowedAddresses?: string[];
 }
 
 async function deployContract(config: DeploymentConfig) {
-  console.log('🚀 Starting FlowGuard Enhanced Contract Deployment to Chipnet\n');
+  console.log('🚀 Starting FlowGuard v2 VaultCovenant deployment to Chipnet\n');
   console.log('=' .repeat(60));
   
   const contractService = new ContractService('chipnet');
@@ -44,26 +44,38 @@ async function deployContract(config: DeploymentConfig) {
     // Step 1: Deploy contract (create instance and get address)
     console.log('\n📝 Step 1: Creating contract instance...');
     console.log('Configuration:');
-    console.log(`  - Approval Threshold: ${config.approvalThreshold}-of-3`);
-    console.log(`  - Cycle Duration: ${config.cycleDuration} seconds (${config.cycleDuration / 86400} days)`);
-    console.log(`  - Spending Cap: ${config.spendingCap} satoshis (${config.spendingCap / 100000000} BCH)`);
-    console.log(`  - Start Time: ${new Date(config.vaultStartTime * 1000).toISOString()}`);
-    
-    const deployment = await contractService.deployVault(
-      config.signer1,
-      config.signer2,
-      config.signer3,
-      config.approvalThreshold,
-      0, // Initial state
-      config.cycleDuration,
-      config.vaultStartTime,
-      config.spendingCap
+    console.log(`  - Approval Threshold: ${config.requiredApprovals}-of-${config.signerPubkeys.length}`);
+    console.log(`  - Period Duration: ${config.periodDuration} seconds (${config.periodDuration / 86400} days)`);
+    console.log(`  - Period Cap: ${config.periodCap} satoshis (${config.periodCap / 100000000} BCH)`);
+    console.log(`  - Recipient Cap: ${config.recipientCap} satoshis (${config.recipientCap / 100000000} BCH)`);
+    console.log(`  - Allowlist Enabled: ${config.allowlistEnabled}`);
+
+    const deployment = await contractService.deployVault({
+      signerPubkeys: config.signerPubkeys,
+      requiredApprovals: config.requiredApprovals,
+      periodDuration: config.periodDuration,
+      periodCap: config.periodCap,
+      recipientCap: config.recipientCap,
+      allowlistEnabled: config.allowlistEnabled,
+      allowedAddresses: config.allowedAddresses,
+    });
+
+    const contract = contractService.getVaultContract(
+      config.signerPubkeys,
+      config.requiredApprovals,
+      deployment.contractId,
+      config.periodDuration,
+      config.periodCap,
+      config.recipientCap,
+      config.allowlistEnabled,
+      config.allowedAddresses,
     );
-    
+
     console.log('\n✅ Contract instance created successfully!');
     console.log('=' .repeat(60));
     console.log('\n📋 Contract Details:');
     console.log(`   Address: ${deployment.contractAddress}`);
+    console.log(`   Token Address: ${contract.tokenAddress}`);
     console.log(`   Network: chipnet`);
     console.log(`   Contract ID: ${deployment.contractId.substring(0, 20)}...`);
     
@@ -101,20 +113,19 @@ async function deployContract(config: DeploymentConfig) {
     // Step 4: Test contract functions (read-only)
     console.log('\n🧪 Step 4: Testing contract functions...');
     try {
-      // Try to get contract instance (this validates the contract parameters)
-      const contract = await contractService.getContract(
-        deployment.contractAddress,
-        config.signer1,
-        config.signer2,
-        config.signer3,
-        config.approvalThreshold,
-        0, // state
-        config.cycleDuration,
-        config.vaultStartTime,
-        config.spendingCap
+      // Rebuild contract instance from stored constructor parameters
+      const rebuiltContract = contractService.getVaultContract(
+        config.signerPubkeys,
+        config.requiredApprovals,
+        deployment.contractId,
+        config.periodDuration,
+        config.periodCap,
+        config.recipientCap,
+        config.allowlistEnabled,
+        config.allowedAddresses,
       );
       console.log('   ✅ Contract instance validated successfully');
-      console.log(`   ✅ Contract address matches: ${contract.address === deployment.contractAddress}`);
+      console.log(`   ✅ Contract address matches: ${rebuiltContract.address === deployment.contractAddress}`);
     } catch (error) {
       console.error('   ❌ Contract validation failed:', error);
       throw error;
@@ -151,19 +162,25 @@ async function main() {
   // Configuration - you can modify these values
   const config: DeploymentConfig = {
     // Generate test keys (in production, use real wallet public keys)
-    signer1: process.env.SIGNER1_PUBKEY || generateTestPubkey(),
-    signer2: process.env.SIGNER2_PUBKEY || generateTestPubkey(),
-    signer3: process.env.SIGNER3_PUBKEY || generateTestPubkey(),
-    approvalThreshold: parseInt(process.env.APPROVAL_THRESHOLD || '2'), // 2-of-3
-    cycleDuration: parseInt(process.env.CYCLE_DURATION || '2592000'), // 30 days in seconds
-    vaultStartTime: Math.floor(Date.now() / 1000), // Current time
-    spendingCap: parseInt(process.env.SPENDING_CAP || '100000000'), // 1 BCH in satoshis
+    signerPubkeys: [
+      process.env.SIGNER1_PUBKEY || generateTestPubkey(),
+      process.env.SIGNER2_PUBKEY || generateTestPubkey(),
+      process.env.SIGNER3_PUBKEY || generateTestPubkey(),
+    ],
+    requiredApprovals: parseInt(process.env.APPROVAL_THRESHOLD || '2', 10), // 2-of-3
+    periodDuration: parseInt(process.env.CYCLE_DURATION || '2592000', 10), // 30 days in seconds
+    periodCap: parseInt(process.env.SPENDING_CAP || '100000000', 10), // 1 BCH in satoshis
+    recipientCap: parseInt(process.env.RECIPIENT_CAP || '0', 10), // no per-recipient cap by default
+    allowlistEnabled: (process.env.ALLOWLIST_ENABLED || 'false').toLowerCase() === 'true',
+    allowedAddresses: process.env.ALLOWED_ADDRESSES
+      ? process.env.ALLOWED_ADDRESSES.split(',').map((a) => a.trim()).filter(Boolean)
+      : [],
   };
-  
+
   console.log('🔑 Using signer public keys:');
-  console.log(`   Signer 1: ${config.signer1.substring(0, 20)}...`);
-  console.log(`   Signer 2: ${config.signer2.substring(0, 20)}...`);
-  console.log(`   Signer 3: ${config.signer3.substring(0, 20)}...`);
+  console.log(`   Signer 1: ${config.signerPubkeys[0].substring(0, 20)}...`);
+  console.log(`   Signer 2: ${config.signerPubkeys[1].substring(0, 20)}...`);
+  console.log(`   Signer 3: ${config.signerPubkeys[2].substring(0, 20)}...`);
   console.log('\n💡 Tip: Set SIGNER1_PUBKEY, SIGNER2_PUBKEY, SIGNER3_PUBKEY env vars to use real keys\n');
   
   await deployContract(config);
@@ -171,4 +188,3 @@ async function main() {
 
 // Run the script
 main().catch(console.error);
-
