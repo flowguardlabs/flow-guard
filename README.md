@@ -78,9 +78,9 @@ flowchart LR
 ### Optional services
 ```mermaid
 flowchart LR
-  API[API (SQLite)] -.-> IDX[Indexer (Postgres)]
-  IDX -->|state UTXOs| BCH[BCH Network]
-  EXE[Executor (Postgres)] -->|polls tasks| IDX
+  API["API (SQLite)"] -.-> IDX["Indexer (Postgres)"]
+  IDX -->|state UTXOs| BCH["BCH Network"]
+  EXE["Executor (Postgres)"] -->|polls tasks| IDX
   EXE -->|exec tx| BCH
 ```
 
@@ -106,11 +106,11 @@ sequenceDiagram
 ## How it works (at a glance)
 ```mermaid
 graph TD
-  A[User action\n(create/approve/claim)] --> B[API builds unsigned tx\n+ sourceOutputs]
-  B --> C[Wallet signs via WC2\n(empty unlocking for user UTXOs)]
-  C --> D[BCH network\ncovenant validates]
-  D --> E[API/indexer observe UTXO\nupdate state in DB]
-  E --> F[UI refreshes status\nshows tx links]
+  A["User action\n(create/approve/claim)"] --> B["API builds unsigned tx\n+ sourceOutputs"]
+  B --> C["Wallet signs via WC2\n(empty unlocking for user UTXOs)"]
+  C --> D["BCH network\ncovenant validates"]
+  D --> E["API/indexer observe UTXO\nupdate state in DB"]
+  E --> F["UI refreshes status\nshows tx links"]
 ```
 
 ## Wallets
