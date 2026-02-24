@@ -1,0 +1,241 @@
+{
+    "$schema": "https://mintlify.com/schema.json",
+    "name": "FlowGuard",
+    "logo": {
+        "light": "/logo/light.svg",
+        "dark": "/logo/dark.svg"
+    },
+    "favicon": "/favicon.svg",
+    "colors": {
+        "primary": "#00C896",
+        "light": "#00E5A8",
+        "dark": "#00A37A",
+        "background": {
+            "dark": "#0A0F0D"
+        },
+        "anchors": {
+            "from": "#00C896",
+            "to": "#0096FF"
+        }
+    },
+    "modeToggle": {
+        "default": "dark"
+    },
+    "topbarLinks": [
+        {
+            "name": "Explorer",
+            "url": "https://app.flowguard.cash/explorer"
+        }
+    ],
+    "topbarCtaButton": {
+        "name": "Launch App",
+        "url": "https://app.flowguard.cash"
+    },
+    "primaryTab": {
+        "name": "Docs"
+    },
+    "tabs": [
+        {
+            "name": "API Reference",
+            "url": "api"
+        },
+        {
+            "name": "App Guide",
+            "url": "app"
+        }
+    ],
+    "anchors": [
+        {
+            "name": "GitHub",
+            "icon": "github",
+            "url": "https://github.com/flowguard-labs"
+        },
+        {
+            "name": "Explorer",
+            "icon": "magnifying-glass",
+            "url": "https://app.flowguard.cash/explorer"
+        }
+    ],
+    "navigation": [
+        {
+            "group": "Getting Started",
+            "pages": [
+                "introduction",
+                "security",
+                "roadmap"
+            ]
+        },
+        {
+            "group": "Concepts",
+            "pages": [
+                "concepts/overview",
+                "concepts/cashtokens-covenants",
+                "concepts/stream-lifecycle",
+                "concepts/supported-assets",
+                {
+                    "group": "Vaults",
+                    "pages": [
+                        "concepts/vaults"
+                    ]
+                },
+                {
+                    "group": "Streaming",
+                    "pages": [
+                        "concepts/vesting",
+                        "concepts/recurring-payments"
+                    ]
+                },
+                {
+                    "group": "Distribution",
+                    "pages": [
+                        "concepts/airdrops",
+                        "concepts/grants",
+                        "concepts/bounties",
+                        "concepts/rewards"
+                    ]
+                },
+                {
+                    "group": "Governance",
+                    "pages": [
+                        "concepts/governance"
+                    ]
+                },
+                "concepts/executor-network"
+            ]
+        },
+        {
+            "group": "Guides",
+            "pages": [
+                "guides/local-environment",
+                "guides/deployment-addresses",
+                {
+                    "group": "Vaults",
+                    "pages": [
+                        "guides/vaults/create",
+                        "guides/vaults/fund",
+                        "guides/vaults/proposals",
+                        "guides/vaults/emergency-lock"
+                    ]
+                },
+                {
+                    "group": "Vesting",
+                    "pages": [
+                        "guides/vesting/create",
+                        "guides/vesting/claim",
+                        "guides/vesting/pause-resume",
+                        "guides/vesting/cancel",
+                        "guides/vesting/transfer",
+                        "guides/vesting/batch-create"
+                    ]
+                },
+                {
+                    "group": "Recurring Payments",
+                    "pages": [
+                        "guides/recurring-payments/create",
+                        "guides/recurring-payments/execute",
+                        "guides/recurring-payments/pause-resume",
+                        "guides/recurring-payments/cancel"
+                    ]
+                },
+                {
+                    "group": "Airdrops",
+                    "pages": [
+                        "guides/airdrops/create",
+                        "guides/airdrops/claim",
+                        "guides/airdrops/manage"
+                    ]
+                },
+                {
+                    "group": "Grants",
+                    "pages": [
+                        "guides/grants/create",
+                        "guides/grants/milestones"
+                    ]
+                },
+                {
+                    "group": "Bounties",
+                    "pages": [
+                        "guides/bounties/create",
+                        "guides/bounties/claim"
+                    ]
+                },
+                {
+                    "group": "Rewards",
+                    "pages": [
+                        "guides/rewards/create",
+                        "guides/rewards/issue"
+                    ]
+                },
+                {
+                    "group": "Governance",
+                    "pages": [
+                        "guides/governance/proposals",
+                        "guides/governance/voting",
+                        "guides/governance/reclaim"
+                    ]
+                }
+            ]
+        },
+        {
+            "group": "Reference",
+            "pages": [
+                "reference/architecture",
+                {
+                    "group": "Contracts",
+                    "pages": [
+                        "reference/contracts/vesting-covenant",
+                        "reference/contracts/recurring-payment-covenant",
+                        "reference/contracts/airdrop-covenant",
+                        "reference/contracts/grant-covenant",
+                        "reference/contracts/bounty-covenant",
+                        "reference/contracts/reward-covenant",
+                        "reference/contracts/vault-covenant",
+                        "reference/contracts/proposal-covenant",
+                        "reference/contracts/vote-lock-covenant"
+                    ]
+                },
+                "reference/shared-types",
+                "reference/access-control",
+                "reference/errors"
+            ]
+        },
+        {
+            "group": "API Reference",
+            "pages": [
+                "api/overview",
+                "api/streams",
+                "api/vaults",
+                "api/proposals",
+                "api/airdrops",
+                "api/payments",
+                "api/budgets",
+                "api/governance",
+                "api/explorer",
+                "api/indexer",
+                "api/executor"
+            ]
+        },
+        {
+            "group": "App Guide",
+            "pages": [
+                "app/getting-started",
+                "app/vesting",
+                "app/recurring-payments",
+                "app/airdrops",
+                "app/grants",
+                "app/bounties",
+                "app/rewards",
+                "app/vaults",
+                "app/governance",
+                "app/explorer",
+                "app/status"
+            ]
+        }
+    ],
+    "footerSocials": {
+        "github": "https://github.com/flowguard-labs",
+        "x": "https://x.com/flowguard_",
+        "telegram": "https://t.me/flowguard_cash",
+        "linkedin": "https://www.linkedin.com/company/flowguard-labs/"
+    }
+}

@@ -1,0 +1,111 @@
+---
+title: "Security"
+description: "FlowGuard's security model — what is enforced on-chain by BCH, what runs off-chain, and the honest trust boundaries."
+icon: "shield"
+---
+
+FlowGuard uses Bitcoin Cash's UTXO model and CashScript covenants to enforce treasury rules at the protocol level. No one — not FlowGuard, not signers, not the executor — can bypass math that is hardcoded into the blockchain itself.
+
+## Three Security Principles
+
+<CardGroup cols={3}>
+  <Card title="You control the funds" icon="key">
+    FlowGuard never has access to your treasury. You hold the keys. Treasury rules are locked into the blockchain — not stored on FlowGuard servers.
+  </Card>
+  <Card title="Rules cannot be bypassed" icon="shield-halved">
+    Spending limits, approval requirements, and timelocks are enforced by the BCH network. No one can override them, not even the signers or FlowGuard.
+  </Card>
+  <Card title="Everything is verifiable" icon="eye">
+    All treasury activity is recorded on the blockchain. Anyone can audit approvals, payments, and unlocks without trusting FlowGuard's UI or servers.
+  </Card>
+</CardGroup>
+
+## What Is Enforced On-Chain
+
+These rules are part of the blockchain itself. A transaction violating them is rejected by every BCH node — FlowGuard's servers have no role in this enforcement.
+
+| Rule | Contract Enforcement |
+|---|---|
+| **Spending limits** | Period cap and per-recipient cap checked in `VaultCovenant.spend()`. Exceeding cap causes transaction rejection. |
+| **Approval requirements** | `VaultCovenant.spend()` verifies two distinct registered signers. `ProposalCovenant.execute()` verifies quorum was reached before allowing spend. |
+| **Time-based locks** | `require(tx.locktime >= timestamp)` enforced in `VestingCovenant.claim()`, `RecurringPaymentCovenant.pay()`, and `VoteLockCovenant.reclaim()`. Premature attempts fail at mempool. |
+| **Treasury state validation** | Every transaction updates NFT commitment state (balance, spent this period, status). The covenant validates each state mutation inline — no state can be fabricated. |
+| **Vote commitments** | `VoteLockCovenant` locks FTs with immutable vote choice. The UTXO model makes double-voting impossible — a UTXO exists in one place only. |
+| **Recipient allowlists** | `VaultCovenant.spend()` checks `recipientHash ∈ {allowedAddr1, allowedAddr2, allowedAddr3}` when `allowlistEnabled == 1`. Unlisted recipients are rejected. |
+| **Emergency lock** | `emergencyLock()` requires all three registered signer signatures simultaneously. Impossible to fake — BCH signature verification is deterministic. |
+
+## What Requires Trust in FlowGuard
+
+These components rely on off-chain services. They do not control your funds — but they provide convenience and liveness.
+
+<Warning>
+The items below are trust assumptions, not security guarantees. You should understand them before using FlowGuard with significant value.
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Activity indexer" icon="database">
+    FlowGuard runs an indexer that reconstructs covenant state from the blockchain. This makes the dashboard fast.
+
+    **Trust assumption:** You trust the data displayed in the UI is correct. You can verify by running your own indexer from `backend/indexer/` and comparing state.
+  </Accordion>
+  <Accordion title="Automatic executor" icon="robot">
+    Executor services watch for eligible transactions (elapsed payment intervals, expired proposal deadlines) and broadcast them. They cannot bypass any covenant rules — they can only trigger transactions the blockchain has already approved.
+
+    **Trust assumption:** You trust executors to broadcast on time. You can always trigger any permissionless function manually from the app or directly via BCH wallet.
+  </Accordion>
+  <Accordion title="Vote tallies for large groups" icon="users">
+    For votes with many participants, a trusted group tallies results and commits them on-chain. This limitation exists because BCH contracts cannot cross-read UTXOs.
+
+    **Trust assumption:** You trust the tally attestors. Post-Loops CHIP activation will enable trustless on-chain counting without this assumption.
+  </Accordion>
+  <Accordion title="Metadata storage" icon="file-lines">
+    Proposal descriptions, treasury names, and other metadata are stored off-chain (IPFS or FlowGuard servers). Only the content hash is committed on-chain.
+
+    **Trust assumption:** You trust FlowGuard to serve metadata. The on-chain hash prevents tampering — any modification changes the hash and is detectable.
+  </Accordion>
+</AccordionGroup>
+
+## The UTXO Execution Requirement
+
+Bitcoin Cash uses a UTXO model. The blockchain cannot "wake up" and execute things autonomously — someone must construct and broadcast transactions. This applies to:
+
+- Recurring payment intervals (requires `pay()` transaction each interval)
+- Proposal execution after timelock (requires `execute()` transaction)
+- Vesting completion after end date (requires `complete()` transaction)
+
+The FlowGuard executor service provides liveness for all of these. All are also callable manually by any party. Executors cannot steal funds or redirect payouts — they can only trigger correctly-constructed permissionless transactions.
+
+## Signer Key Security
+
+### Key Compromise
+
+FlowGuard covenants are as secure as the signers' private keys. Key management is the user's responsibility:
+
+- Use hardware wallets for high-value vaults
+- Store keys in geographically distributed locations
+- For 3-of-N setups, no single point of failure
+
+### Loss of Signers
+
+If `M` or more signers are lost and the vault requires M-of-N:
+- Remaining funds are permanently inaccessible
+- Plan your M value carefully — lower M = easier recovery, higher M = stronger security
+- Consider using 2-of-3 rather than 3-of-3 for operational resilience
+
+## Contract Audit Status
+
+FlowGuard contracts are currently unaudited. The protocol is on chipnet (testnet) and not recommended for production use with mainnet funds until a full smart contract security audit is completed.
+
+<Info>
+A professional audit engagement is planned as part of the Phase 1 production hardening roadmap. See the [Roadmap](/roadmap) for timeline details.
+</Info>
+
+## Running Your Own Infrastructure
+
+Every FlowGuard component is open source and self-hostable:
+
+- **Indexer** — `backend/indexer/` — scan BCH yourself and verify all covenant states
+- **Executor** — `backend/executor/` — trigger permissionless functions independently
+- **Frontend** — `frontend/` — self-host the UI; it reads the same API
+
+See [Local Environment](/guides/local-environment) to get started.
