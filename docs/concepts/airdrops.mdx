@@ -16,7 +16,7 @@ icon: "parachute-box"
 
 ```mermaid
 flowchart LR
-    A([Authority deploys\nfunds totalPool]) > B[ACTIVE\ntotalClaimed = 0]
+    A([Authority deploys\nfunds totalPool]) --> B[ACTIVE\ntotalClaimed = 0]
     B >|claim - anyone| C[Claimer receives\namountPerClaim]
     C >|totalClaimed < totalPool| B
     C >|totalClaimed >= totalPool| D([COMPLETED])

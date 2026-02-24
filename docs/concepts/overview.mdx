@@ -27,8 +27,8 @@ Every FlowGuard product follows the same pattern:
 
 ```mermaid
 flowchart LR
-    A([Deploy]) > B[Covenant UTXO\nNFT: initial state]
-    B > C{Function Call}
+    A([Deploy]) --> B[Covenant UTXO\nNFT: initial state]
+    B --> C{Function Call}
     C >|claim/pay/release| B
     C >|cancel| D([Sender gets funds back])
     C >|complete| E([Recipient gets remainder])

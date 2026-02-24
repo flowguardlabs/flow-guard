@@ -48,7 +48,7 @@
         {
             "name": "GitHub",
             "icon": "github",
-            "url": "https://github.com/flowguard-labs"
+            "url": "https://github.com/winsznx/flow-guard"
         },
         {
             "name": "Explorer",
@@ -233,7 +233,7 @@
         }
     ],
     "footerSocials": {
-        "github": "https://github.com/FlowGuardHQ/",
+        "github": "https://github.com/winsznx/flow-guard",
         "x": "https://x.com/flowguard_",
         "telegram": "https://t.me/flowguard_cash",
         "linkedin": "https://www.linkedin.com/company/flowguard-labs/"

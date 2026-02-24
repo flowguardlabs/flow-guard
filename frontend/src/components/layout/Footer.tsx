@@ -125,9 +125,9 @@ export function Footer() {
                   </a>
                 </li>
                 <li>
-                  <Link to="/security" className="text-brand100 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand300 rounded-sm">
+                  <a href="https://docs.flowguard.cash/security" target="_blank" rel="noopener noreferrer" className="text-brand100 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand300 rounded-sm">
                     Security
-                  </Link>
+                  </a>
                 </li>
               </ul>
             </div>
@@ -147,9 +147,9 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/roadmap" className="text-brand100 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand300 rounded-sm">
+                  <a href="https://docs.flowguard.cash/roadmap" target="_blank" rel="noopener noreferrer" className="text-brand100 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand300 rounded-sm">
                     Roadmap
-                  </Link>
+                  </a>
                 </li>
                 <li>
                   <a href="https://docs.flowguard.cash/security" target="_blank" rel="noopener noreferrer" className="text-brand100 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand300 rounded-sm">

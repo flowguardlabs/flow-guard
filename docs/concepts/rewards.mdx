@@ -17,7 +17,7 @@ icon: "star"
 
 ```mermaid
 flowchart LR
-    A([Deploy\nfund totalPool]) > B[ACTIVE]
+    A([Deploy\nfund totalPool]) --> B[ACTIVE]
     B >|reward - authority\nvariable amount per event| C[Recipient receives\nrewardAmount]
     C >|totalDistributed < totalPool| B
     C >|totalDistributed >= totalPool| D([COMPLETED])

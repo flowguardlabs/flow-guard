@@ -12,7 +12,7 @@ FlowGuard provides four distribution covenant types, each tailored to a specific
 
 ```mermaid
 flowchart LR
-    A([Deploy Airdrop\nfund totalPool]) > B[ACTIVE]
+    A([Deploy Airdrop\nfund totalPool]) --> B[ACTIVE]
     B >|claim - anyone\nwithin time window| C[Claimer receives\namountPerClaim]
     C >|totalClaimed < totalPool| B
     C >|totalClaimed >= totalPool| D([COMPLETED])
@@ -29,7 +29,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A([Deploy Grant\nN milestones]) > B[Milestone 0\nmilestonesCompleted = 0]
+    A([Deploy Grant\nN milestones]) --> B[Milestone 0\nmilestonesCompleted = 0]
     B >|releaseMilestone - authority| C[amountPerMilestone\nto recipient]
     C >|milestonesCompleted < milestonesTotal| B
     C >|milestonesCompleted = milestonesTotal| D([COMPLETED])

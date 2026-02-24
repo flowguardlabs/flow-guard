@@ -10,10 +10,10 @@ A **Vault** is the foundational treasury contract in FlowGuard. Every streaming,
 
 ```mermaid
 flowchart TD
-    A([Create Vault]) > B[VaultCovenant UTXO\nM-of-N signers\nSpending cap\nAllowlist]
-    B > C{Action}
+    A([Create Vault]) --> B[VaultCovenant UTXO\nM-of-N signers\nSpending cap\nAllowlist]
+    B --> C{Action}
     C >|spend - M-of-N sigs| D[Payout to recipient\nUpdated period accounting]
-    D > B
+    D --> B
     C >|pause - any signer| E[PAUSED state]
     E >|resume - M-of-N sigs| B
     C >|emergencyLock - all N signers| F[EMERGENCY_LOCK\nNo spending possible]

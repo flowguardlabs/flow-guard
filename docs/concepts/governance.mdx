@@ -10,15 +10,15 @@ FlowGuard governance is composed of two contracts: `ProposalCovenant` (manages s
 
 ```mermaid
 stateDiagram-v2
-    [*] > PENDING : create proposal
-    PENDING > APPROVED : M-of-N approvals reached
-    PENDING > EXPIRED : votingEnd elapsed (permissionless)
-    PENDING > CANCELLED : M-of-N cancel
-    APPROVED > CANCELLED : M-of-N cancel
-    APPROVED > EXECUTED : executionTimelock passed
-    EXECUTED > [*]
-    EXPIRED > [*]
-    CANCELLED > [*]
+    [*] --> PENDING : create proposal
+    PENDING --> APPROVED : M-of-N approvals reached
+    PENDING --> EXPIRED : votingEnd elapsed (permissionless)
+    PENDING --> CANCELLED : M-of-N cancel
+    APPROVED --> CANCELLED : M-of-N cancel
+    APPROVED --> EXECUTED : executionTimelock passed
+    EXECUTED --> [*]
+    EXPIRED --> [*]
+    CANCELLED --> [*]
 ```
 
 ### ProposalCovenant Status Codes

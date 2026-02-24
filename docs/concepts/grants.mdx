@@ -16,12 +16,12 @@ icon: "handshake"
 
 ```mermaid
 flowchart LR
-    A([Deploy\nN milestones\nfund totalAmount]) > B[Milestone 0\nActive]
+    A([Deploy\nN milestones\nfund totalAmount]) --> B[Milestone 0\nActive]
     B >|releaseMilestone - authority| C[amountPerMilestone\nto recipient]
     C >|completed < total| B
     C >|completed = total| D([COMPLETED])
     B >|transfer - recipient| E[New recipient\nassigned]
-    E > B
+    E --> B
     B >|cancel - authority| F([Remaining returned\nto authority])
 ```
 

@@ -10,14 +10,14 @@ Every FlowGuard covenant — vesting, recurring payment, airdrop, grant, bounty,
 
 ```mermaid
 stateDiagram-v2
-    [*] > ACTIVE : deploy()
-    ACTIVE > PAUSED : pause()
-    PAUSED > ACTIVE : resume()
-    ACTIVE > CANCELLED : cancel()
-    PAUSED > CANCELLED : cancel()
-    ACTIVE > COMPLETED : all funds distributed
-    COMPLETED > [*]
-    CANCELLED > [*]
+    [*] --> ACTIVE : deploy()
+    ACTIVE --> PAUSED : pause()
+    PAUSED --> ACTIVE : resume()
+    ACTIVE --> CANCELLED : cancel()
+    PAUSED --> CANCELLED : cancel()
+    ACTIVE --> COMPLETED : all funds distributed
+    COMPLETED --> [*]
+    CANCELLED --> [*]
 ```
 
 ## Status Values
