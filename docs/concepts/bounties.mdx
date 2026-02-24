@@ -1,0 +1,57 @@
+---
+title: "Bounties"
+description: "On-chain competition funding where the authority co-signs each verified claim with a proof hash."
+icon: "trophy"
+---
+
+`BountyCovenant` funds a competition with a fixed prize per winner, up to `maxWinners`. The authority reviews submissions off-chain and co-signs each `claim()` with a non-zero `proofHash` identifying the work.
+
+## Use Cases
+
+- Code bounties (bug fixes, feature implementations)
+- Design or content competitions
+- Research prize pools
+- Security vulnerability disclosures
+
+## How It Works
+
+```mermaid
+sequenceDiagram
+    participant Creator
+    participant BountyCovenant
+    participant Contestant
+    participant Authority
+
+    Creator->>BountyCovenant: Deploy + fund rewardPerWinner × maxWinners
+    Contestant->>Authority: Submit work off-chain
+    Authority->>Authority: Verify submission
+    Authority->>BountyCovenant: claim(authSig, winnerHash, proofHash)
+    BountyCovenant->>Contestant: Receives rewardPerWinner
+    Note right of BountyCovenant: Repeats until maxWinners reached
+    BountyCovenant-->>Creator: COMPLETED
+```
+
+## Key Properties
+
+| Property | Detail |
+|---|---|
+| Prize | Fixed per winner — `rewardPerWinner` |
+| Winners | Up to `maxWinners`. Auto-completes at limit. |
+| Proof | `proofHash` (non-zero `bytes32`) recorded per claim |
+| Authority | Sole decision-maker on valid claims |
+| Cancel | Returns remaining unclaimed prizes |
+
+## NFT State
+
+```
+[0]:    status
+[1]:    flags
+[2-9]:  total_paid (uint64)
+[10-13]: winners_count (uint32)
+[14-18]: last_claim_timestamp (5 bytes)
+[19-39]: reserved
+```
+
+## Contract Reference
+
+See [BountyCovenant](/reference/contracts/bounty-covenant) for full documentation.

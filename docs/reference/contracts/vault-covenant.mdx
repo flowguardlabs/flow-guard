@@ -1,0 +1,104 @@
+---
+title: "VaultCovenant"
+description: "Complete technical reference for the VaultCovenant contract — parameters, functions, NFT state, and access control."
+icon: "vault"
+---
+
+`VaultCovenant` is the treasury enforcement contract. It holds funds and enforces M-of-N multi-party approval for all spending, with optional period caps and recipient allowlists.
+
+**Contract path:** `contracts/core/treasury/VaultCovenant.cash`
+**CashScript version:** `^0.13.0`
+
+## Parameters
+
+All parameters are compiled into the P2SH32 bytecode at deployment. They are immutable.
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Unique vault identifier. Non-zero required. |
+| `requiredApprovals` | `int` | M in M-of-N (must be ≥ 1, ≤ 3 pre-Loops CHIP) |
+| `signer1Hash` | `bytes20` | `hash160(pubkey)` of signer 1 |
+| `signer2Hash` | `bytes20` | `hash160(pubkey)` of signer 2 |
+| `signer3Hash` | `bytes20` | `hash160(pubkey)` of signer 3 |
+| `periodDuration` | `int` | Seconds per spending period. `0` = no cap. |
+| `periodCap` | `int` | Max satoshis per period. `0` = unlimited. |
+| `recipientCap` | `int` | Max satoshis per single spend. `0` = unlimited. |
+| `allowlistEnabled` | `int` | `1` = enforce recipient allowlist |
+| `allowedAddr1` | `bytes20` | Allowlisted recipient 1 |
+| `allowedAddr2` | `bytes20` | Allowlisted recipient 2 |
+| `allowedAddr3` | `bytes20` | Allowlisted recipient 3 |
+
+## NFT State (32 bytes)
+
+```
+[0]:    version           (uint8)
+[1]:    status            (uint8) — 0=ACTIVE, 1=PAUSED, 2=EMERGENCY_LOCK, 3=MIGRATING
+[2-4]:  rolesMask         (3 bytes)
+[5-8]:  current_period_id (uint32)
+[9-16]: spent_this_period (uint64, satoshis)
+[17-24]: last_update_timestamp (uint64, unix seconds)
+[25-31]: reserved
+```
+
+## Functions
+
+### `spend(sig sig1, pubkey pubkey1, sig sig2, pubkey pubkey2, bytes32 proposalId, bytes20 recipientHash, int payoutAmount, int newPeriodId, int newSpent)`
+
+Execute a spending proposal. Requires two distinct registered signers.
+
+**Validates:**
+- Both signers are in `{signer1Hash, signer2Hash, signer3Hash}` and are distinct
+- Both signatures are valid
+- `status == ACTIVE`
+- Period cap: `newSpent <= periodCap` (if `periodCap > 0`)
+- Recipient cap: `payoutAmount <= recipientCap` (if `recipientCap > 0`)
+- Allowlist: `recipientHash` is in `{allowedAddr1, allowedAddr2, allowedAddr3}` (if `allowlistEnabled == 1`)
+- Period rollover: if `newPeriodId > currentPeriodId`, checks that `periodDuration` has elapsed
+- `proposalId != 0x00...00`
+
+**Outputs:**
+- `outputs[0]`: P2PKH to `recipientHash`, value = `payoutAmount`
+- `outputs[1]`: Updated vault UTXO with new NFT state
+
+### `unlockPeriod(sig authSig, pubkey authPubkey, int newPeriodId, int newSpent)`
+
+Roll the accounting period forward without spending. Any single registered signer.
+
+**Validates:**
+- `status == ACTIVE`
+- `newPeriodId > currentPeriodId`
+- `newSpent == 0`
+- If `periodDuration > 0`, sufficient time has elapsed
+
+### `pause(sig authSig, pubkey authPubkey)`
+
+Any single registered signer freezes the vault immediately.
+
+**State change:** `status` → `PAUSED`
+
+### `resume(sig sig1, pubkey pubkey1, sig sig2, pubkey pubkey2)`
+
+Resume a paused vault. Requires M-of-N two distinct signers.
+
+**State change:** `status` → `ACTIVE`
+
+### `emergencyLock(sig sig1, pubkey pubkey1, sig sig2, pubkey pubkey2, sig sig3, pubkey pubkey3)`
+
+Full lockdown requiring all three signers in exact order: `pubkey1 == signer1Hash`, `pubkey2 == signer2Hash`, `pubkey3 == signer3Hash`.
+
+**State change:** `status` → `EMERGENCY_LOCK`
+
+<Warning>
+Emergency lock is irreversible in the current contract version. Funds are permanently frozen. Deploy a new vault for recovery.
+</Warning>
+
+## Fee Allowance
+
+The `unlockPeriod()` function allows the vault UTXO to pay BCH miner fees from its own value:
+
+```
+feeDelta = inputs[0].value - outputs[0].value
+require(feeDelta >= 0 && feeDelta <= 2000)  // max 2000 satoshis fee
+```
+
+All other functions require the vault output value to be preserved exactly.

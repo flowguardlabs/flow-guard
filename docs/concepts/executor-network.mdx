@@ -1,0 +1,44 @@
+---
+title: "Executor Network"
+description: "The permissionless executor layer that triggers time-dependent covenant functions when intervals elapse."
+icon: "robot"
+---
+
+Several FlowGuard covenants have functions that are **permissionless** — anyone can call them at the right time. The executor network is the infrastructure layer that makes this automatic.
+
+## What the Executor Does
+
+The executor monitors all active covenant UTXOs and submits transactions when:
+
+- A recurring payment interval has elapsed (`RecurringPaymentCovenant.pay()`)
+- A proposal's voting deadline has passed (`ProposalCovenant.expire()`)
+- A vesting schedule has passed `endTimestamp` (`VestingCovenant.complete()`)
+
+## Architecture
+
+```mermaid
+flowchart TD
+    BM[blockchain-monitor.ts\nIndexes new blocks] --> DB[(SQLite DB\nCovenant states)]
+    DB --> CUS[cycle-unlock-scheduler.ts\nChecks next_payment timestamps]
+    CUS -->|interval elapsed| TB[TransactionBuilder.ts\nBuilds pay tx]
+    TB --> TM[TransactionMonitor.ts\nBroadcasts + confirms]
+    TM --> DB
+```
+
+## Running Your Own Executor
+
+The executor is a standalone service in `backend/executor/`. It connects to a BCH node via Electrum protocol, reads covenant state from the SQLite database, and broadcasts transactions.
+
+<Note>
+Running an executor is permissionless and trustless. The covenant contract validates all correctness — the executor cannot steal funds or trigger incorrect payouts.
+</Note>
+
+Anyone running an executor participates in the liveness guarantee for FlowGuard recurring payments. In future versions, an executor fee parameter will be added to the covenant so operators are compensated directly on-chain.
+
+## Supported Permissionless Functions
+
+| Contract | Function | Trigger Condition |
+|---|---|---|
+| `RecurringPaymentCovenant` | `pay()` | `tx.locktime >= next_payment_timestamp` |
+| `ProposalCovenant` | `expire()` | `tx.locktime >= voting_end_timestamp` |
+| `VestingCovenant` | `complete()` | `tx.locktime >= endTimestamp` |

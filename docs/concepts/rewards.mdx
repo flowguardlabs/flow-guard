@@ -1,0 +1,61 @@
+---
+title: "Rewards"
+description: "Variable achievement-based distributions issued by authority with a configurable per-event cap and total pool budget."
+icon: "star"
+---
+
+`RewardCovenant` lets an authority issue variable amounts to recipients for arbitrary events — achievements, referrals, loyalty milestones, or custom categories. Unlike airdrops (fixed, self-claim), rewards require the authority to sign each payout and set the exact amount.
+
+## Use Cases
+
+- Achievement rewards (reach milestones in a protocol)
+- Referral bonuses (variable by referee activity)
+- Loyalty programs (tiered rewards based on usage)
+- Custom incentive campaigns
+
+## How It Works
+
+```mermaid
+flowchart LR
+    A([Deploy\nfund totalPool]) --> B[ACTIVE]
+    B -->|reward - authority\nvariable amount per event| C[Recipient receives\nrewardAmount]
+    C -->|totalDistributed < totalPool| B
+    C -->|totalDistributed >= totalPool| D([COMPLETED])
+    B -->|cancel - authority| E([Remainder returned])
+```
+
+## Reward Categories
+
+The `reward_category` byte in the NFT state records the type for indexing and display:
+
+| Value | Category |
+|---|---|
+| `1` | ACHIEVEMENT |
+| `2` | REFERRAL |
+| `3` | LOYALTY |
+| `4` | CUSTOM |
+
+## Key Properties
+
+| Property | Detail |
+|---|---|
+| Amount per event | Variable. Must satisfy `0 < rewardAmount <= maxRewardAmount` |
+| Recipients | Different address per reward event |
+| Pool | Fixed at deployment — auto-completes when exhausted |
+| Authority | Controls all payouts — no self-claim path |
+
+## NFT State
+
+```
+[0]:    status
+[1]:    flags
+[2]:    reward_category (uint8)
+[3-10]: total_distributed (uint64)
+[11-18]: rewards_count (uint64)
+[19-23]: last_reward_timestamp (5 bytes)
+[24-39]: reserved
+```
+
+## Contract Reference
+
+See [RewardCovenant](/reference/contracts/reward-covenant) for full documentation.

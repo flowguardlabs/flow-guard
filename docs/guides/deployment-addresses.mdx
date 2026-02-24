@@ -1,0 +1,47 @@
+---
+title: "Deployment Addresses"
+description: "Canonical contract addresses for all FlowGuard covenants on mainnet and chipnet."
+icon: "map-pin"
+---
+
+<Warning>
+Addresses are deterministic from the contract bytecode and deployment parameters. Always verify the address you are interacting with against the expected bytecode hash for the parameters you configured.
+</Warning>
+
+## How Addresses Are Derived
+
+FlowGuard contracts compile to P2SH32 addresses. Each unique combination of constructor parameters produces a unique address. Two vesting covenants with different `totalAmount` values will have different addresses.
+
+The `DeploymentRegistryService` in the backend tracks all addresses deployed through FlowGuard along with the parameters used.
+
+## Mainnet
+
+| Contract | Version | Address |
+|---|---|---|
+| VaultCovenant | v1.0 | See deployment registry |
+| VestingCovenant | v1.0 | Per-deployment (parameterized) |
+| RecurringPaymentCovenant | v1.0 | Per-deployment (parameterized) |
+| AirdropCovenant | v1.0 | Per-deployment (parameterized) |
+| GrantCovenant | v1.0 | Per-deployment (parameterized) |
+| BountyCovenant | v1.0 | Per-deployment (parameterized) |
+| RewardCovenant | v1.0 | Per-deployment (parameterized) |
+| ProposalCovenant | v1.0 | Per-deployment (parameterized) |
+| VoteLockCovenant | v1.0 | Per-deployment (parameterized) |
+
+<Info>
+Because each covenant is parameterized at deploy time, there is no single canonical address for most contracts. The deployment registry API at `GET /api/deployment` returns all active deployments with their parameters and addresses.
+</Info>
+
+## Chipnet (Testing)
+
+Chipnet deployments are tracked separately in `flowguard-chipnet.db`. Use the API with `BCH_NETWORK=chipnet` to query chipnet deployments.
+
+## Verify a Contract
+
+To verify that a given BCH address corresponds to a FlowGuard covenant with specific parameters:
+
+```bash
+curl https://api.flowguard.cash/api/deployment?address=<address>
+```
+
+The response includes the contract type, version, parameters, and the bytecode hash used to derive the address.

@@ -1,0 +1,94 @@
+---
+title: "Local Environment"
+description: "Set up a local development environment with chipnet BCH and deploy your first FlowGuard covenant."
+icon: "laptop-code"
+---
+
+This guide walks you through setting up a local FlowGuard development environment on chipnet — BCH's public testing network.
+
+## Prerequisites
+
+- Node.js 18+
+- pnpm 8+
+- A BCH wallet that supports chipnet (Paytaca or Electron Cash chipnet build)
+
+## Clone and Install
+
+```bash
+git clone https://github.com/flowguard-labs/flowguard
+cd flowguard
+pnpm install
+```
+
+## Environment Variables
+
+Copy the example env files:
+
+```bash
+cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+Required variables in `backend/.env`:
+
+```env
+BCH_NETWORK=chipnet
+ELECTRUM_HOST=chipnet.imaginary.cash
+ELECTRUM_PORT=50004
+ELECTRUM_PROTOCOL=tls
+DATABASE_PATH=./flowguard-chipnet.db
+```
+
+Required variables in `frontend/.env`:
+
+```env
+VITE_API_URL=http://localhost:3001
+VITE_NETWORK=chipnet
+```
+
+## Get Chipnet BCH
+
+Visit the chipnet faucet to fund your wallet:
+
+- [https://tbch.googler.cash](https://tbch.googler.cash)
+- [https://faucet.chipnet.imaginary.cash](https://faucet.chipnet.imaginary.cash)
+
+<Info>
+Chipnet BCH has no real value. Use it freely for testing all FlowGuard products before going to mainnet.
+</Info>
+
+## Start the Development Stack
+
+<Steps>
+  <Step title="Start the backend API and indexer">
+    ```bash
+    cd backend
+    pnpm dev
+    ```
+    The API starts on `http://localhost:3001`. The indexer begins scanning chipnet blocks.
+  </Step>
+  <Step title="Start the frontend">
+    ```bash
+    cd frontend
+    pnpm dev
+    ```
+    The app starts on `http://localhost:5173`.
+  </Step>
+  <Step title="Connect your wallet">
+    Open the app, click **Connect Wallet**, and select Paytaca or your chipnet wallet.
+  </Step>
+  <Step title="Create your first vault">
+    Navigate to **Vaults → Create Vault**. Use your wallet address as all three signers for a simple 1-of-1 test setup.
+  </Step>
+</Steps>
+
+## Verify Setup
+
+Check that the indexer is running correctly:
+
+```bash
+curl http://localhost:3001/api/admin
+```
+
+Expected response includes `indexer.status: "running"` and the latest indexed block height.

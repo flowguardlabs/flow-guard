@@ -1,0 +1,46 @@
+---
+title: "Pause and Resume"
+description: "Pause and resume a recurring payment stream as the sender."
+icon: "circle-pause"
+---
+
+The sender can pause a recurring payment to temporarily suspend payouts. The executor will not trigger `pay()` while the payment is paused.
+
+## Pause
+
+<Steps>
+  <Step title="Open the payment">
+    Navigate to **Payments** and select the active payment.
+  </Step>
+  <Step title="Click Pause">
+    Click **Pause**. Sign with the sender wallet. Status changes to `PAUSED` on-chain.
+  </Step>
+</Steps>
+
+<Note>
+Pause requires `FLAG_CANCELABLE` to be set. Non-cancelable payments cannot be paused.
+</Note>
+
+## Resume
+
+<Steps>
+  <Step title="Click Resume">
+    From the paused payment, click **Resume**. Sign with the sender wallet.
+  </Step>
+  <Step title="On-chain behavior">
+    `next_payment_timestamp` is reset to `tx.locktime + intervalSeconds`. No backdated intervals are paid for the pause period. The payment schedule continues from the resume time.
+  </Step>
+</Steps>
+
+## Backdated Payments
+
+FlowGuard does not backfill missed intervals during a pause. If you pause for three weeks and resume, the next payment is due one interval after the resume time — not three weeks earlier.
+
+This matches the expected behavior for employment payroll: paused periods are unpaid.
+
+## API
+
+```bash
+POST /api/payments/:id/pause
+POST /api/payments/:id/resume
+```

@@ -1,0 +1,51 @@
+---
+title: "Grants"
+description: "Multi-milestone grant disbursements with on-chain tranche release and optional recipient transfer."
+icon: "handshake"
+---
+
+`GrantCovenant` releases funding tranche by tranche as milestones are approved by the authority. The total grant is split equally across a defined number of milestones.
+
+## Use Cases
+
+- Developer grants with delivery milestones
+- Research funding disbursed in phases
+- Contractor payments tied to deliverables
+
+## How It Works
+
+```mermaid
+flowchart LR
+    A([Deploy\nN milestones\nfund totalAmount]) --> B[Milestone 0\nActive]
+    B -->|releaseMilestone - authority| C[amountPerMilestone\nto recipient]
+    C -->|completed < total| B
+    C -->|completed = total| D([COMPLETED])
+    B -->|transfer - recipient| E[New recipient\nassigned]
+    E --> B
+    B -->|cancel - authority| F([Remaining returned\nto authority])
+```
+
+## Key Properties
+
+| Property | Detail |
+|---|---|
+| Payout per milestone | Fixed: `totalAmount / milestonesTotal` |
+| Release control | Authority only — off-chain milestone verification |
+| Recipient | Mutable if `FLAG_TRANSFERABLE`. Current recipient signs to reassign. |
+| Cancel | Authority returns `totalAmount - totalReleased` |
+
+## NFT State
+
+```
+[0]:    status
+[1]:    flags
+[2]:    milestones_completed (uint8, 0..255)
+[3-10]: total_released (uint64)
+[11-15]: last_release_timestamp (5 bytes)
+[16-35]: recipient_hash (bytes20)
+[36-39]: reserved
+```
+
+## Contract Reference
+
+See [GrantCovenant](/reference/contracts/grant-covenant) for full documentation.

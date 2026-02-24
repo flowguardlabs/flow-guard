@@ -1,0 +1,76 @@
+---
+title: "Protocol Overview"
+description: "How FlowGuard enforces programmable finance on Bitcoin Cash using CashScript covenants and CashTokens."
+icon: "circle-info"
+---
+
+FlowGuard is built on two BCH primitives: **CashScript covenants** (smart contracts that enforce spending conditions on UTXOs) and **CashTokens** (fungible tokens and NFTs native to BCH). Together they enable programmable finance with no custodian and no trusted server.
+
+## Core Primitives
+
+<CardGroup cols={2}>
+  <Card title="CashScript Covenants" icon="code" href="/concepts/cashtokens-covenants">
+    P2SH32 contracts that enforce exactly what outputs a transaction must produce
+  </Card>
+  <Card title="CashTokens NFTs" icon="hexagon-image" href="/concepts/cashtokens-covenants">
+    40-byte NFT commitments carry all mutable state for each covenant UTXO
+  </Card>
+</CardGroup>
+
+## Product Architecture
+
+Every FlowGuard product follows the same pattern:
+
+1. **Deploy** — A covenant UTXO is created with parameters compiled into bytecode (immutable) and initial state in the NFT commitment (mutable).
+2. **State Transitions** — Each function call consumes the input UTXO, validates the transition, and produces a new UTXO with updated NFT state.
+3. **Settlement** — When the covenant reaches a terminal state (COMPLETED or CANCELLED), funds are distributed and the UTXO is consumed without replacement.
+
+```mermaid
+flowchart LR
+    A([Deploy]) --> B[Covenant UTXO\nNFT: initial state]
+    B --> C{Function Call}
+    C -->|claim/pay/release| B
+    C -->|cancel| D([Sender gets funds back])
+    C -->|complete| E([Recipient gets remainder])
+```
+
+## State Machine
+
+All covenants share a common status field in their NFT commitment:
+
+| Status | Value | Description |
+|---|---|---|
+| `ACTIVE` | `0` | Normal operating state |
+| `PAUSED` | `1` | Temporarily frozen by authority |
+| `CANCELLED` | `2` | Terminated early, funds returned |
+| `COMPLETED` | `3` | All obligations fulfilled |
+
+<Info>
+The `CANCELLED` status byte is `0x02` in the on-chain NFT commitment. Terminal states consume the covenant UTXO without producing a replacement NFT output.
+</Info>
+
+## Flags Bitmap
+
+Every covenant has a `flags` byte in its NFT commitment at position `[1]`:
+
+| Bit | Mask | Meaning |
+|---|---|---|
+| 0 | `0x01` | `FLAG_CANCELABLE` — sender can cancel |
+| 1 | `0x02` | `FLAG_TRANSFERABLE` — recipient can transfer |
+| 2 | `0x04` | `FLAG_USES_TOKENS` — covenant holds CashToken FTs (not BCH) |
+
+## Vault-Covenant Relationship
+
+Covenants are linked to a Vault via `vaultId` compiled into the bytecode. This ties each streaming or distribution contract back to its treasury source for accounting and access control.
+
+```mermaid
+flowchart TD
+    V[VaultCovenant] -->|vaultId| WS[VestingCovenant]
+    V -->|vaultId| RP[RecurringPaymentCovenant]
+    V -->|vaultId| AD[AirdropCovenant]
+    V -->|vaultId| GR[GrantCovenant]
+    V -->|vaultId| BN[BountyCovenant]
+    V -->|vaultId| RW[RewardCovenant]
+    PR[ProposalCovenant] -->|vaultId| V
+    VL[VoteLockCovenant] -->|proposalId| PR
+```

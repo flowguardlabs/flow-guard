@@ -1,0 +1,42 @@
+---
+title: "Cancel a Payment"
+description: "Cancel a recurring payment and recover the remaining pool."
+icon: "circle-xmark"
+---
+
+Cancelling a recurring payment returns the entire remaining pool to the sender. Any amount already paid to the recipient is settled — only the unpaid remainder returns.
+
+<Note>
+Cancel requires `FLAG_CANCELABLE`. If the payment was deployed without this flag, neither sender nor anyone else can cancel it.
+</Note>
+
+## How to Cancel
+
+<Steps>
+  <Step title="Open the payment">
+    Navigate to **Payments** and find the active or paused payment.
+  </Step>
+  <Step title="Click Cancel">
+    Click **Cancel Payment**. The preview shows the remaining pool amount that will return to the sender.
+  </Step>
+  <Step title="Sign and confirm">
+    Sign with the sender wallet. The covenant UTXO is consumed. The remaining pool is sent to the sender's address in the same transaction. No NFT output is produced — the payment is terminated.
+  </Step>
+</Steps>
+
+## Unlimited Streams
+
+For streams deployed with `totalAmount = 0`, the remaining pool is the entire current BCH or token balance of the UTXO at cancel time.
+
+## API
+
+```bash
+POST /api/payments/:id/cancel
+
+# Response
+{
+  "txid": "hex_transaction_id",
+  "returnedToSender": 24500000,
+  "status": "CANCELLED"
+}
+```

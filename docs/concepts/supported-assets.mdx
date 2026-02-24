@@ -1,0 +1,40 @@
+---
+title: "Supported Assets"
+description: "FlowGuard covenants support both BCH (satoshis) and any CashToken fungible token."
+icon: "coins"
+---
+
+## Asset Types
+
+Every FlowGuard covenant supports two asset modes selected by `FLAG_USES_TOKENS` (`0x04` in the flags byte):
+
+| Mode | Flag | What is held | Output enforcement |
+|---|---|---|---|
+| BCH mode | `FLAG_USES_TOKENS = 0` | Satoshis in the UTXO value | `tx.outputs[0].value == amount` |
+| Token mode | `FLAG_USES_TOKENS = 1` | CashToken FT units | `tx.outputs[0].tokenAmount == amount` |
+
+The mode is set at deployment and encoded into the NFT flags byte. It cannot change.
+
+## BCH Streams
+
+In BCH mode, the covenant holds satoshis directly. Amounts are expressed in satoshis (1 BCH = 100,000,000 satoshis). The minimum meaningful amount is limited by the BCH dust limit (~546 satoshis).
+
+## CashToken Streams
+
+In token mode, the covenant holds CashToken fungible token units. The `tokenCategory` of the NFT and the FT escrow are the same, linking them in a single UTXO. The token amount field tracks the escrowed FT units separately from the BCH satoshi value (which only covers the UTXO dust amount).
+
+<Info>
+When creating a CashToken stream, the covenant UTXO must hold both:
+1. A small BCH dust amount to make the UTXO valid
+2. The FT amount to be streamed under the same `tokenCategory` as the state NFT
+</Info>
+
+## Supported Token Standards
+
+Any CashToken fungible token with a valid `tokenCategory` is supported. This includes:
+
+- BCMR-registered tokens with published metadata
+- Protocol tokens (DeFi, governance, utility)
+- Unregistered fungible tokens with any category
+
+FlowGuard does not whitelist or verify token categories at the contract level. Sender and recipient are responsible for verifying the token being streamed.

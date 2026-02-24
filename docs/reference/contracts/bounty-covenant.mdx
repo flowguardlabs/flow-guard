@@ -1,0 +1,43 @@
+---
+title: "BountyCovenant"
+description: "Full parameter, function, and state reference for the BountyCovenant contract."
+icon: "trophy"
+---
+
+`BountyCovenant` enforces a competition-style payout where the authority co-signs each winning claim.
+
+**Contract path:** `contracts/core/distribution/BountyCovenant.cash`
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Links to source vault |
+| `authorityHash` | `bytes20` | Co-signs all `claim()` calls |
+| `rewardPerWinner` | `int` | Fixed prize per winner |
+| `maxWinners` | `int` | Maximum number of prizes available |
+| `startTimestamp` | `int` | Competition opens. `0` = immediate. |
+| `endTimestamp` | `int` | Deadline. `0` = no deadline. |
+
+## NFT State (40 bytes)
+
+```
+[0]:    status
+[1]:    flags
+[2-9]:  total_paid (uint64)
+[10-13]: winners_count (uint32)
+[14-18]: last_claim_timestamp (5 bytes)
+[19-39]: reserved
+```
+
+## Functions
+
+### `claim(sig authSig, pubkey authPubkey, bytes20 winnerHash, bytes32 proofHash)`
+
+Authority co-signs and identifies the winner with `winnerHash`. `proofHash` is a non-zero hash of the submission proof. Prize is released to `winnerHash`.
+
+Auto-completes at `maxWinners`.
+
+### `pause()` / `resume()` / `cancel()`
+
+Authority-only. Cancel returns remaining prizes to authority.

@@ -1,0 +1,58 @@
+---
+title: "RecurringPaymentCovenant"
+description: "Full parameter, function, and state reference for the RecurringPaymentCovenant contract."
+icon: "arrows-rotate"
+---
+
+`RecurringPaymentCovenant` enforces fixed-interval payments to a fixed recipient. The `pay()` function is permissionless.
+
+**Contract path:** `contracts/core/streaming/RecurringPaymentCovenant.cash`
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Links to source vault |
+| `senderHash` | `bytes20` | Controls pause/cancel |
+| `recipientHash` | `bytes20` | Fixed payment recipient (immutable) |
+| `amountPerInterval` | `int` | Satoshis or FT per payment |
+| `intervalSeconds` | `int` | Seconds between payments |
+| `totalAmount` | `int` | Total pool cap. `0` = unlimited. |
+| `startTimestamp` | `int` | When first payment can occur. `0` = immediate. |
+| `endTimestamp` | `int` | Hard expiry. `0` = no expiry. |
+
+## NFT State (40 bytes)
+
+```
+[0]:    status
+[1]:    flags
+[2-9]:  total_paid (uint64)
+[10-17]: payment_count (uint64)
+[18-22]: next_payment_timestamp (5 bytes)
+[23-27]: pause_start (5 bytes, 0 if not paused)
+[28-39]: reserved
+```
+
+## Functions
+
+### `pay()`
+
+Permissionless. Releases `amountPerInterval` to `recipientHash`. Advances `next_payment_timestamp` by `intervalSeconds`.
+
+**Validates:** `status == ACTIVE`, `tx.locktime >= next_payment_timestamp`, time window constraints, `newTotalPaid <= totalAmount` (if capped)
+
+**Auto-completes** when `newTotalPaid >= totalAmount`
+
+### `pause(sig senderSig, pubkey senderPubkey)`
+
+Sender-only. Requires `FLAG_CANCELABLE`. Records `pause_start`.
+
+### `resume(sig senderSig, pubkey senderPubkey)`
+
+Sender-only. Resets `next_payment_timestamp = tx.locktime + intervalSeconds`. No backdated intervals.
+
+### `cancel(sig senderSig, pubkey senderPubkey)`
+
+Sender-only. Requires `FLAG_CANCELABLE`. Returns entire remaining pool to sender.
+
+For unlimited streams (`totalAmount == 0`), all remaining BCH in the UTXO is returned.

@@ -1,0 +1,70 @@
+---
+title: "Batch Create Streams"
+description: "Deploy multiple vesting or recurring payment streams from a single vault in one operation."
+icon: "layer-group"
+---
+
+Batch creation deploys multiple covenant UTXOs in a coordinated sequence from a single vault. This is useful for:
+
+- Onboarding multiple team members with individual vesting schedules
+- Setting up DAO contributor payments in bulk
+- Distributing a grant to multiple recipients simultaneously
+
+## How to Batch Create
+
+<Steps>
+  <Step title="Navigate to Batch Create">
+    Go to **Vault → Batch Create Streams**, or navigate to **Streams → Batch Create**.
+  </Step>
+  <Step title="Build recipient list">
+    Add each row to the recipient table:
+
+    | Field | Description |
+    |---|---|
+    | Recipient Address | BCH P2PKH address |
+    | Amount | Total tokens for this recipient |
+    | Start Date | Vesting or payment start |
+    | End Date | Vesting end (ignored for recurring payments) |
+    | Cliff Date | Optional, vesting only |
+    | Schedule Type | Linear, Step, or Recurring |
+  </Step>
+  <Step title="Review summary">
+    The batch summary shows total funds required from the vault. Confirm the vault has sufficient balance.
+  </Step>
+  <Step title="Deploy">
+    Each recipient's covenant is deployed as a separate on-chain transaction. Transactions are batched and submitted sequentially. The dashboard displays progress as each confirms.
+  </Step>
+</Steps>
+
+<Warning>
+The vault balance must cover the total of all streams in the batch. Ensure the vault is funded before initiating a batch deployment.
+</Warning>
+
+## Current Limitations
+
+Pre-Loops CHIP, each covenant UTXO is a separate transaction. A batch of 10 streams requires 10 transactions. The FlowGuard app sequences these automatically, but confirmation time scales linearly with batch size.
+
+Post-Loops CHIP, a single transaction will be able to deploy multiple covenant UTXOs simultaneously.
+
+## API
+
+```bash
+POST /api/streams/batch
+Content-Type: application/json
+
+{
+  "vaultId": "hex_32_bytes",
+  "streams": [
+    {
+      "recipientAddress": "bitcoincash:q...",
+      "scheduleType": 1,
+      "totalAmount": 500000000,
+      "startTimestamp": 1700000000,
+      "endTimestamp": 1731536000,
+      "cliffTimestamp": 1706745600,
+      "cancelable": true
+    },
+    { ... }
+  ]
+}
+```

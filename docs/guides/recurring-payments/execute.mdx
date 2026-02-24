@@ -1,0 +1,54 @@
+---
+title: "Execute a Payment"
+description: "How the pay() function works and who can call it."
+icon: "play"
+---
+
+The `pay()` function on `RecurringPaymentCovenant` is **permissionless**. Any party can call it when the interval has elapsed. The contract enforces correctness — the caller cannot alter the amount or recipient.
+
+## When Can pay() Be Called?
+
+```
+require(tx.locktime >= next_payment_timestamp)
+require(status == ACTIVE)
+```
+
+The executor service monitors `next_payment_timestamp` for all active payments and submits `pay()` transactions automatically. You can also trigger payment manually from the app.
+
+## Triggering Manually
+
+<Steps>
+  <Step title="Open the payment">
+    Navigate to **Payments** and select the payment. The detail page shows **Next Payment Due** and whether it is currently claimable.
+  </Step>
+  <Step title="Click Execute Payment">
+    If the interval has elapsed, the **Execute Payment** button is active. Click it. No wallet signature is required — the transaction is signed by the app on your behalf using a relay key (permissionless, no funds at risk).
+  </Step>
+</Steps>
+
+## What the Transaction Produces
+
+A valid `pay()` transaction:
+1. Releases `amountPerInterval` to `recipientHash`
+2. Advances `next_payment_timestamp` by `intervalSeconds`
+3. Increments `payment_count`
+4. Adds `amountPerInterval` to `total_paid`
+5. Auto-completes if `total_paid >= totalAmount` (when capped)
+
+## Executor Automation
+
+The FlowGuard executor service polls all active payments and triggers `pay()` as each interval elapses. No action is needed from the sender or recipient. See [Executor Network](/concepts/executor-network) for details.
+
+## API
+
+```bash
+POST /api/payments/:id/execute
+
+# Response
+{
+  "txid": "hex_transaction_id",
+  "amountPaid": 500000,
+  "totalPaid": 1500000,
+  "nextPaymentTimestamp": 1710604800
+}
+```

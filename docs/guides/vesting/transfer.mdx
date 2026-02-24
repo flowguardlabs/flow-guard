@@ -1,0 +1,50 @@
+---
+title: "Transfer Stream Ownership"
+description: "How a vesting stream recipient reassigns the stream to a new address."
+icon: "arrow-right-arrow-left"
+---
+
+If a vesting stream was created with `FLAG_TRANSFERABLE`, the current recipient can reassign it to any new address. The sender has no role in this operation.
+
+<Note>
+Transfer requires `FLAG_TRANSFERABLE` (`0x02`) to be set. If this flag is not present, the recipient is immutable for the lifetime of the stream.
+</Note>
+
+## transferring
+
+<Steps>
+  <Step title="Open the stream">
+    Navigate to **Streams** and select the stream.
+  </Step>
+  <Step title="Go to Transfer">
+    Click **Transfer Stream**. Enter the new recipient's BCH P2PKH address.
+  </Step>
+  <Step title="Sign with current recipient wallet">
+    The current recipient must sign. The contract validates:
+    - `hash160(recipientPubkey) == recipient_hash` (from NFT state)
+    - `status == ACTIVE`
+    - `FLAG_TRANSFERABLE` is set
+  </Step>
+  <Step title="On-chain result">
+    The NFT `recipient_hash` field is updated to the new `hash160`. All future `claim()` calls must be signed by the new recipient. Prior claimed amounts are unaffected.
+  </Step>
+</Steps>
+
+## What Gets Transferred
+
+- **Entitlement to all future claims** — the new recipient can claim all tokens that vest from this point forward, plus any previously vested but unclaimed tokens.
+
+## What Is Not Transferred
+
+- **Already-claimed tokens** — those were already paid to the original recipient and are settled.
+
+## API
+
+```bash
+POST /api/streams/:id/transfer
+Content-Type: application/json
+
+{
+  "newRecipientAddress": "bitcoincash:q..."
+}
+```

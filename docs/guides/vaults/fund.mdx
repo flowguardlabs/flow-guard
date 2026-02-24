@@ -1,0 +1,40 @@
+---
+title: "Fund a Vault"
+description: "Deposit BCH or CashTokens into an existing vault UTXO."
+icon: "circle-plus"
+---
+
+<Steps>
+  <Step title="Navigate to your vault">
+    Go to **Vaults** and select the vault you want to fund. Click **Fund Vault**.
+  </Step>
+  <Step title="Choose asset type">
+    <Tabs>
+      <Tab title="Fund with BCH">
+        Enter the amount in BCH. The transaction sends BCH directly into the vault UTXO, increasing its value without changing any NFT state fields.
+      </Tab>
+      <Tab title="Fund with CashToken">
+        Select the token category you want to deposit. Ensure the token matches the `FLAG_USES_TOKENS` configuration of the covenant you plan to create from this vault.
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Confirm and sign">
+    Sign the funding transaction. The vault balance updates in the dashboard after one confirmation.
+  </Step>
+</Steps>
+
+## API
+
+```bash
+POST /api/vaults/:id/fund
+Content-Type: application/json
+
+{
+  "amount": 500000000,
+  "assetType": "BCH"
+}
+```
+
+<Info>
+The vault UTXO holds the entire balance. Each child covenant (stream, airdrop, etc.) withdraws directly from the vault balance during deployment. Ensure the vault holds sufficient funds before creating covenants.
+</Info>

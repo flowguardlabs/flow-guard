@@ -1,0 +1,42 @@
+---
+title: "RewardCovenant"
+description: "Full parameter, function, and state reference for the RewardCovenant contract."
+icon: "star"
+---
+
+`RewardCovenant` distributes variable-amount rewards per event. The authority controls the exact amount per reward, bounded by `maxRewardAmount`.
+
+**Contract path:** `contracts/core/distribution/RewardCovenant.cash`
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Links to source vault |
+| `authorityHash` | `bytes20` | Issues all rewards |
+| `maxRewardAmount` | `int` | Upper bound per single reward |
+| `totalPool` | `int` | Total reward budget |
+| `startTimestamp` | `int` | When rewards open. `0` = immediate. |
+| `endTimestamp` | `int` | When rewards close. `0` = no expiry. |
+
+## NFT State (40 bytes)
+
+```
+[0]:    status
+[1]:    flags
+[2]:    reward_category (1=ACHIEVEMENT, 2=REFERRAL, 3=LOYALTY, 4=CUSTOM)
+[3-10]: total_distributed (uint64)
+[11-18]: rewards_count (uint64)
+[19-23]: last_reward_timestamp (5 bytes)
+[24-39]: reserved
+```
+
+## Functions
+
+### `reward(sig authSig, pubkey authPubkey, bytes20 recipientHash, int rewardAmount)`
+
+Authority-only. Issues `rewardAmount` (must satisfy `0 < rewardAmount <= maxRewardAmount`) to `recipientHash`. Auto-completes when `totalDistributed >= totalPool`.
+
+### `pause()` / `resume()` / `cancel()`
+
+Authority-only.

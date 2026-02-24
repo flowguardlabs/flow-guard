@@ -1,0 +1,141 @@
+---
+title: "Architecture"
+description: "How all FlowGuard contracts interconnect — system diagram, contract relationships, and the indexer/executor data flow."
+icon: "diagram-project"
+---
+
+## System Overview
+
+FlowGuard is composed of three layers: on-chain contracts, an off-chain backend (API + indexer + executor), and a frontend app.
+
+```mermaid
+flowchart TD
+    subgraph Contracts ["On-Chain Contracts (BCH)"]
+        VC[VaultCovenant]
+        PC[ProposalCovenant]
+        VLC[VoteLockCovenant]
+        VSC[VestingCovenant]
+        RPC[RecurringPaymentCovenant]
+        AC[AirdropCovenant]
+        GC[GrantCovenant]
+        BC[BountyCovenant]
+        RC[RewardCovenant]
+        VC -->|vaultId| VSC
+        VC -->|vaultId| RPC
+        VC -->|vaultId| AC
+        VC -->|vaultId| GC
+        VC -->|vaultId| BC
+        VC -->|vaultId| RC
+        PC -->|proposalId| VLC
+        PC -->|vaultId| VC
+    end
+
+    subgraph Backend ["Backend (Node.js)"]
+        IDX[Indexer\nblockchain-monitor\nUTXO scanner]
+        DB[(SQLite DB)]
+        API[REST API\nExpress]
+        EXE[Executor\ncycle-unlock-scheduler\ntransaction builder]
+        IDX --> DB
+        EXE --> DB
+        API --> DB
+    end
+
+    subgraph Frontend ["Frontend (React/Vite)"]
+        APP[Web App\nDashboard + Public pages]
+    end
+
+    BCH[BCH Node\nElectrum protocol] --> IDX
+    EXE --> BCH
+    APP --> API
+    APP -->|wallet tx| BCH
+```
+
+## Contract Dependency Map
+
+```mermaid
+flowchart LR
+    V[VaultCovenant] -- "spawn" --> S[Streaming Covenants\nVesting + RecurringPayment]
+    V -- "spawn" --> D[Distribution Covenants\nAirdrop + Grant + Bounty + Reward]
+    V -- "linked via proposalId" --> P[ProposalCovenant]
+    P -- "spawns per vote" --> VL[VoteLockCovenant]
+```
+
+## NFT Commitment Sizes
+
+| Contract | Commitment Size |
+|---|---|
+| VaultCovenant | 32 bytes |
+| ProposalCovenant | 40 bytes |
+| VestingCovenant | 40 bytes |
+| RecurringPaymentCovenant | 40 bytes |
+| AirdropCovenant | 40 bytes |
+| GrantCovenant | 40 bytes |
+| BountyCovenant | 40 bytes |
+| RewardCovenant | 40 bytes |
+| VoteLockCovenant | 32 bytes |
+
+All commitments are within the CashTokens 40-byte hard limit.
+
+## Indexer Data Flow
+
+```mermaid
+sequenceDiagram
+    participant BCH as BCH Node
+    participant BM as blockchain-monitor
+    participant DB as SQLite DB
+    participant API as REST API
+    participant FE as Frontend
+
+    BCH->>BM: New block notification
+    BM->>BCH: Fetch block transactions
+    BM->>BM: Parse covenant UTXOs\nDecode NFT commitments
+    BM->>DB: Upsert covenant states\nInsert transactions
+    FE->>API: GET /api/streams
+    API->>DB: Query streams table
+    API-->>FE: Stream records with decoded state
+```
+
+## Executor Flow
+
+```mermaid
+sequenceDiagram
+    participant SCH as cycle-unlock-scheduler
+    participant DB as SQLite DB
+    participant TB as TransactionBuilder
+    participant BCH as BCH Node
+
+    loop Every minute
+        SCH->>DB: Query active recurring payments\nwhere next_payment <= now
+        DB-->>SCH: Eligible covenants
+        SCH->>TB: Build pay() transaction
+        TB->>BCH: Broadcast transaction
+        BCH-->>TB: Transaction ID
+        TB->>DB: Record execution
+    end
+```
+
+## Backend Service Map
+
+| Service | Responsibility |
+|---|---|
+| `StreamDeploymentService` | Deploy `VestingCovenant` and `RecurringPaymentCovenant` |
+| `StreamClaimService` | Build `claim()` transactions for vesting |
+| `StreamCancelService` | Build `cancel()` transactions |
+| `StreamFundingService` | Fund existing stream UTXOs |
+| `PaymentDeploymentService` | Deploy `RecurringPaymentCovenant` |
+| `PaymentClaimService` | Build `pay()` transactions |
+| `PaymentControlService` | Pause, resume, cancel payments |
+| `AirdropDeploymentService` | Deploy `AirdropCovenant` |
+| `AirdropClaimService` | Build `claim()` for airdrop self-service |
+| `AirdropControlService` | Authority pause/resume/cancel |
+| `BudgetDeploymentService` | Deploy Grant, Bounty, Reward covenants |
+| `BudgetReleaseService` | Release milestones, issue rewards, approve bounty claims |
+| `VaultFundingService` | Fund vault UTXOs |
+| `VoteDeploymentService` | Deploy `VoteLockCovenant` |
+| `VoteLockService` | Lock governance tokens |
+| `VoteUnlockService` | Reclaim after unlock time |
+| `ProposalService` | Full proposal lifecycle management |
+| `DeploymentRegistryService` | Track all covenant deployments |
+| `TransactionMonitor` | Confirm and track submitted transactions |
+| `MerkleTreeService` | Merkle tree generation for airdrop eligibility |
+| `cycle-unlock-scheduler` | Executor loop for recurring payments |

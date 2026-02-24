@@ -1,0 +1,45 @@
+---
+title: "GrantCovenant"
+description: "Full parameter, function, and state reference for the GrantCovenant contract."
+icon: "handshake"
+---
+
+`GrantCovenant` releases funds tranche-by-tranche as milestones are approved by the authority.
+
+**Contract path:** `contracts/core/distribution/GrantCovenant.cash`
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Links to source vault |
+| `authorityHash` | `bytes20` | Controls milestone releases and administration |
+| `milestonesTotal` | `int` | Total number of milestones (1..255) |
+| `amountPerMilestone` | `int` | Amount released per milestone |
+| `totalAmount` | `int` | `milestonesTotal × amountPerMilestone` |
+
+## NFT State (40 bytes)
+
+```
+[0]:    status
+[1]:    flags
+[2]:    milestones_completed (uint8)
+[3-10]: total_released (uint64)
+[11-15]: last_release_timestamp (5 bytes)
+[16-35]: recipient_hash (bytes20, mutable if FLAG_TRANSFERABLE)
+[36-39]: reserved
+```
+
+## Functions
+
+### `releaseMilestone(sig authSig, pubkey authPubkey)`
+
+Authority releases the next tranche to `recipient_hash`. Increments `milestones_completed`. Auto-completes at final milestone.
+
+### `pause()` / `resume()` / `cancel()`
+
+Authority-only. Cancel returns `totalAmount - totalReleased` to `authorityHash`.
+
+### `transfer(sig recipientSig, pubkey recipientPubkey, bytes20 newRecipientHash)`
+
+Recipient-only. Requires `FLAG_TRANSFERABLE`. Updates `recipient_hash` in NFT state.

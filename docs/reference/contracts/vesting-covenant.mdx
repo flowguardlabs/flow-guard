@@ -1,0 +1,74 @@
+---
+title: "VestingCovenant"
+description: "Full parameter, function, and state reference for the VestingCovenant contract."
+icon: "lock-keyhole"
+---
+
+`VestingCovenant` enforces linear or step-based token vesting schedules with cliff, pause/resume, cancel, and recipient transfer.
+
+**Contract path:** `contracts/core/streaming/VestingCovenant.cash`
+**CashScript version:** `^0.13.0`
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Links to source vault |
+| `senderHash` | `bytes20` | `hash160(sender pubkey)` — controls pause/cancel |
+| `scheduleType` | `int` | `1` = LINEAR_VESTING, `2` = STEP_VESTING |
+| `totalAmount` | `int` | Total tokens or BCH to vest |
+| `startTimestamp` | `int` | When vesting begins (unix seconds) |
+| `endTimestamp` | `int` | When fully vested |
+| `cliffTimestamp` | `int` | No claims before this time. `0` = no cliff. |
+| `stepInterval` | `int` | Seconds per step (STEP_VESTING only, else `0`) |
+| `stepAmount` | `int` | Tokens per step (STEP_VESTING only, else `0`) |
+
+## NFT State (40 bytes)
+
+```
+[0]:    status         (uint8)
+[1]:    flags          (uint8)
+[2-9]:  total_released (uint64)
+[10-14]: cursor        (5 bytes, unix timestamp, adjusted for pauses)
+[15-19]: pause_start   (5 bytes, 0 if not paused)
+[20-39]: recipient_hash (bytes20)
+```
+
+## Functions
+
+### `claim(sig recipientSig, pubkey recipientPubkey)`
+
+Recipient claims all currently vested and unclaimed tokens.
+
+**Validates:** recipient signature, `status == ACTIVE`, cliff passed, `claimable > 0`
+
+**Vested amount:**
+- LINEAR: `vestedTotal = (totalAmount × elapsed) / duration`
+- STEP: `vestedTotal = (elapsed / stepInterval) × stepAmount`
+- `claimable = vestedTotal - total_released`
+
+**Auto-completes** when `newTotalReleased >= totalAmount` → `status = COMPLETED`
+
+### `complete()`
+
+Permissionless. Forces completion after `endTimestamp`. Distributes any remaining unvested/unclaimed amount to recipient.
+
+**Validates:** `tx.locktime >= endTimestamp`
+
+### `pause(sig senderSig, pubkey senderPubkey)`
+
+Sender-only. Requires `FLAG_CANCELABLE`. Records `pause_start = tx.locktime`.
+
+### `resume(sig senderSig, pubkey senderPubkey)`
+
+Sender-only. Advances `cursor` by pause duration: `newCursor = cursor + (tx.locktime - pause_start)`.
+
+### `cancel(sig senderSig, pubkey senderPubkey)`
+
+Sender-only. Requires `FLAG_CANCELABLE`. Splits at cancellation time:
+- Vested (unclaimed) → recipient
+- Unvested → sender
+
+### `transfer(sig recipientSig, pubkey recipientPubkey, bytes20 newRecipientHash)`
+
+Recipient-only. Requires `FLAG_TRANSFERABLE` and `status == ACTIVE`. Updates `recipient_hash` in NFT state.

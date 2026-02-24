@@ -1,0 +1,80 @@
+---
+title: "Create a Vesting Stream"
+description: "Deploy a linear or step vesting stream with optional cliff, cancelability, and transferability."
+icon: "lock-keyhole"
+---
+
+<Steps>
+  <Step title="Navigate to Vesting">
+    Go to **Streams → Create Stream** in the dashboard, or navigate to a vault and select **Create Stream from Vault**.
+  </Step>
+  <Step title="Choose schedule type">
+    <Tabs>
+      <Tab title="Linear Vesting">
+        Tokens vest continuously. Configure:
+        - **Total Amount** — total tokens or BCH to vest
+        - **Start Timestamp** — when vesting begins (unix seconds)
+        - **End Timestamp** — when fully vested
+        - **Cliff Timestamp** — no claims before this time (0 = no cliff)
+      </Tab>
+      <Tab title="Step Vesting">
+        Tokens release in discrete chunks. Configure:
+        - **Total Amount** — total to vest
+        - **Step Interval** — seconds between each step
+        - **Step Amount** — tokens released per step
+        - **Cliff Timestamp** — optional, same behavior as linear
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Set recipient">
+    Enter the recipient's BCH P2PKH address. The `hash160` is derived from the address automatically.
+  </Step>
+  <Step title="Set flags">
+    - **Cancelable** — allows sender to call `cancel()` and split vested/unvested
+    - **Transferable** — allows recipient to reassign the stream to a new address
+    - **Asset** — BCH or a CashToken (select token category if token)
+  </Step>
+  <Step title="Deploy">
+    Sign the deployment transaction. The stream appears in both sender and recipient dashboards once confirmed.
+  </Step>
+</Steps>
+
+## Vested Amount Formula
+
+**Linear:**
+```
+vestedTotal = (totalAmount × elapsed) / duration
+claimable   = vestedTotal - totalReleased
+```
+
+**Step:**
+```
+completedSteps = elapsed / stepInterval
+vestedTotal    = completedSteps × stepAmount
+claimable      = vestedTotal - totalReleased
+```
+
+Where `elapsed = tx.locktime - cursor` and `cursor` starts at `startTimestamp` but advances by pause duration on each resume.
+
+## API
+
+```bash
+POST /api/streams
+Content-Type: application/json
+
+{
+  "vaultId": "hex_32_bytes",
+  "senderAddress": "bitcoincash:q...",
+  "recipientAddress": "bitcoincash:q...",
+  "scheduleType": 1,
+  "totalAmount": 1000000000,
+  "startTimestamp": 1700000000,
+  "endTimestamp": 1731536000,
+  "cliffTimestamp": 1706745600,
+  "stepInterval": 0,
+  "stepAmount": 0,
+  "cancelable": true,
+  "transferable": false,
+  "usesTokens": false
+}
+```

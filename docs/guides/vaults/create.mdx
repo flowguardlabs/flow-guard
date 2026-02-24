@@ -1,0 +1,53 @@
+---
+title: "Create a Vault"
+description: "Deploy a new M-of-N treasury vault with spending caps and optional recipient allowlists."
+icon: "vault"
+---
+
+<Steps>
+  <Step title="Navigate to Vaults">
+    Connect your wallet and go to **Vaults → Create Vault** in the dashboard.
+  </Step>
+  <Step title="Configure signers">
+    Enter the `hash160` (P2PKH) addresses of up to 3 signers. Set `Required Approvals` to the M value (1, 2, or 3).
+
+    | Setup | Required Approvals | Signers |
+    |---|---|---|
+    | Solo treasury | 1 | 1 address |
+    | 2-of-3 DAO | 2 | 3 addresses |
+    | 3-of-3 strict | 3 | 3 addresses |
+  </Step>
+  <Step title="Set spending controls (optional)">
+    - **Period Duration**: seconds per rolling spending window (e.g. `2592000` = 30 days). Set `0` to disable.
+    - **Period Cap**: max satoshis spendable per period. Set `0` for unlimited.
+    - **Recipient Cap**: max satoshis per individual spend. Set `0` for unlimited.
+  </Step>
+  <Step title="Configure allowlist (optional)">
+    Enable **Allowlist** and enter up to 3 recipient P2PKH addresses. When enabled, `spend()` will reject any recipient not in the list.
+  </Step>
+  <Step title="Deploy">
+    Click **Create Vault**. Sign the deployment transaction. The vault UTXO appears in your Vaults list once the transaction confirms.
+  </Step>
+</Steps>
+
+<Note>
+The vault `vaultId` is generated from the deployment transaction hash. Keep a record of it — you will reference it when creating covenants from this vault.
+</Note>
+
+## API
+
+```bash
+POST /api/vaults
+Content-Type: application/json
+
+{
+  "requiredApprovals": 2,
+  "signer1": "hash160_hex",
+  "signer2": "hash160_hex",
+  "signer3": "hash160_hex",
+  "periodDuration": 2592000,
+  "periodCap": 500000000,
+  "recipientCap": 100000000,
+  "allowlistEnabled": false
+}
+```

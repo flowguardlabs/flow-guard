@@ -1,0 +1,50 @@
+---
+title: "ProposalCovenant"
+description: "Full parameter, function, and state reference for the ProposalCovenant contract."
+icon: "file-contract"
+---
+
+`ProposalCovenant` manages the lifecycle of a vault spending proposal: PENDING → APPROVED → EXECUTED.
+
+**Contract path:** `contracts/core/treasury/ProposalCovenant.cash`
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Links proposal to vault |
+| `signer1Hash` | `bytes20` | Vault signer 1 |
+| `signer2Hash` | `bytes20` | Vault signer 2 |
+| `signer3Hash` | `bytes20` | Vault signer 3 |
+| `requiredApprovals` | `int` | M in M-of-N |
+
+## NFT State (40 bytes)
+
+```
+[0]:    version
+[1]:    status (0=PENDING, 1=APPROVED, 2=EXECUTED, 3=CANCELLED, 4=EXPIRED)
+[2]:    approval_count (uint8)
+[3]:    required_approvals (uint8)
+[4-8]:  voting_end_timestamp (5 bytes)
+[9-13]: execution_timelock (5 bytes)
+[14-33]: payout_hash (bytes20)
+[34-39]: reserved
+```
+
+## Functions
+
+### `approve(sig approverSig, pubkey approverPubkey)`
+
+Any single vault signer adds their approval. Increments `approval_count`. Transitions to `APPROVED` when quorum reached.
+
+### `execute()`
+
+Permissionless. Callable by anyone after `executionTimelock` has elapsed. Burns the proposal NFT (`EXECUTED` — no NFT output).
+
+### `cancel(sig sig1, pubkey pubkey1, sig sig2, pubkey pubkey2)`
+
+M-of-N vault signers cancel a PENDING or APPROVED proposal.
+
+### `expire()`
+
+Permissionless. Marks proposal as `EXPIRED` if `tx.locktime >= voting_end_timestamp` and status is still `PENDING`.

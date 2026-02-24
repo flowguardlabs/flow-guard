@@ -1,0 +1,77 @@
+---
+title: "Access Control"
+description: "Who can call what on every FlowGuard contract — a complete role and permission matrix."
+icon: "shield-check"
+---
+
+FlowGuard contracts enforce access control using signature verification against compiled-in pubkey hashes. There are no on-chain role registries — roles are baked into the bytecode at deployment.
+
+## Role Definitions
+
+| Role | How Identified |
+|---|---|
+| **Sender** | `hash160(pubkey) == senderHash` compiled into bytecode |
+| **Authority** | `hash160(pubkey) == authorityHash` compiled into bytecode |
+| **Recipient** | `hash160(pubkey) == recipient_hash` from NFT commitment (mutable) |
+| **Vault Signer** | `hash160(pubkey)` must match one of `signer1Hash`, `signer2Hash`, `signer3Hash` |
+| **M-of-N Signers** | Two distinct vault signers, checked with `pk1Hash != pk2Hash` |
+| **All N Signers** | All three signer hashes in exact order (emergency lock only) |
+| **Permissionless** | No signature required — any caller |
+
+## Function Permission Matrix
+
+### Streaming Covenants
+
+| Function | VestingCovenant | RecurringPaymentCovenant |
+|---|---|---|
+| `claim()` | Recipient | — |
+| `pay()` | — | **Permissionless** |
+| `complete()` | **Permissionless** (after end) | — |
+| `pause()` | Sender | Sender |
+| `resume()` | Sender | Sender |
+| `cancel()` | Sender (if FLAG_CANCELABLE) | Sender (if FLAG_CANCELABLE) |
+| `transfer()` | Recipient (if FLAG_TRANSFERABLE) | — |
+
+### Distribution Covenants
+
+| Function | Airdrop | Grant | Bounty | Reward |
+|---|---|---|---|---|
+| `claim()` | **Permissionless** (self-sign) | — | Authority co-sign | — |
+| `releaseMilestone()` | — | Authority | — | — |
+| `reward()` | — | — | — | Authority |
+| `pause()` | Authority | Authority | Authority | Authority |
+| `resume()` | Authority | Authority | Authority | Authority |
+| `cancel()` | Authority (if FLAG_CANCELABLE) | Authority | Authority | Authority |
+| `transfer()` | — | Recipient (if FLAG_TRANSFERABLE) | — | — |
+
+### Treasury Covenants
+
+| Function | VaultCovenant | ProposalCovenant |
+|---|---|---|
+| `spend()` | M-of-N Vault Signers | — |
+| `unlockPeriod()` | Any single Vault Signer | — |
+| `approve()` | — | Any single Vault Signer |
+| `execute()` | — | **Permissionless** (after timelock) |
+| `cancel()` | — | M-of-N Vault Signers |
+| `expire()` | — | **Permissionless** (after deadline) |
+| `pause()` | Any single Vault Signer | — |
+| `resume()` | M-of-N Vault Signers | — |
+| `emergencyLock()` | All N Vault Signers | — |
+
+### Governance Covenants
+
+| Function | VoteLockCovenant |
+|---|---|
+| `reclaim()` | Voter (after unlockTimestamp) |
+| `earlyReclaim()` | Voter (after proposal is EXECUTED/CANCELLED/EXPIRED) |
+
+## What the Backend Cannot Do
+
+The FlowGuard API and executor services operate with **no special on-chain privileges**. They:
+
+- Cannot spend from any covenant without valid signatures from the correct keyholders
+- Cannot override period caps or allowlists
+- Cannot cancel a non-cancelable covenant
+- Cannot redirect funds to unauthorized recipients
+
+The only permissionless functions (`pay()`, `complete()`, `expire()`, `execute()`) allow anyone to trigger time-based transitions — including FlowGuard's executor, but also any third party.

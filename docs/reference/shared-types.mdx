@@ -1,0 +1,114 @@
+---
+title: "Shared Types"
+description: "TypeScript type definitions shared across frontend, backend, indexer, and executor."
+icon: "code"
+---
+
+All shared types live in `shared/types/`. They mirror the on-chain NFT commitment byte layouts exactly.
+
+## VaultState
+
+```typescript
+export interface VaultState {
+  version: number;
+  status: VaultStatus;
+  rolesMask: Buffer;         // 3 bytes
+  currentPeriodId: bigint;
+  spentThisPeriod: bigint;   // satoshis
+  lastUpdateTimestamp: bigint;
+}
+
+export enum VaultStatus {
+  ACTIVE = 0,
+  PAUSED = 1,
+  EMERGENCY_LOCK = 2,
+  MIGRATING = 3,
+}
+```
+
+## ProposalState
+
+```typescript
+export interface ProposalState {
+  version: number;
+  status: ProposalStatus;
+  approvalCount: number;
+  requiredApprovals: number;
+  votingEndTimestamp: bigint;
+  executionTimelock: bigint;
+  payoutTotal: bigint;     // satoshis
+  payoutHash: Buffer;      // 28 bytes
+}
+
+export enum ProposalStatus {
+  DRAFT = 0, SUBMITTED = 1, VOTING = 2, APPROVED = 3,
+  QUEUED = 4, EXECUTABLE = 5, EXECUTED = 6,
+  CANCELLED = 7, EXPIRED = 8,
+}
+```
+
+## ScheduleState
+
+```typescript
+export interface ScheduleState {
+  version: number;
+  scheduleType: ScheduleType;
+  intervalSeconds: bigint;
+  nextUnlockTimestamp: bigint;
+  amountPerInterval: bigint;
+  totalReleased: bigint;
+  cliffTimestamp: bigint;    // 0 if no cliff
+}
+
+export enum ScheduleType {
+  RECURRING = 0,
+  LINEAR_VESTING = 1,
+  STEP_VESTING = 2,
+}
+```
+
+## VoteState
+
+```typescript
+export interface VoteState {
+  version: number;
+  proposalIdPrefix: Buffer;  // 4 bytes
+  voteChoice: VoteChoice;
+  lockTimestamp: bigint;
+  unlockTimestamp: bigint;
+}
+
+export enum VoteChoice {
+  AGAINST = 0,
+  FOR = 1,
+  ABSTAIN = 2,
+}
+```
+
+## CovenantUTXO
+
+```typescript
+export interface CovenantUTXO<TState = any> {
+  utxo: UTXORef;
+  address: string;
+  satoshis: bigint;
+  token?: CashTokenData;
+  state: TState;
+  height: number;
+  timestamp: bigint;
+}
+
+export interface UTXORef {
+  txid: string;
+  vout: number;
+}
+
+export interface CashTokenData {
+  category: string;
+  nft?: {
+    capability?: 'none' | 'mutable' | 'minting';
+    commitment: Buffer;
+  };
+  amount?: bigint;
+}
+```

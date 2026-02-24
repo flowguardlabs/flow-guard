@@ -1,0 +1,55 @@
+---
+title: "Airdrops"
+description: "Fixed-amount, time-gated, self-service token distribution campaigns enforced on-chain."
+icon: "parachute-box"
+---
+
+`AirdropCovenant` lets any eligible address claim a fixed `amountPerClaim` from a funded pool. Claims are permissionless — the claimer self-signs. Authority controls campaign-level pause, resume, and cancel.
+
+## Use Cases
+
+- Token launches and community drops
+- Protocol incentive distributions
+- Retroactive user rewards
+
+## How It Works
+
+```mermaid
+flowchart LR
+    A([Authority deploys\nfunds totalPool]) --> B[ACTIVE\ntotalClaimed = 0]
+    B -->|claim - anyone| C[Claimer receives\namountPerClaim]
+    C -->|totalClaimed < totalPool| B
+    C -->|totalClaimed >= totalPool| D([COMPLETED])
+    B -->|pause| E[PAUSED]
+    E -->|resume| B
+    B -->|cancel| F([Remaining pool\nreturned to authority])
+```
+
+## Key Properties
+
+| Property | Detail |
+|---|---|
+| Claim amount | Fixed. Identical for every claimer. |
+| Eligibility | Any address that can sign. No allowlist (on-chain). Off-chain eligibility via backend check. |
+| Time window | Optional `startTimestamp` and `endTimestamp` |
+| Pool behavior | Auto-completes when `totalClaimed >= totalPool` |
+| Authority | Can pause, resume, or cancel. Cancel returns remainder. |
+
+## NFT State
+
+```
+[0]:    status
+[1]:    flags
+[2-9]:  total_claimed (uint64)
+[10-17]: claims_count (uint64)
+[18-22]: last_claim_timestamp (5 bytes)
+[23-39]: reserved
+```
+
+## Creating an Airdrop
+
+See [Create an Airdrop](/guides/airdrops/create) for the step-by-step guide.
+
+## Contract Reference
+
+See [AirdropCovenant](/reference/contracts/airdrop-covenant) for full parameter and function documentation.

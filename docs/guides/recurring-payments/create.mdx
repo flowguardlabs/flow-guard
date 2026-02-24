@@ -1,0 +1,57 @@
+---
+title: "Create a Recurring Payment"
+description: "Deploy a fixed-interval recurring payment for payroll, subscriptions, or DAO contributor payments."
+icon: "arrows-rotate"
+---
+
+<Steps>
+  <Step title="Navigate to Payments">
+    Go to **Payments → Create Payment** in the dashboard.
+  </Step>
+  <Step title="Set recipient and amount">
+    Enter the recipient BCH address and the amount per interval in BCH or a token.
+
+    <Warning>
+    The `recipientHash` is compiled into the contract bytecode at deployment. It cannot be changed later. There is no `transfer()` function on recurring payments.
+    </Warning>
+  </Step>
+  <Step title="Configure the schedule">
+    | Setting | Examples |
+    |---|---|
+    | Interval | `604800` = weekly, `2592000` = monthly |
+    | Start Timestamp | When the first payment can be collected |
+    | End Timestamp | Hard stop date. `0` = no expiry. |
+    | Total Pool | Max total payout. `0` = unlimited until cancelled. |
+  </Step>
+  <Step title="Set flags">
+    - **Cancelable** — allows sender to cancel and recover remaining pool
+    - **Asset** — BCH or CashToken
+  </Step>
+  <Step title="Fund and deploy">
+    The vault funds the initial pool. Sign the deployment transaction. The payment appears in the dashboard and is immediately eligible for the executor to call `pay()` after `startTimestamp`.
+  </Step>
+</Steps>
+
+## Execution Model
+
+Once deployed, the `pay()` function is permissionless. The FlowGuard executor service calls it automatically each interval. You can also call it manually from the payment detail page.
+
+## API
+
+```bash
+POST /api/payments
+Content-Type: application/json
+
+{
+  "vaultId": "hex_32_bytes",
+  "senderAddress": "bitcoincash:q...",
+  "recipientAddress": "bitcoincash:q...",
+  "amountPerInterval": 500000,
+  "intervalSeconds": 604800,
+  "totalAmount": 26000000,
+  "startTimestamp": 1700000000,
+  "endTimestamp": 0,
+  "cancelable": true,
+  "usesTokens": false
+}
+```

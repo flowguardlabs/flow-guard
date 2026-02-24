@@ -1,0 +1,45 @@
+---
+title: "AirdropCovenant"
+description: "Full parameter, function, and state reference for the AirdropCovenant contract."
+icon: "parachute-box"
+---
+
+`AirdropCovenant` enforces a fixed-amount self-service token distribution. Anyone can call `claim()` within the time window.
+
+**Contract path:** `contracts/core/distribution/AirdropCovenant.cash`
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `vaultId` | `bytes32` | Links to source vault |
+| `authorityHash` | `bytes20` | Controls pause/resume/cancel |
+| `amountPerClaim` | `int` | Fixed amount per claim |
+| `totalPool` | `int` | Total distribution pool |
+| `startTimestamp` | `int` | Claims open time. `0` = immediate. |
+| `endTimestamp` | `int` | Claims close time. `0` = no expiry. |
+
+## NFT State (40 bytes)
+
+```
+[0]:    status
+[1]:    flags
+[2-9]:  total_claimed (uint64)
+[10-17]: claims_count (uint64)
+[18-22]: last_claim_timestamp (5 bytes)
+[23-39]: reserved
+```
+
+## Functions
+
+### `claim(sig claimerSig, pubkey claimerPubkey, bytes20 claimerHash)`
+
+Self-service. Claimer signs and provides their own `hash160`. Validates time window and pool availability.
+
+**Auto-completes** when `newTotalClaimed >= totalPool`
+
+### `pause(sig authSig, pubkey authPubkey)`
+### `resume(sig authSig, pubkey authPubkey)`
+### `cancel(sig authSig, pubkey authPubkey)`
+
+Authority-only. Cancel returns `totalPool - totalClaimed` to `authorityHash`.

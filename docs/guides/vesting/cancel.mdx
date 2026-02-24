@@ -1,0 +1,67 @@
+---
+title: "Cancel a Stream"
+description: "How senders cancel a vesting stream and how the remaining balance is split at cancellation time."
+icon: "circle-xmark"
+---
+
+When a sender cancels a vesting stream, the covenant computes the vested amount at the moment of cancellation and splits the pool fairly:
+
+- **Vested (unclaimed)** tokens go to the recipient
+- **Unvested** tokens return to the sender
+
+<Note>
+Cancel requires `FLAG_CANCELABLE` (`0x01`) to be set. If the stream was created without this flag, it cannot be cancelled by anyone.
+</Note>
+
+## Split Formula
+
+At cancellation time `T`:
+
+```
+elapsed       = T - cursor
+vestedTotal   = (totalAmount × elapsed) / duration    # linear
+claimable     = vestedTotal - totalReleased            # what recipient gets
+unvested      = totalAmount - vestedTotal              # what sender gets
+```
+
+If the stream is paused at cancellation time, the cursor reflects the pre-pause value. The unvested portion is calculated as of the `pause_start` time.
+
+## How to Cancel in the App
+
+<Steps>
+  <Step title="Open the stream">
+    Navigate to **Streams** and select the stream you want to cancel.
+  </Step>
+  <Step title="Click Cancel">
+    Click **Cancel Stream**. The transaction preview shows the recipient and sender split amounts.
+  </Step>
+  <Step title="Sign and broadcast">
+    Sign with the sender wallet. The single transaction:
+    - Sends the vested (unclaimed) amount to the recipient's address
+    - Sends the unvested amount back to the sender's address
+    - Consumes the stream UTXO without producing a replacement (CANCELLED terminal state)
+  </Step>
+</Steps>
+
+## What Happens if the Recipient Already Claimed Some?
+
+The split correctly accounts for prior claims. `total_released` is read from the NFT state, so only the difference between `vestedTotal` and `totalReleased` goes to the recipient.
+
+```
+recipient_gets = vestedTotal - totalReleased
+sender_gets    = totalAmount - vestedTotal
+```
+
+## API
+
+```bash
+POST /api/streams/:id/cancel
+
+# Response
+{
+  "txid": "hex_transaction_id",
+  "recipientAmount": 250000000,
+  "senderAmount": 750000000,
+  "status": "CANCELLED"
+}
+```

@@ -1,0 +1,187 @@
+---
+title: "The Problem With How BCH Teams Manage Treasury Today"
+date: "2026-02-17"
+summary: "Most BCH teams manage treasury with shared wallets and verbal rules. As treasury size grows, the risks grow with it. Treasury rules should be enforced by the blockchain, not by memory or trust."
+tags: ["Education", "Treasury", "BCH", "Governance"]
+status: "published"
+author: "FlowGuard Team"
+readingTime: 8
+featured: false
+---
+
+# The Problem With How BCH Teams Manage Treasury Today
+
+## Introduction
+
+Most teams in the Bitcoin Cash ecosystem manage treasury the same way:
+
+- A shared wallet
+- A few trusted signers
+- Verbal rules about how money should be spent
+
+It works — until it doesn't.
+
+As treasury size grows, the risks grow with it.
+
+FlowGuard starts with a simple premise:
+
+**Treasury rules should be enforced by the blockchain, not by memory or trust.**
+
+## The Real Risks Teams Face
+
+Let's break this down clearly.
+
+### 1. Shared Wallet Risk
+
+Even with multisig, there are real issues:
+
+- A signer disappears or loses access
+- A signer is compromised
+- Signers disagree about what "allowed spending" means
+
+Multisig only enforces **how many signatures are needed**.
+
+It does not enforce:
+
+- Spending limits
+- Budget cycles
+- Time-based restrictions
+- Allowed recipients
+- Structured releases
+
+The logic is still off-chain.
+
+### 2. Informal Budget Rules
+
+Most projects operate like this:
+
+> "We'll only spend X per month."  
+> "We won't exceed Y without discussion."  
+> "We'll release funds milestone by milestone."
+
+But those rules exist in:
+
+- Telegram chats
+- Notion docs
+- Google Sheets
+- Verbal agreements
+
+**The blockchain doesn't know those rules.**
+
+So the blockchain cannot enforce them.
+
+### 3. Governance Drift
+
+As teams grow:
+
+- More contributors
+- Larger treasury
+- Grant allocations
+- Payroll commitments
+
+Treasury management becomes coordination infrastructure.
+
+If that infrastructure is weak, everything built on top of it is fragile.
+
+## What Changes When Rules Move On-Chain
+
+FlowGuard approaches treasury differently.
+
+Instead of trusting that signers will follow off-chain rules, the rules are encoded directly in covenant contracts on Bitcoin Cash.
+
+A FlowGuard vault enforces:
+
+- M-of-N approval thresholds
+- Per-cycle spending caps
+- Time-based unlock windows
+- Optional recipient allowlists
+
+**Even if all signers agree, a payout cannot exceed the contract's constraints.**
+
+The rules are part of the script.
+
+Not part of a conversation.
+
+## Why This Matters for BCH
+
+Bitcoin Cash is already good at payments.
+
+But for an ecosystem to grow, it needs:
+
+- Structured grant distribution
+- Contributor vesting
+- Milestone-based funding
+- DAO-style treasury control
+- Transparent on-chain governance
+
+If treasury logic lives off-chain, BCH is only a payment rail.
+
+If treasury logic lives on-chain, BCH becomes programmable coordination infrastructure.
+
+**That is a major difference.**
+
+## Why Multisig Alone Is Not Enough
+
+Multisig answers one question:
+
+**"How many people must approve this transaction?"**
+
+It does not answer:
+
+- How much can be spent this month?
+- When does the next allocation unlock?
+- Has a milestone been reached?
+- Is this payout within budget?
+
+FlowGuard vaults extend multisig with policy enforcement.
+
+Approval is necessary — but not sufficient.
+
+The contract still checks:
+
+- Spending cap
+- Current cycle
+- Unlock amount
+- Contract state
+
+This reduces human error and removes ambiguity.
+
+## The Core Principle
+
+If your project treasury is:
+
+- Funding development
+- Paying contributors
+- Running grants
+- Managing ecosystem capital
+
+Then treasury logic should not rely on memory, goodwill, or discipline.
+
+**It should be enforced by the chain.**
+
+That is the starting point for FlowGuard.
+
+## What Comes Next
+
+In the next posts, we'll break down:
+
+- How vault contracts enforce spending caps
+- How streams use NFT commitments to track vesting
+- How airdrops prevent double-claiming on-chain
+- How governance votes are recorded in covenant state
+
+All running on Bitcoin Cash.
+
+This is not theory.
+
+**This is implementation.**
+
+## Closing
+
+If you're building on BCH and managing real funds, ask yourself:
+
+**Where do your treasury rules live?**
+
+If the answer is "in chat," it might be time to move them on-chain.
+
+[Launch App](/vaults)

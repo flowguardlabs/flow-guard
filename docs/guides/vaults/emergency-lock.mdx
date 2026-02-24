@@ -1,0 +1,62 @@
+---
+title: "Emergency Lock"
+description: "How to trigger a full vault lockdown requiring all registered signers."
+icon: "triangle-exclamation"
+---
+
+Emergency lock is a last-resort safety mechanism that freezes the vault completely. Unlike `pause()`, which any single signer can invoke, `emergencyLock()` requires **all three** registered signers to sign simultaneously.
+
+<Warning>
+Emergency lock is irreversible in the current contract version. The vault cannot be resumed or recovered after this state is entered. Plan accordingly — use `pause()` for routine safety responses.
+</Warning>
+
+## When to Use
+
+- Suspected key compromise of one or more signers
+- Active exploit targeting the vault
+- Protocol-wide emergency requiring immediate fund freeze
+
+For routine operational pauses (e.g. upgrades, maintenance), use `pause()` instead — a single signer can do it and it is reversible with M-of-N.
+
+## How It Works
+
+```mermaid
+sequenceDiagram
+    participant S1 as Signer 1
+    participant S2 as Signer 2
+    participant S3 as Signer 3
+    participant App
+
+    S1->>App: Initiate emergency lock
+    App->>S2: Request signature
+    App->>S3: Request signature
+    S2-->>App: sig2
+    S3-->>App: sig3
+    App->>VaultCovenant: emergencyLock(sig1, pk1, sig2, pk2, sig3, pk3)
+    VaultCovenant-->>App: EMERGENCY_LOCK state
+```
+
+The contract enforces exact signer identity in order:
+- `pubkey1` must match `signer1Hash`
+- `pubkey2` must match `signer2Hash`
+- `pubkey3` must match `signer3Hash`
+
+All three signatures are validated in a single transaction.
+
+## Triggering in the App
+
+<Steps>
+  <Step title="Open vault settings">
+    Go to **Vault → Settings → Emergency Lock**.
+  </Step>
+  <Step title="All signers sign">
+    Each signer must connect their wallet and add their signature. The app collects all three signatures before broadcasting.
+  </Step>
+  <Step title="Broadcast transaction">
+    Once all three signatures are collected, click **Confirm Emergency Lock**. The vault status changes to `EMERGENCY_LOCK` on-chain.
+  </Step>
+</Steps>
+
+## Recovery
+
+Recovery requires deploying a new vault. Locked funds remain safely in the UTXO. Contact the signer group to coordinate a new deployment and fund migration via a new vault's `spend()` path using the old vault's signers on the original vault's UTXOs.

@@ -1,0 +1,63 @@
+---
+title: "Recurring Payments"
+description: "Fixed-interval payroll, subscriptions, and allowances enforced on-chain with permissionless execution."
+icon: "arrows-rotate"
+---
+
+`RecurringPaymentCovenant` enforces a fixed-interval payment schedule. Each interval, a fixed `amountPerInterval` is released to a fixed `recipientHash`. The `pay()` function is **permissionless** — anyone can submit it when the interval has elapsed.
+
+## How Recurring Payments Work
+
+```mermaid
+flowchart LR
+    A([Deploy\nfund pool]) --> B[ACTIVE\nnext_payment = startTimestamp]
+    B -->|pay - permissionless\nwhen locktime >= next_payment| C[Release amountPerInterval\nto recipientHash\nnext_payment += intervalSeconds]
+    C --> B
+    B -->|pause - sender| D[PAUSED]
+    D -->|resume - sender\nnextPayment = now + interval| B
+    B -->|cancel - sender| E([Pool returned to sender])
+    C -->|totalPaid >= totalAmount| F([COMPLETED])
+```
+
+## Key Parameters
+
+| Parameter | Description |
+|---|---|
+| `amountPerInterval` | Satoshis or FT units per payment |
+| `intervalSeconds` | Seconds between payments |
+| `totalAmount` | Total pool cap (0 = unlimited until cancelled) |
+| `startTimestamp` | When first payment can occur |
+| `endTimestamp` | Hard expiry (0 = no expiry) |
+| `recipientHash` | Immutable recipient — fixed at deploy time |
+
+## Permissionless Execution
+
+The `pay()` function has no signature requirement. Any BCH node, bot, or the FlowGuard executor service can submit it. This means payments execute even if the sender is offline. The only requirement is:
+
+```
+tx.locktime >= next_payment_timestamp
+```
+
+<Note>
+The FlowGuard executor service monitors all active recurring payment covenants and submits `pay()` transactions as each interval elapses. Anyone else running an executor can do the same.
+</Note>
+
+## Unlimited vs Capped Streams
+
+Setting `totalAmount = 0` creates an unlimited stream that pays indefinitely until the sender calls `cancel()` or the UTXO is drained below the minimum amount. Setting a non-zero `totalAmount` caps the total pool and auto-completes once fully paid.
+
+## Pause Behavior
+
+When resumed after a pause, `next_payment_timestamp` is set to `now + intervalSeconds`. No backdated payments are made for the pause period. This matches the expected behavior for payroll: if you pause for two weeks, the next payment is due one interval after resuming, not immediately.
+
+## NFT State (40 bytes)
+
+```
+[0]:    status
+[1]:    flags
+[2-9]:  total_paid (uint64)
+[10-17]: payment_count (uint64)
+[18-22]: next_payment_timestamp (5 bytes)
+[23-27]: pause_start (5 bytes, 0 if not paused)
+[28-39]: reserved
+```
