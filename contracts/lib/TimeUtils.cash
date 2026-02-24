@@ -1,0 +1,321 @@
+/**
+ * TimeUtils Library
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW] (Pure utility functions)
+ *
+ * PURPOSE: Time-related calculations and validations for covenant logic
+ * - Period counter updates (track budget periods)
+ * - CLTV/CSV validation helpers
+ * - Schedule interval calculations
+ * - Timelock enforcement utilities
+ *
+ * USED BY: VaultCovenant (period tracking), ScheduleCovenant (vesting), ProposalCovenant (timelock)
+ *
+ * TIME HANDLING PATTERN:
+ * - BCH covenants CANNOT "read current time" from blockchain
+ * - Use CLTV (OP_CHECKLOCKTIMEVERIFY) with tx.locktime for absolute time
+ * - Use CSV (OP_CHECKSEQUENCEVERIFY) with tx.inputs[N].sequenceNumber for relative time
+ * - Covenant validates: tx.locktime >= required_time (enforced by consensus)
+ * - Time parameters in NFT commitment updated by off-chain executor
+ *
+ * CRITICAL CLARIFICATION (per workflow2/3):
+ * - Covenants validate TIME CONSTRAINTS, not time values
+ * - Example: "require(tx.locktime >= votingEndTimestamp)" enforces timelock
+ * - Indexer/Executor compute new timestamps off-chain, commit in NFT state
+ * - Network enforces tx.locktime via consensus rules
+ *
+ * POST-LAYLA ENHANCEMENTS:
+ * - No significant changes (CLTV/CSV primitives unchanged)
+ * - Loops may simplify multi-period calculations
+ */
+
+pragma cashscript ^0.10.0;
+
+/**
+ * validateTimelock() - Validate CLTV timelock constraint
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Pattern: require(tx.locktime >= requiredTimestamp)
+ * - tx.locktime set by transaction builder
+ * - Network consensus enforces CLTV validation
+ * - Covenant adds covenant-specific constraints
+ *
+ * Used for: proposal execution delays, schedule unlocks, voting periods
+ */
+function validateTimelock(int requiredTimestamp) returns (bool) {
+    // CLTV validation pattern
+    // tx.locktime must be >= requiredTimestamp for tx to be valid
+    // This is enforced by Bitcoin Cash consensus rules
+    require(tx.locktime >= requiredTimestamp);
+    return true;
+}
+
+/**
+ * calculatePeriodId() - Compute period ID from timestamp and period duration
+ *
+ * ENFORCEABILITY: [OFF-CHAIN-ONLY] (Cannot read current time in covenant)
+ *
+ * Formula: period_id = (current_timestamp - start_timestamp) / period_duration
+ *
+ * NOTE: This is an OFF-CHAIN calculation performed by Indexer/Executor
+ * Covenant validates period_id in NFT commitment, does NOT compute it
+ *
+ * Example:
+ * - Vault created: start_timestamp = 1704067200 (Jan 1, 2024 00:00 UTC)
+ * - Period duration: 2592000 (30 days)
+ * - Current time: 1706659200 (Jan 31, 2024 00:00 UTC)
+ * - Period ID: (1706659200 - 1704067200) / 2592000 = 1 (second period)
+ *
+ * Off-chain usage (TypeScript SDK):
+ * ```typescript
+ * const periodId = Math.floor((Date.now() / 1000 - startTimestamp) / periodDuration);
+ * ```
+ */
+function calculatePeriodId(
+    int currentTimestamp,
+    int startTimestamp,
+    int periodDuration
+) returns (int) {
+    // NOTE: This function is for reference only
+    // Covenants CANNOT call this (no access to currentTimestamp)
+    // Used by off-chain services to compute new period IDs
+
+    int elapsed = currentTimestamp - startTimestamp;
+    int periodId = elapsed / periodDuration;
+    return periodId;
+}
+
+/**
+ * validatePeriodTransition() - Validate period ID increment is correct
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates that period counter updates follow rules:
+ * - new_period_id >= old_period_id (no backwards time travel)
+ * - Increment is reasonable (prevent skipping periods maliciously)
+ *
+ * Used by VaultCovenant when resetting period spending counter
+ */
+function validatePeriodTransition(
+    int oldPeriodId,
+    int newPeriodId,
+    int oldTimestamp,
+    int newTimestamp,
+    int periodDuration
+) returns (bool) {
+    // Period must not go backwards
+    require(newPeriodId >= oldPeriodId);
+
+    // Timestamp must increase
+    require(newTimestamp > oldTimestamp);
+
+    // Validate period increment matches elapsed time
+    // (new_period_id - old_period_id) should equal floor((newTimestamp - oldTimestamp) / periodDuration)
+    int expectedPeriodDelta = (newTimestamp - oldTimestamp) / periodDuration;
+    int actualPeriodDelta = newPeriodId - oldPeriodId;
+
+    // Allow period delta to match or be conservative (handle edge cases)
+    require(actualPeriodDelta <= expectedPeriodDelta + 1);
+    require(actualPeriodDelta >= expectedPeriodDelta);
+
+    return true;
+}
+
+/**
+ * checkScheduleUnlockReady() - Validate schedule unlock is ready (CLTV)
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Used by ScheduleCovenant to validate vesting/recurring schedule unlocks
+ *
+ * Validates:
+ * - tx.locktime >= next_unlock_timestamp (CLTV enforcement)
+ * - Cliff period passed (if applicable)
+ */
+function checkScheduleUnlockReady(
+    int nextUnlockTimestamp,
+    int cliffTimestamp
+) returns (bool) {
+    // Validate cliff (if set)
+    if (cliffTimestamp > 0) {
+        require(tx.locktime >= cliffTimestamp);
+    }
+
+    // Validate unlock time reached
+    require(tx.locktime >= nextUnlockTimestamp);
+
+    return true;
+}
+
+/**
+ * calculateNextUnlockTime() - Compute next unlock timestamp for schedule
+ *
+ * ENFORCEABILITY: [OFF-CHAIN-ONLY] (Reference implementation)
+ *
+ * Formula: next_unlock = current_unlock + interval_seconds
+ *
+ * NOTE: Computed off-chain, committed in ScheduleState NFT
+ * Covenant validates via CLTV, does NOT compute
+ */
+function calculateNextUnlockTime(
+    int currentUnlockTimestamp,
+    int intervalSeconds
+) returns (int) {
+    return currentUnlockTimestamp + intervalSeconds;
+}
+
+/**
+ * validateProposalTimelock() - Validate proposal execution timelock
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Used by ProposalCovenant to enforce execution delay after approval
+ *
+ * Validates:
+ * - tx.locktime >= execution_timelock (CLTV enforcement)
+ * - Ensures time for community review before execution
+ */
+function validateProposalTimelock(int executionTimelock) returns (bool) {
+    require(tx.locktime >= executionTimelock);
+    return true;
+}
+
+/**
+ * validateVotingPeriod() - Validate vote is within voting window
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Used by VoteLockCovenant to validate votes submitted during voting period
+ *
+ * Validates:
+ * - tx.locktime < voting_end_timestamp (vote before deadline)
+ *
+ * NOTE: Uses tx.locktime as proxy for "current time"
+ * Transaction builder sets tx.locktime to current block time
+ */
+function validateVotingPeriod(
+    int votingEndTimestamp
+) returns (bool) {
+    // Ensure vote transaction is before voting deadline
+    // tx.locktime represents "current time" (set by tx builder)
+    require(tx.locktime < votingEndTimestamp);
+    return true;
+}
+
+/**
+ * calculateVestingAmount() - Compute vested amount for linear vesting
+ *
+ * ENFORCEABILITY: [OFF-CHAIN-ONLY] (Reference implementation)
+ *
+ * Formula: vested = (elapsed / total_duration) * total_amount
+ *
+ * NOTE: Computed off-chain by Executor
+ * Covenant validates vested amount <= remaining balance
+ */
+function calculateVestingAmount(
+    int startTimestamp,
+    int currentTimestamp,
+    int vestingDuration,
+    int totalAmount
+) returns (int) {
+    int elapsed = currentTimestamp - startTimestamp;
+
+    // Fully vested
+    if (elapsed >= vestingDuration) {
+        return totalAmount;
+    }
+
+    // Linearly vested
+    int vestedAmount = (elapsed * totalAmount) / vestingDuration;
+    return vestedAmount;
+}
+
+/**
+ * validateSequenceRelativeTimelock() - Validate CSV relative timelock
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Used for relative time delays (e.g., "30 days after vote lock")
+ *
+ * CSV encoding:
+ * - If bit 22 is set: sequence value represents time (512-second increments)
+ * - Otherwise: represents block height
+ *
+ * Example: 30 days = 30 * 24 * 60 * 60 = 2,592,000 seconds
+ * CSV units: 2,592,000 / 512 = 5,062.5 ≈ 5,063 units
+ * Sequence value: (1 << 22) | 5063 = 0x400000 | 0x13C7 = 0x4013C7
+ *
+ * NOTE: CSV validation is consensus-enforced via OP_CHECKSEQUENCEVERIFY
+ * This function is for reference (covenant uses CSV opcode directly)
+ */
+function encodeRelativeTimelockSeconds(int seconds) returns (int) {
+    // Convert seconds to 512-second increments
+    int units = seconds / 512;
+
+    // Set bit 22 to indicate time-based (not block-based)
+    int sequenceValue = (1 * (2 ** 22)) + units;
+
+    return sequenceValue;
+}
+
+/**
+ * validateEmergencyDelay() - Validate emergency action delay
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Used by VaultCovenant for emergency pause/recovery actions
+ * Ensures time delay before emergency actions take effect
+ */
+function validateEmergencyDelay(
+    int emergencyTriggeredTimestamp,
+    int requiredDelay
+) returns (bool) {
+    int earliestActionTime = emergencyTriggeredTimestamp + requiredDelay;
+    require(tx.locktime >= earliestActionTime);
+    return true;
+}
+
+/**
+ * isTimestampInRange() - Check if timestamp is within valid range
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates timestamp is reasonable (not too far past/future)
+ * Prevents overflow attacks, unrealistic timelocks
+ */
+function isTimestampInRange(
+    int timestamp,
+    int minTimestamp,
+    int maxTimestamp
+) returns (bool) {
+    require(timestamp >= minTimestamp);
+    require(timestamp <= maxTimestamp);
+    return true;
+}
+
+/**
+ * POST-LAYLA ENHANCEMENTS (May 15, 2026):
+ *
+ * With Loops CHIP:
+ * - Multi-period calculations (iterate period history)
+ * - Batch schedule processing (multiple unlocks in one tx)
+ *
+ * Example:
+ * ```
+ * function calculateMultiPeriodSpending(
+ *     int[] periodSpentAmounts,
+ *     int periodCap
+ * ) returns (bool) {
+ *     int i = 0;
+ *     begin
+ *         require(periodSpentAmounts[i] <= periodCap);
+ *         i = i + 1;
+ *     until (i >= periodSpentAmounts.length)
+ *     return true;
+ * }
+ * ```
+ *
+ * NOTE: CLTV/CSV primitives unchanged by Layla upgrade
+ * Time handling patterns remain the same
+ */

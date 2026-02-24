@@ -1,0 +1,306 @@
+/**
+ * SignerVerification Library
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW] (M-of-N validation with hardcoded branches)
+ *
+ * PURPOSE: Validate M-of-N multisig approvals for treasury operations
+ * - Verify M signatures from N authorized signers
+ * - Support role-based permissions (via rolesMask bitfield)
+ * - Merkle proof validation for large signer sets
+ * - Pubkey hash validation against signer set commitment
+ *
+ * USED BY: VaultCovenant, ProposalCovenant, ScheduleCovenant
+ *
+ * PRE-LAYLA CONSTRAINTS:
+ * - Fixed max signers (MAX_SIGNERS_PRE_LAYLA - TBD via benchmarking)
+ * - Hardcoded M-of-N branches (2-of-3, 3-of-5, 5-of-7, etc.)
+ * - Script size grows linearly with N
+ *
+ * POST-LAYLA ENHANCEMENTS (May 15, 2026):
+ * - Loops CHIP: iterate arbitrary signer list
+ * - Functions CHIP: modularize verification logic (reduce bytecode duplication)
+ * - Arbitrary M-of-N (no hardcoded limit)
+ */
+
+pragma cashscript ^0.10.0;
+
+/**
+ * verify2of3() - Verify 2-of-3 multisig
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates exactly 2 valid signatures from 3 authorized pubkeys
+ * Used for standard treasury operations
+ */
+function verify2of3(
+    sig sig1, pubkey pubkey1,
+    sig sig2, pubkey pubkey2,
+    bytes20 signerHash1,
+    bytes20 signerHash2,
+    bytes20 signerHash3
+) returns (bool) {
+    // Verify both signatures are valid
+    require(checkSig(sig1, pubkey1));
+    require(checkSig(sig2, pubkey2));
+
+    // Verify pubkey1 is in authorized set
+    bytes20 pkHash1 = hash160(pubkey1);
+    bool auth1 = (pkHash1 == signerHash1) || (pkHash1 == signerHash2) || (pkHash1 == signerHash3);
+    require(auth1);
+
+    // Verify pubkey2 is in authorized set
+    bytes20 pkHash2 = hash160(pubkey2);
+    bool auth2 = (pkHash2 == signerHash1) || (pkHash2 == signerHash2) || (pkHash2 == signerHash3);
+    require(auth2);
+
+    // Verify pubkeys are distinct (prevent signature reuse)
+    require(pkHash1 != pkHash2);
+
+    return true;
+}
+
+/**
+ * verify3of5() - Verify 3-of-5 multisig
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates exactly 3 valid signatures from 5 authorized pubkeys
+ * Used for high-value treasury operations
+ */
+function verify3of5(
+    sig sig1, pubkey pubkey1,
+    sig sig2, pubkey pubkey2,
+    sig sig3, pubkey pubkey3,
+    bytes20 signerHash1,
+    bytes20 signerHash2,
+    bytes20 signerHash3,
+    bytes20 signerHash4,
+    bytes20 signerHash5
+) returns (bool) {
+    // Verify all signatures
+    require(checkSig(sig1, pubkey1));
+    require(checkSig(sig2, pubkey2));
+    require(checkSig(sig3, pubkey3));
+
+    // Verify pubkey1 is authorized
+    bytes20 pkHash1 = hash160(pubkey1);
+    bool auth1 = (pkHash1 == signerHash1) || (pkHash1 == signerHash2) ||
+                 (pkHash1 == signerHash3) || (pkHash1 == signerHash4) ||
+                 (pkHash1 == signerHash5);
+    require(auth1);
+
+    // Verify pubkey2 is authorized
+    bytes20 pkHash2 = hash160(pubkey2);
+    bool auth2 = (pkHash2 == signerHash1) || (pkHash2 == signerHash2) ||
+                 (pkHash2 == signerHash3) || (pkHash2 == signerHash4) ||
+                 (pkHash2 == signerHash5);
+    require(auth2);
+
+    // Verify pubkey3 is authorized
+    bytes20 pkHash3 = hash160(pubkey3);
+    bool auth3 = (pkHash3 == signerHash1) || (pkHash3 == signerHash2) ||
+                 (pkHash3 == signerHash3) || (pkHash3 == signerHash4) ||
+                 (pkHash3 == signerHash5);
+    require(auth3);
+
+    // Verify all pubkeys are distinct
+    require(pkHash1 != pkHash2);
+    require(pkHash1 != pkHash3);
+    require(pkHash2 != pkHash3);
+
+    return true;
+}
+
+/**
+ * verifySignerSetHash() - Verify pubkeys hash to signer set commitment
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates that provided pubkeys match the committed signer set hash
+ * Used for signer set updates and Merkle proof validation
+ */
+function verifySignerSetHash(
+    bytes20 signerHash1,
+    bytes20 signerHash2,
+    bytes20 signerHash3,
+    bytes32 expectedSetHash
+) returns (bool) {
+    // Concatenate all signer hashes
+    bytes signerSet = signerHash1 + signerHash2 + signerHash3;
+
+    // Hash and compare
+    bytes32 computedHash = hash256(signerSet);
+    return computedHash == expectedSetHash;
+}
+
+/**
+ * checkSignerRole() - Verify signer has required role permission
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates signer's role against required permission bitfield
+ * rolesMask encoding:
+ * - Bit 0: APPROVER (can approve proposals)
+ * - Bit 1: EXECUTOR (can execute approved proposals)
+ * - Bit 2: PAUSER (can pause vault)
+ * - Bit 3: GUARDIAN (can emergency lock)
+ * - Bit 4-23: Reserved for future roles
+ *
+ * NOTE: Uses manual bit operations (pre-Layla)
+ * POST-LAYLA: Use Bitwise CHIP (OP_AND) for cleaner code
+ */
+function checkSignerRole(
+    int signerIndex,     // 0-based index in signer set
+    bytes3 rolesMask,     // 24-bit bitfield
+    int requiredRole      // Role bit position (0-23)
+) returns (bool) {
+    // Extract byte containing required role bit
+    int byteIndex = requiredRole / 8;
+    int bitIndex = requiredRole % 8;
+
+    // Compute signer's role offset (each signer has all role bits)
+    // For simplicity, this example assumes roles apply to all signers equally
+    // Production: store per-signer rolesMask (expand to bytes N where N = MAX_SIGNERS_PRE_LAYLA * 3)
+
+    bytes1 roleByte = bytes1(rolesMask[byteIndex]);
+    int roleInt = int(roleByte);
+
+    // Check if bit is set (manual bit check)
+    int bitValue = (roleInt / (2 ** bitIndex)) % 2;
+    return bitValue == 1;
+}
+
+/**
+ * verifyMerkleProof() - Verify signer is in large signer set via Merkle proof
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * For large signer sets (>MAX_SIGNERS_PRE_LAYLA hardcoded in contract),
+ * use Merkle tree commitment with proof validation
+ *
+ * NOTE: Merkle tree reduces script size for large N
+ * Trade-off: Requires off-chain Merkle proof construction
+ *
+ * Example: 100 signers
+ * - Without Merkle: 100 hardcoded hash checks
+ * - With Merkle: log2(100) = 7 hash operations in proof
+ */
+function verifyMerkleProof(
+    bytes20 signerHash,
+    bytes32 merkleRoot,
+    bytes32 merkleProof0,
+    bytes32 merkleProof1,
+    bytes32 merkleProof2,
+    bytes32 merkleProof3,
+    int proofLength,        // Number of proof elements
+    int leafIndex           // Position of signer in tree
+) returns (bool) {
+    // Start with leaf (signer hash + padding)
+    bytes32 currentHash = hash256(bytes32(signerHash + bytes12(0)));
+
+    // Iterate proof elements (hardcoded for 4 levels = 16 signers)
+    // Production: expand to support larger trees
+
+    // Level 0
+    if (proofLength > 0) {
+        if ((leafIndex / 1) % 2 == 0) {
+            currentHash = hash256(currentHash + merkleProof0);
+        } else {
+            currentHash = hash256(merkleProof0 + currentHash);
+        }
+    }
+
+    // Level 1
+    if (proofLength > 1) {
+        if ((leafIndex / 2) % 2 == 0) {
+            currentHash = hash256(currentHash + merkleProof1);
+        } else {
+            currentHash = hash256(merkleProof1 + currentHash);
+        }
+    }
+
+    // Level 2
+    if (proofLength > 2) {
+        if ((leafIndex / 4) % 2 == 0) {
+            currentHash = hash256(currentHash + merkleProof2);
+        } else {
+            currentHash = hash256(merkleProof2 + currentHash);
+        }
+    }
+
+    // Level 3
+    if (proofLength > 3) {
+        if ((leafIndex / 8) % 2 == 0) {
+            currentHash = hash256(currentHash + merkleProof3);
+        } else {
+            currentHash = hash256(merkleProof3 + currentHash);
+        }
+    }
+
+    // Verify final hash matches root
+    return currentHash == merkleRoot;
+}
+
+/**
+ * checkDataSignature() - Verify signature over arbitrary data
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates signature over off-chain data hash
+ * Used for attested tallies, oracle data, cross-chain proofs
+ *
+ * NOTE: Uses checkDataSig opcode (available pre-Layla)
+ */
+function checkDataSignature(
+    datasig sig,
+    bytes data,
+    pubkey pubkey
+) returns (bool) {
+    return checkDataSig(sig, data, pubkey);
+}
+
+/**
+ * POST-LAYLA ENHANCEMENTS (May 15, 2026):
+ *
+ * With Loops CHIP:
+ * ```
+ * function verifyMofN_v2(
+ *     sig[] signatures,
+ *     pubkey[] pubkeys,
+ *     bytes20[] authorizedSigners,
+ *     int requiredM
+ * ) returns (bool) {
+ *     int validCount = 0;
+ *     int i = 0;
+ *     begin
+ *         // Verify signature
+ *         if (checkSig(signatures[i], pubkeys[i])) {
+ *             // Verify pubkey is authorized
+ *             bytes20 pkHash = hash160(pubkeys[i]);
+ *             int j = 0;
+ *             bool found = false;
+ *             begin
+ *                 if (pkHash == authorizedSigners[j]) {
+ *                     found = true;
+ *                 }
+ *                 j = j + 1;
+ *             until (j >= authorizedSigners.length || found)
+ *
+ *             if (found) validCount = validCount + 1;
+ *         }
+ *         i = i + 1;
+ *     until (i >= signatures.length)
+ *
+ *     return validCount >= requiredM;
+ * }
+ * ```
+ *
+ * With Functions CHIP:
+ * - Extract signature verification to separate function bytecode
+ * - Reduce duplication across contracts (VaultCovenant, ProposalCovenant, etc.)
+ * - Smaller total codebase size
+ *
+ * With Bitwise CHIP:
+ * - Native OP_AND/OP_OR for role bitfield checks
+ * - More efficient than manual bit arithmetic
+ */

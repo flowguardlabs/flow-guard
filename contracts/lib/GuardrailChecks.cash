@@ -1,0 +1,288 @@
+/**
+ * GuardrailChecks Library
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW] (Pure validation functions)
+ *
+ * PURPOSE: Validate spending against guardrails
+ * - Period cap validation (spent_this_period + payout <= cap)
+ * - Recipient allowlist checks
+ * - Recipient cap validation (per-recipient max)
+ * - Category budget checks
+ *
+ * USED BY: VaultCovenant (enforcement), ProposalCovenant (validation)
+ *
+ * PRE-LAYLA CONSTRAINTS:
+ * - Fixed max recipients per tx (MAX_RECIPIENTS_PRE_LAYLA - TBD via benchmarking)
+ * - Fixed category count (hardcoded validation)
+ *
+ * POST-LAYLA ENHANCEMENTS (May 15, 2026):
+ * - Loops CHIP: iterate arbitrary recipients/categories
+ * - Functions CHIP: modularize validation logic
+ */
+
+pragma cashscript ^0.10.0;
+
+/**
+ * checkPeriodCap() - Validate total spending doesn't exceed period cap
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates: spent_this_period + payout_total <= period_cap
+ */
+function checkPeriodCap(
+    int spentThisPeriod,
+    int payoutTotal,
+    int periodCap
+) returns (bool) {
+    // If no cap set (0), no limit
+    if (periodCap == 0) {
+        return true;
+    }
+
+    // Check total spending
+    int totalSpent = spentThisPeriod + payoutTotal;
+    return totalSpent <= periodCap;
+}
+
+/**
+ * checkRecipientCap() - Validate single recipient doesn't exceed per-recipient cap
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates: payout_amount <= recipient_cap (if set)
+ */
+function checkRecipientCap(
+    int payoutAmount,
+    int recipientCap
+) returns (bool) {
+    // If no cap set (0), no limit
+    if (recipientCap == 0) {
+        return true;
+    }
+
+    return payoutAmount <= recipientCap;
+}
+
+/**
+ * checkRecipientInAllowlist() - Validate recipient is in allowlist
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * PRE-LAYLA: Fixed max allowlist size (hardcoded branches)
+ * POST-LAYLA: Loops iterate arbitrary allowlist
+ *
+ * For this example: allowlist of 3 addresses (production: expand to MAX_ALLOWLIST_SIZE)
+ */
+function checkRecipientInAllowlist(
+    bytes20 recipientHash,
+    bytes20 allowedAddr1,
+    bytes20 allowedAddr2,
+    bytes20 allowedAddr3
+) returns (bool) {
+    // Check if recipient matches any allowed address
+    if (recipientHash == allowedAddr1) return true;
+    if (recipientHash == allowedAddr2) return true;
+    if (recipientHash == allowedAddr3) return true;
+
+    return false;
+}
+
+/**
+ * checkRecipientNotInDenylist() - Validate recipient is NOT in denylist
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ */
+function checkRecipientNotInDenylist(
+    bytes20 recipientHash,
+    bytes20 deniedAddr1,
+    bytes20 deniedAddr2,
+    bytes20 deniedAddr3
+) returns (bool) {
+    // Check if recipient matches any denied address
+    if (recipientHash == deniedAddr1) return false;
+    if (recipientHash == deniedAddr2) return false;
+    if (recipientHash == deniedAddr3) return false;
+
+    return true;
+}
+
+/**
+ * checkCategoryBudget() - Validate category spending doesn't exceed budget
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * PRE-LAYLA: Fixed category count (hardcoded validation)
+ * POST-LAYLA: Loops iterate arbitrary categories
+ *
+ * For this example: 3 categories (ops, grants, marketing)
+ *
+ * NOTE: Category tags stored in payout metadata (off-chain, hash committed)
+ * Covenant validates hash matches, then checks category totals
+ */
+function checkCategoryBudget(
+    int category,          // 0=ops, 1=grants, 2=marketing
+    int payoutAmount,
+    int categoryBudgetOps,
+    int categoryBudgetGrants,
+    int categoryBudgetMarketing,
+    int categorySpentOps,
+    int categorySpentGrants,
+    int categorySpentMarketing
+) returns (bool) {
+    if (category == 0) {
+        // Ops category
+        if (categoryBudgetOps == 0) return true; // No limit
+        return (categorySpentOps + payoutAmount) <= categoryBudgetOps;
+    } else if (category == 1) {
+        // Grants category
+        if (categoryBudgetGrants == 0) return true;
+        return (categorySpentGrants + payoutAmount) <= categoryBudgetGrants;
+    } else if (category == 2) {
+        // Marketing category
+        if (categoryBudgetMarketing == 0) return true;
+        return (categorySpentMarketing + payoutAmount) <= categoryBudgetMarketing;
+    }
+
+    // Unknown category
+    return false;
+}
+
+/**
+ * validatePayoutOutputs() - Validate all payout outputs match constraints
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Validates:
+ * - Recipient caps
+ * - Allowlist (if enabled)
+ * - Denylist (if enabled)
+ * - Category budgets (if enabled)
+ *
+ * PRE-LAYLA: Fixed max recipients (MAX_RECIPIENTS_PRE_LAYLA - hardcoded)
+ * POST-LAYLA: Loops iterate arbitrary recipients
+ *
+ * For this example: 2 recipients (production: expand to MAX_RECIPIENTS_PRE_LAYLA)
+ */
+function validatePayoutOutputs(
+    // Recipient 1
+    bytes20 recipient1Hash,
+    int amount1,
+    int category1,
+
+    // Recipient 2
+    bytes20 recipient2Hash,
+    int amount2,
+    int category2,
+
+    // Guardrails
+    int recipientCap,
+    bool allowlistEnabled,
+    bytes20 allowedAddr1,
+    bytes20 allowedAddr2,
+    bytes20 allowedAddr3,
+
+    // Category budgets
+    int categoryBudgetOps,
+    int categorySpentOps,
+    int categoryBudgetGrants,
+    int categorySpentGrants,
+    int categoryBudgetMarketing,
+    int categorySpentMarketing
+) returns (bool) {
+    // VALIDATE RECIPIENT 1
+
+    // Check recipient cap
+    if (!checkRecipientCap(amount1, recipientCap)) {
+        return false;
+    }
+
+    // Check allowlist (if enabled)
+    if (allowlistEnabled) {
+        if (!checkRecipientInAllowlist(recipient1Hash, allowedAddr1, allowedAddr2, allowedAddr3)) {
+            return false;
+        }
+    }
+
+    // Check category budget
+    if (!checkCategoryBudget(
+        category1, amount1,
+        categoryBudgetOps, categoryBudgetGrants, categoryBudgetMarketing,
+        categorySpentOps, categorySpentGrants, categorySpentMarketing
+    )) {
+        return false;
+    }
+
+    // VALIDATE RECIPIENT 2 (same checks)
+
+    if (!checkRecipientCap(amount2, recipientCap)) {
+        return false;
+    }
+
+    if (allowlistEnabled) {
+        if (!checkRecipientInAllowlist(recipient2Hash, allowedAddr1, allowedAddr2, allowedAddr3)) {
+            return false;
+        }
+    }
+
+    if (!checkCategoryBudget(
+        category2, amount2,
+        categoryBudgetOps, categoryBudgetGrants, categoryBudgetMarketing,
+        categorySpentOps, categorySpentGrants, categorySpentMarketing
+    )) {
+        return false;
+    }
+
+    // All validations passed
+    return true;
+}
+
+/**
+ * computePayoutTotal() - Sum all payout amounts
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * Used to calculate total spending for period cap check
+ *
+ * PRE-LAYLA: Fixed recipient count (hardcoded sum)
+ * POST-LAYLA: Loops iterate arbitrary recipients
+ */
+function computePayoutTotal(
+    int amount1,
+    int amount2
+    // In production: expand to MAX_RECIPIENTS_PRE_LAYLA
+) returns (int) {
+    return amount1 + amount2;
+}
+
+/**
+ * POST-LAYLA ENHANCEMENTS (May 15, 2026):
+ *
+ * With Loops CHIP:
+ * ```
+ * function checkAllRecipientsInAllowlist_v2(
+ *     bytes20[] recipients,
+ *     bytes20[] allowlist
+ * ) returns (bool) {
+ *     int i = 0;
+ *     begin
+ *         bool found = false;
+ *         int j = 0;
+ *         begin
+ *             if (recipients[i] == allowlist[j]) {
+ *                 found = true;
+ *             }
+ *             j = j + 1;
+ *         until (j >= allowlist.length || found)
+ *
+ *         if (!found) return false;
+ *         i = i + 1;
+ *     until (i >= recipients.length)
+ *
+ *     return true;
+ * }
+ * ```
+ *
+ * With Functions CHIP:
+ * - Extract validation logic into reusable functions
+ * - Reduce bytecode duplication across contracts
+ */

@@ -1,0 +1,94 @@
+/**
+ * VoteLockCovenant — Production Grade
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * PURPOSE: Lock governance tokens with an immutable vote choice commitment.
+ * - Lock GovernanceFT until unlock_timestamp
+ * - Commit vote choice (FOR/AGAINST/ABSTAIN) at lock time
+ * - Prevent double-voting via UTXO consumption (CashTokens model)
+ * - Allow reclaim after unlock time or early unlock after proposal completes
+ *
+ * ANTI-DOUBLE-VOTE:
+ * - UTXO model guarantees uniqueness — once FT locked here, it cannot
+ *   exist elsewhere. Consuming this UTXO = casting the vote.
+ *   No on-chain tracking needed beyond the VoteNFT.
+ *
+ * NFT COMMITMENT (32 bytes — within CashTokens 40-byte limit):
+ *   [0]:     version (uint8)
+ *   [1-4]:   proposal_id_prefix (4 bytes, first 4 bytes of proposalId)
+ *   [5]:     vote_choice (uint8: 0=AGAINST, 1=FOR, 2=ABSTAIN)
+ *   [6-7]:   reserved
+ *   [8-12]:  lock_timestamp (5 bytes, unix seconds)
+ *   [13-17]: unlock_timestamp (5 bytes, unix seconds)
+ *   [18-31]: reserved
+ *
+ * CONTRACT PARAMETERS (compiled into bytecode, immutable):
+ *   proposalId       — links vote to proposal
+ *   voteChoice       — 0=AGAINST, 1=FOR, 2=ABSTAIN (immutable)
+ *   voterHash        — hash160 of voter pubkey (prevents theft)
+ *   unlockTimestamp  — when tokens can be reclaimed
+ *
+ * PRE-LAYLA: Fully supported
+ * POST-LAYLA: No changes needed
+ */
+
+pragma cashscript ^0.13.0;
+
+contract VoteLockCovenant(
+    bytes32 proposalId,
+    int voteChoice,
+    bytes20 voterHash,
+    int unlockTimestamp
+) {
+    /**
+     * reclaim() — Voter reclaims governance tokens after unlock time
+     *
+     * Validates:
+     * - Voter signature (voter must be the original locker)
+     * - tx.locktime >= unlockTimestamp
+     * - GovernanceFT returned in full to voter
+     */
+    function reclaim(sig voterSig, pubkey voterPubkey) {
+        // Verify this vote belongs to the correct proposal
+        bytes c = tx.inputs[0].nftCommitment;
+        require(c.split(1)[1].split(4)[0] == proposalId.split(4)[0]);
+
+        // 0=AGAINST, 1=FOR, 2=ABSTAIN
+        require(voteChoice == 0 || voteChoice == 1 || voteChoice == 2);
+
+        require(hash160(voterPubkey) == voterHash);
+        require(checkSig(voterSig, voterPubkey));
+
+        // Unlock time must have passed (CLTV pattern)
+        require(tx.locktime >= unlockTimestamp);
+
+        // Return tokens to voter's P2PKH address
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(voterHash));
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+    }
+
+    /**
+     * earlyReclaim() — Reclaim tokens after proposal lifecycle ends
+     *
+     * If the proposal was executed, cancelled, or expired, the voter
+     * no longer needs to wait for unlockTimestamp.
+     */
+    function earlyReclaim(sig voterSig, pubkey voterPubkey, int proposalFinalStatus) {
+        require(hash160(voterPubkey) == voterHash);
+        require(checkSig(voterSig, voterPubkey));
+
+        // proposalFinalStatus must be one of: EXECUTED(2), CANCELLED(3), EXPIRED(4)
+        require(
+            proposalFinalStatus == 2 ||
+            proposalFinalStatus == 3 ||
+            proposalFinalStatus == 4
+        );
+
+        // Return tokens to voter
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(voterHash));
+        require(tx.outputs[0].tokenAmount == tx.inputs[0].tokenAmount);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+    }
+}

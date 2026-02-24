@@ -1,0 +1,148 @@
+/**
+ * RewardCovenant — Production Grade
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * PURPOSE: Enforce achievement-based variable reward distributions.
+ *          Unlike airdrops (fixed equal amounts), rewards are variable —
+ *          authority decides exact amount per reward event.
+ *
+ * NFT COMMITMENT (40 bytes — within CashTokens 40-byte limit):
+ *   [0]:     status (uint8: 0=ACTIVE, 1=PAUSED, 2=CANCELLED, 3=COMPLETED)
+ *   [1]:     flags (uint8: bit0=cancelable, bit2=usesTokens)
+ *   [2]:     reward_category (uint8: 1=ACHIEVEMENT, 2=REFERRAL, 3=LOYALTY, 4=CUSTOM)
+ *   [3-10]:  total_distributed (uint64)
+ *   [11-18]: rewards_count (uint64)
+ *   [19-23]: last_reward_timestamp (5 bytes)
+ *   [24-39]: reserved (16 bytes)
+ *
+ * CONTRACT PARAMETERS (compiled into bytecode, immutable):
+ *   vaultId         — links reward program to source vault
+ *   authorityHash   — hash160(authority pubkey)
+ *   maxRewardAmount — maximum per single reward (upper bound)
+ *   totalPool       — total reward budget
+ *   startTimestamp  — when rewards open (0 = immediate)
+ *   endTimestamp    — when rewards close (0 = no expiry)
+ */
+
+pragma cashscript ^0.13.0;
+
+contract RewardCovenant(
+    bytes32 vaultId,
+    bytes20 authorityHash,
+    int maxRewardAmount,
+    int totalPool,
+    int startTimestamp,
+    int endTimestamp
+) {
+    function reward(sig authSig, pubkey authPubkey, bytes20 recipientHash, int rewardAmount) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status            = int(c.split(1)[0]);
+        bytes1 flagsByte      = c.split(1)[1].split(1)[0];
+        bytes1 categoryByte   = c.split(2)[1].split(1)[0];
+        int totalDistributed  = int(c.split(3)[1].split(8)[0]);
+        int rewardsCount      = int(c.split(11)[1].split(8)[0]);
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require(status == 0); // ACTIVE
+
+        if (startTimestamp > 0) { require(tx.locktime >= startTimestamp); }
+        if (endTimestamp > 0)   { require(tx.locktime <= endTimestamp); }
+
+        require(rewardAmount > 0);
+        require(rewardAmount <= maxRewardAmount);
+
+        int newTotalDistributed = totalDistributed + rewardAmount;
+        require(newTotalDistributed <= totalPool);
+
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipientHash));
+
+        if ((flagsByte & 0x04) == 0x04) {
+            require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+            require(tx.outputs[0].tokenAmount == rewardAmount);
+        } else {
+            require(tx.outputs[0].value == rewardAmount);
+        }
+
+        int newRewardsCount = rewardsCount + 1;
+        int newStatus = 0;
+        if (newTotalDistributed >= totalPool) { newStatus = 3; } // COMPLETED
+
+        bytes newCommitment =
+            toPaddedBytes(newStatus, 1) +
+            flagsByte +
+            categoryByte +
+            toPaddedBytes(newTotalDistributed, 8) +
+            toPaddedBytes(newRewardsCount, 8) +
+            toPaddedBytes(tx.locktime, 5) +
+            0x00000000000000000000000000000000000000000000000000000000000000000000;
+
+        require(tx.outputs[1].nftCommitment == newCommitment);
+        require(tx.outputs[1].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(vaultId != 0x0000000000000000000000000000000000000000000000000000000000000000);
+    }
+
+    function pause(sig authSig, pubkey authPubkey) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status       = int(c.split(1)[0]);
+        bytes1 flagsByte = c.split(1)[1].split(1)[0];
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require((flagsByte & 0x01) == 0x01);
+        require(status == 0); // ACTIVE
+
+        bytes newCommitment =
+            0x01 +
+            c.split(1)[1].split(23)[0] +
+            0x00000000000000000000000000000000000000000000000000000000000000000000;
+
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+    }
+
+    function resume(sig authSig, pubkey authPubkey) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status = int(c.split(1)[0]);
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require(status == 1); // PAUSED
+
+        bytes newCommitment =
+            0x00 +
+            c.split(1)[1].split(23)[0] +
+            0x00000000000000000000000000000000000000000000000000000000000000000000;
+
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+    }
+
+    function cancel(sig authSig, pubkey authPubkey) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status           = int(c.split(1)[0]);
+        bytes1 flagsByte     = c.split(1)[1].split(1)[0];
+        int totalDistributed = int(c.split(3)[1].split(8)[0]);
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require((flagsByte & 0x01) == 0x01);
+        require(status == 0 || status == 1);
+
+        int remainingPool = totalPool - totalDistributed;
+        require(remainingPool > 0);
+
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(authorityHash));
+
+        if ((flagsByte & 0x04) == 0x04) {
+            require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+            require(tx.outputs[0].tokenAmount == remainingPool);
+        } else {
+            require(tx.outputs[0].value == remainingPool);
+        }
+    }
+}

@@ -1,5 +1,5 @@
 // FlowGuard Enhanced Contract
-// Enforces Layla CHIP patterns (Loops, Bitwise, Functions)
+// Uses BCH 2026 upgrade features (Loops, Bitwise, Functions)
 
 pragma cashscript ^0.13.0;
 

@@ -1,6 +1,6 @@
 # FlowGuard Contracts
 
-Layla CHIPs smart contracts for FlowGuard treasury management.
+CashScript smart contracts for FlowGuard treasury management.
 
 ## Structure
 

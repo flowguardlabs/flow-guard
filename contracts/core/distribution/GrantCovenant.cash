@@ -1,0 +1,148 @@
+/**
+ * GrantCovenant — Production Grade
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * PURPOSE: Enforce multi-milestone grant funding disbursements.
+ *          Released tranche-by-tranche as milestones are approved.
+ *
+ * NFT COMMITMENT (40 bytes — within CashTokens 40-byte limit):
+ *   [0]:     status (uint8: 0=ACTIVE, 1=PAUSED, 2=CANCELLED, 3=COMPLETED)
+ *   [1]:     flags (uint8: bit0=cancelable, bit1=transferable, bit2=usesTokens)
+ *   [2]:     milestones_completed (uint8, 0..255)
+ *   [3-10]:  total_released (uint64)
+ *   [11-15]: last_release_timestamp (5 bytes)
+ *   [16-35]: recipient_hash (bytes20, mutable for grant transfer)
+ *   [36-39]: reserved (4 bytes)
+ *
+ * CONTRACT PARAMETERS (compiled into bytecode, immutable):
+ *   vaultId            — links grant to source vault
+ *   authorityHash      — hash160(authority pubkey)
+ *   milestonesTotal    — total number of milestones (1..255)
+ *   amountPerMilestone — satoshis or FT released per milestone
+ *   totalAmount        — total grant value
+ */
+
+pragma cashscript ^0.13.0;
+
+contract GrantCovenant(
+    bytes32 vaultId,
+    bytes20 authorityHash,
+    int milestonesTotal,
+    int amountPerMilestone,
+    int totalAmount
+) {
+    function releaseMilestone(sig authSig, pubkey authPubkey) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status              = int(c.split(1)[0]);
+        bytes1 flagsByte        = c.split(1)[1].split(1)[0];
+        int milestonesCompleted = int(c.split(2)[1].split(1)[0]);
+        int totalReleased       = int(c.split(3)[1].split(8)[0]);
+        bytes20 recipient       = c.split(16)[1].split(20)[0];
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require(status == 0); // ACTIVE
+        require(milestonesCompleted < milestonesTotal);
+
+        int newMilestonesCompleted = milestonesCompleted + 1;
+        int newTotalReleased       = totalReleased + amountPerMilestone;
+
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipient));
+
+        if ((flagsByte & 0x04) == 0x04) {
+            require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+            require(tx.outputs[0].tokenAmount == amountPerMilestone);
+        } else {
+            require(tx.outputs[0].value == amountPerMilestone);
+        }
+
+        int newStatus = 0;
+        if (newMilestonesCompleted >= milestonesTotal) { newStatus = 3; } // COMPLETED
+
+        bytes newCommitment =
+            toPaddedBytes(newStatus, 1) +
+            flagsByte +
+            toPaddedBytes(newMilestonesCompleted, 1) +
+            toPaddedBytes(newTotalReleased, 8) +
+            toPaddedBytes(tx.locktime, 5) +
+            recipient +
+            0x00000000;
+
+        require(tx.outputs[1].nftCommitment == newCommitment);
+        require(tx.outputs[1].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(vaultId != 0x0000000000000000000000000000000000000000000000000000000000000000);
+    }
+
+    function pause(sig authSig, pubkey authPubkey) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status       = int(c.split(1)[0]);
+        bytes1 flagsByte = c.split(1)[1].split(1)[0];
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require((flagsByte & 0x01) == 0x01);
+        require(status == 0); // ACTIVE
+
+        bytes newCommitment = 0x01 + c.split(1)[1].split(35)[0] + 0x00000000;
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+    }
+
+    function resume(sig authSig, pubkey authPubkey) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status = int(c.split(1)[0]);
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require(status == 1); // PAUSED
+
+        bytes newCommitment = 0x00 + c.split(1)[1].split(35)[0] + 0x00000000;
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+    }
+
+    function cancel(sig authSig, pubkey authPubkey) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status        = int(c.split(1)[0]);
+        bytes1 flagsByte  = c.split(1)[1].split(1)[0];
+        int totalReleased = int(c.split(3)[1].split(8)[0]);
+
+        require(hash160(authPubkey) == authorityHash);
+        require(checkSig(authSig, authPubkey));
+        require((flagsByte & 0x01) == 0x01);
+        require(status == 0 || status == 1);
+
+        int remainingAmount = totalAmount - totalReleased;
+        require(remainingAmount > 0);
+
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(authorityHash));
+
+        if ((flagsByte & 0x04) == 0x04) {
+            require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+            require(tx.outputs[0].tokenAmount == remainingAmount);
+        } else {
+            require(tx.outputs[0].value == remainingAmount);
+        }
+    }
+
+    function transfer(sig recipientSig, pubkey recipientPubkey, bytes20 newRecipientHash) {
+        bytes c = tx.inputs[0].nftCommitment;
+        int status        = int(c.split(1)[0]);
+        bytes1 flagsByte  = c.split(1)[1].split(1)[0];
+        bytes20 current   = c.split(16)[1].split(20)[0];
+
+        require(hash160(recipientPubkey) == current);
+        require(checkSig(recipientSig, recipientPubkey));
+        require((flagsByte & 0x02) == 0x02); // transferable
+        require(status == 0); // ACTIVE
+
+        bytes newCommitment = c.split(16)[0] + newRecipientHash + 0x00000000;
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+    }
+}

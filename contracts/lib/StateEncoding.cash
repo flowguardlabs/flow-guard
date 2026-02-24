@@ -1,0 +1,378 @@
+/**
+ * StateEncoding Library
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW] (Pure utility functions)
+ *
+ * PURPOSE: Encode/decode NFT commitment bytes for all UTXO types
+ *
+ * CASHTOKENS COMPLIANCE:
+ * - NFT commitment hard limit: 40 bytes (CashTokens consensus rule)
+ * - All state encodings fit within 40 bytes
+ *
+ * ENCODING STRATEGY:
+ * - Timestamps: 5 bytes (covers year 36,812 — safe for all practical use)
+ * - Amounts: 8 bytes (uint64, covers full BCH supply)
+ * - Version: 1 byte (supports 256 schema versions)
+ * - Little-endian integers (Bitcoin/CashScript native format)
+ *
+ * STATE SIZES:
+ * - VaultState:    32 bytes
+ * - ProposalState: 40 bytes
+ * - ScheduleState: 40 bytes (recipient stored here for transferable streams)
+ * - VoteState:     32 bytes
+ * - TallyState:    40 bytes
+ * - AirdropState:  32 bytes
+ *
+ * PRE-LAYLA: Manual bit operations
+ * POST-LAYLA: Native bitwise ops (Bitwise CHIP, May 15, 2026)
+ */
+
+pragma cashscript ^0.10.0;
+
+// ============================================================
+// VAULT STATE (32 bytes)
+// ============================================================
+//
+// Layout:
+// [0]:     version (uint8)
+// [1]:     status (uint8: 0=ACTIVE, 1=PAUSED, 2=EMERGENCY_LOCK, 3=MIGRATING)
+// [2-4]:   rolesMask (24-bit bitfield: bit0=owner, bit1=guardian, bit2=executor)
+// [5-8]:   current_period_id (uint32)
+// [9-16]:  spent_this_period (uint64, satoshis)
+// [17-24]: last_update_timestamp (uint64, unix seconds)
+// [25-31]: reserved
+
+function encodeVaultState(
+    int version,
+    int status,
+    bytes3 rolesMask,
+    int currentPeriodId,
+    int spentThisPeriod,
+    int lastUpdateTimestamp
+) returns (bytes32) {
+    return bytes32(
+        bytes1(version) +
+        bytes1(status) +
+        rolesMask +
+        bytes4(currentPeriodId) +
+        bytes8(spentThisPeriod) +
+        bytes8(lastUpdateTimestamp) +
+        bytes7(0)  // reserved
+    );
+}
+
+function decodeVaultStatus(bytes32 c) returns (int) {
+    return int(c[1:2]);
+}
+
+function decodeVaultRolesMask(bytes32 c) returns (bytes3) {
+    return bytes3(c[2:5]);
+}
+
+function decodeVaultPeriodId(bytes32 c) returns (int) {
+    return int(c[5:9]);
+}
+
+function decodeVaultSpentThisPeriod(bytes32 c) returns (int) {
+    return int(c[9:17]);
+}
+
+function updateVaultStatus(bytes32 c, int newStatus) returns (bytes32) {
+    return bytes32(c[0:1] + bytes1(newStatus) + c[2:32]);
+}
+
+function updateVaultPeriodSpent(bytes32 c, int newSpent, int newTimestamp) returns (bytes32) {
+    return bytes32(
+        c[0:9] +
+        bytes8(newSpent) +
+        bytes8(newTimestamp) +
+        c[25:32]
+    );
+}
+
+// ============================================================
+// PROPOSAL STATE (40 bytes)
+// ============================================================
+//
+// Layout:
+// [0]:     version (uint8)
+// [1]:     status (uint8: 0=PENDING, 1=APPROVED, 2=EXECUTED, 3=CANCELLED, 4=EXPIRED)
+// [2]:     approval_count (uint8, max 255 signers)
+// [3]:     required_approvals (uint8)
+// [4-8]:   voting_end_timestamp (5 bytes, unix seconds)
+// [9-13]:  execution_timelock (5 bytes, unix seconds)
+// [14-33]: payout_hash (20 bytes = hash160(recipient || amount_bytes))
+// [34-39]: reserved
+
+function encodeProposalState(
+    int version,
+    int status,
+    int approvalCount,
+    int requiredApprovals,
+    int votingEndTimestamp,
+    int executionTimelock,
+    bytes20 payoutHash
+) returns (bytes40) {
+    return bytes40(
+        bytes1(version) +
+        bytes1(status) +
+        bytes1(approvalCount) +
+        bytes1(requiredApprovals) +
+        bytes5(votingEndTimestamp) +
+        bytes5(executionTimelock) +
+        payoutHash +
+        bytes6(0)  // reserved
+    );
+}
+
+function decodeProposalStatus(bytes40 c) returns (int) {
+    return int(c[1:2]);
+}
+
+function decodeProposalApprovalCount(bytes40 c) returns (int) {
+    return int(c[2:3]);
+}
+
+function decodeProposalRequiredApprovals(bytes40 c) returns (int) {
+    return int(c[3:4]);
+}
+
+function decodeProposalVotingEnd(bytes40 c) returns (int) {
+    return int(c[4:9]);
+}
+
+function decodeProposalTimelock(bytes40 c) returns (int) {
+    return int(c[9:14]);
+}
+
+function decodeProposalPayoutHash(bytes40 c) returns (bytes20) {
+    return bytes20(c[14:34]);
+}
+
+function incrementProposalApprovalCount(bytes40 c) returns (bytes40) {
+    int newCount = int(c[2:3]) + 1;
+    return bytes40(c[0:2] + bytes1(newCount) + c[3:40]);
+}
+
+function updateProposalStatus(bytes40 c, int newStatus) returns (bytes40) {
+    return bytes40(c[0:1] + bytes1(newStatus) + c[2:40]);
+}
+
+// ============================================================
+// SCHEDULE STATE (40 bytes)
+// ============================================================
+//
+// Used by: streams, recurring payments, budget plans
+//
+// Layout:
+// [0]:     status (uint8: 0=ACTIVE, 1=PAUSED, 2=CANCELLED, 3=COMPLETED)
+// [1]:     flags (uint8: bit0=cancelable, bit1=transferable)
+// [2-9]:   total_released (uint64, satoshis or token amount)
+// [10-14]: schedule_cursor (5 bytes):
+//           RECURRING/STEP: next_unlock_timestamp
+//           LINEAR: effective_start (adjusted for pauses)
+// [15-19]: pause_start (5 bytes, 0 if not paused)
+// [20-39]: recipientHash (20 bytes, hash160 of recipient address)
+
+function encodeScheduleState(
+    int status,
+    int flags,
+    int totalReleased,
+    int scheduleCursor,
+    int pauseStart,
+    bytes20 recipientHash
+) returns (bytes40) {
+    return bytes40(
+        bytes1(status) +
+        bytes1(flags) +
+        bytes8(totalReleased) +
+        bytes5(scheduleCursor) +
+        bytes5(pauseStart) +
+        recipientHash
+    );
+}
+
+function decodeScheduleStatus(bytes40 c) returns (int) {
+    return int(c[0:1]);
+}
+
+function decodeScheduleFlags(bytes40 c) returns (int) {
+    return int(c[1:2]);
+}
+
+function decodeScheduleTotalReleased(bytes40 c) returns (int) {
+    return int(c[2:10]);
+}
+
+function decodeScheduleCursor(bytes40 c) returns (int) {
+    return int(c[10:15]);
+}
+
+function decodeSchedulePauseStart(bytes40 c) returns (int) {
+    return int(c[15:20]);
+}
+
+function decodeScheduleRecipient(bytes40 c) returns (bytes20) {
+    return bytes20(c[20:40]);
+}
+
+// ============================================================
+// VOTE STATE (32 bytes)
+// ============================================================
+//
+// Layout:
+// [0]:     version (uint8)
+// [1-4]:   proposal_id_prefix (first 4 bytes of proposal hash)
+// [5]:     vote_choice (uint8: 0=AGAINST, 1=FOR, 2=ABSTAIN)
+// [6-7]:   reserved
+// [8-12]:  lock_timestamp (5 bytes)
+// [13-17]: unlock_timestamp (5 bytes)
+// [18-31]: reserved
+
+function encodeVoteState(
+    int version,
+    bytes4 proposalIdPrefix,
+    int voteChoice,
+    int lockTimestamp,
+    int unlockTimestamp
+) returns (bytes32) {
+    return bytes32(
+        bytes1(version) +
+        proposalIdPrefix +
+        bytes1(voteChoice) +
+        bytes2(0) +
+        bytes5(lockTimestamp) +
+        bytes5(unlockTimestamp) +
+        bytes14(0)  // reserved
+    );
+}
+
+function decodeVoteChoice(bytes32 c) returns (int) {
+    return int(c[5:6]);
+}
+
+function decodeVoteLockTimestamp(bytes32 c) returns (int) {
+    return int(c[8:13]);
+}
+
+function decodeVoteUnlockTimestamp(bytes32 c) returns (int) {
+    return int(c[13:18]);
+}
+
+// ============================================================
+// TALLY STATE (40 bytes)
+// ============================================================
+//
+// Layout:
+// [0]:     version (uint8)
+// [1]:     status (uint8: 0=OPEN, 1=FINALIZED)
+// [2-5]:   proposal_id_prefix (4 bytes)
+// [6-9]:   votes_for (uint32, max ~4 billion)
+// [10-13]: votes_against (uint32)
+// [14-17]: votes_abstain (uint32)
+// [18-21]: quorum_threshold (uint32)
+// [22-26]: tally_timestamp (5 bytes)
+// [27-39]: reserved
+
+function encodeTallyState(
+    int version,
+    int status,
+    bytes4 proposalIdPrefix,
+    int votesFor,
+    int votesAgainst,
+    int votesAbstain,
+    int quorumThreshold,
+    int tallyTimestamp
+) returns (bytes40) {
+    return bytes40(
+        bytes1(version) +
+        bytes1(status) +
+        proposalIdPrefix +
+        bytes4(votesFor) +
+        bytes4(votesAgainst) +
+        bytes4(votesAbstain) +
+        bytes4(quorumThreshold) +
+        bytes5(tallyTimestamp) +
+        bytes13(0)  // reserved
+    );
+}
+
+function decodeTallyStatus(bytes40 c) returns (int) {
+    return int(c[1:2]);
+}
+
+function decodeTallyVotesFor(bytes40 c) returns (int) {
+    return int(c[6:10]);
+}
+
+function decodeTallyVotesAgainst(bytes40 c) returns (int) {
+    return int(c[10:14]);
+}
+
+function decodeTallyVotesAbstain(bytes40 c) returns (int) {
+    return int(c[14:18]);
+}
+
+function decodeTallyQuorum(bytes40 c) returns (int) {
+    return int(c[18:22]);
+}
+
+// ============================================================
+// AIRDROP STATE (32 bytes)
+// ============================================================
+//
+// Layout:
+// [0]:     version (uint8)
+// [1]:     status (uint8: 0=ACTIVE, 1=PAUSED, 2=CANCELLED, 3=COMPLETED)
+// [2-9]:   total_claimed (uint64, satoshis or token amount)
+// [10-17]: claims_count (uint64)
+// [18-31]: reserved
+
+function encodeAirdropState(
+    int version,
+    int status,
+    int totalClaimed,
+    int claimsCount
+) returns (bytes32) {
+    return bytes32(
+        bytes1(version) +
+        bytes1(status) +
+        bytes8(totalClaimed) +
+        bytes8(claimsCount) +
+        bytes14(0)  // reserved
+    );
+}
+
+function decodeAirdropStatus(bytes32 c) returns (int) {
+    return int(c[1:2]);
+}
+
+function decodeAirdropTotalClaimed(bytes32 c) returns (int) {
+    return int(c[2:10]);
+}
+
+function decodeAirdropClaimsCount(bytes32 c) returns (int) {
+    return int(c[10:18]);
+}
+
+function updateAirdropStatus(bytes32 c, int newStatus) returns (bytes32) {
+    return bytes32(c[0:1] + bytes1(newStatus) + c[2:32]);
+}
+
+function updateAirdropAfterClaim(bytes32 c, int claimAmount) returns (bytes32) {
+    int newTotal = decodeAirdropTotalClaimed(c) + claimAmount;
+    int newCount = decodeAirdropClaimsCount(c) + 1;
+    return bytes32(
+        c[0:2] +
+        bytes8(newTotal) +
+        bytes8(newCount) +
+        c[18:32]
+    );
+}
+
+/**
+ * POST-LAYLA ENHANCEMENTS (May 15, 2026):
+ * - Bitwise CHIP enables native flag operations without manual shifts
+ * - Can use more compact bit-packed encodings
+ * - Dynamic commitment sizes with Loops CHIP
+ */

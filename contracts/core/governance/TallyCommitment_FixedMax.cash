@@ -1,0 +1,91 @@
+/**
+ * TallyCommitment_FixedMax — Trustless on-chain tally for up to 3 voters
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * PURPOSE: Aggregate votes into executable tally proof (pre-Layla, max 3 voters).
+ * - Validate each VoteNFT links to this proposal
+ * - Tally token amounts by vote choice (FOR / AGAINST / ABSTAIN)
+ * - Check quorum and majority thresholds on-chain
+ * - Commit result for proposal execution gating
+ *
+ * NFT COMMITMENT (40 bytes — within CashTokens 40-byte limit):
+ *   [0]:     version (uint8) = 1
+ *   [1]:     status (uint8: 0=OPEN, 1=FINALIZED)
+ *   [2-5]:   proposal_id_prefix (4 bytes)
+ *   [6-9]:   votes_for (uint32)
+ *   [10-13]: votes_against (uint32)
+ *   [14-17]: votes_abstain (uint32)
+ *   [18-21]: quorum_threshold (uint32)
+ *   [22-26]: tally_timestamp (5 bytes, unix seconds)
+ *   [27-39]: reserved
+ *
+ * PRE-LAYLA LIMITS: Hardcoded for 3 voters
+ * POST-LAYLA: Loops CHIP enables arbitrary voter count
+ */
+
+pragma cashscript ^0.13.0;
+
+contract TallyCommitment_FixedMax(
+    bytes32 proposalId,
+    int quorumThreshold,
+    int majorityThreshold
+) {
+    /**
+     * createTally() — Aggregate 3 votes and commit tally result
+     *
+     * Inputs 0..2 must each be a VoteNFT for this proposal.
+     * Output[0] is the TallyNFT with the finalized result.
+     */
+    function createTally() {
+        int VOTE_AGAINST = 0;
+        int VOTE_FOR     = 1;
+        int VOTE_ABSTAIN = 2;
+
+        int totalFor     = 0;
+        int totalAgainst = 0;
+        int totalAbstain = 0;
+
+        bytes v0 = tx.inputs[0].nftCommitment;
+        require(v0.split(1)[1].split(4)[0] == proposalId.split(4)[0]);
+        int choice0 = int(v0.split(5)[1].split(1)[0]);
+        int amount0 = tx.inputs[0].tokenAmount;
+        if (choice0 == VOTE_FOR)     { totalFor = totalFor + amount0; }
+        if (choice0 == VOTE_AGAINST) { totalAgainst = totalAgainst + amount0; }
+        if (choice0 == VOTE_ABSTAIN) { totalAbstain = totalAbstain + amount0; }
+
+        bytes v1 = tx.inputs[1].nftCommitment;
+        require(v1.split(1)[1].split(4)[0] == proposalId.split(4)[0]);
+        int choice1 = int(v1.split(5)[1].split(1)[0]);
+        int amount1 = tx.inputs[1].tokenAmount;
+        if (choice1 == VOTE_FOR)     { totalFor = totalFor + amount1; }
+        if (choice1 == VOTE_AGAINST) { totalAgainst = totalAgainst + amount1; }
+        if (choice1 == VOTE_ABSTAIN) { totalAbstain = totalAbstain + amount1; }
+
+        bytes v2 = tx.inputs[2].nftCommitment;
+        require(v2.split(1)[1].split(4)[0] == proposalId.split(4)[0]);
+        int choice2 = int(v2.split(5)[1].split(1)[0]);
+        int amount2 = tx.inputs[2].tokenAmount;
+        if (choice2 == VOTE_FOR)     { totalFor = totalFor + amount2; }
+        if (choice2 == VOTE_AGAINST) { totalAgainst = totalAgainst + amount2; }
+        if (choice2 == VOTE_ABSTAIN) { totalAbstain = totalAbstain + amount2; }
+
+        int totalVotes = totalFor + totalAgainst + totalAbstain;
+        require(totalVotes >= quorumThreshold);
+        require((totalFor * 100) / totalVotes >= majorityThreshold);
+
+        bytes tallyCommitment =
+            0x01 +
+            0x01 +
+            proposalId.split(4)[0] +
+            toPaddedBytes(totalFor, 4) +
+            toPaddedBytes(totalAgainst, 4) +
+            toPaddedBytes(totalAbstain, 4) +
+            toPaddedBytes(quorumThreshold, 4) +
+            toPaddedBytes(tx.locktime, 5) +
+            0x0000000000000000000000000000000000000000000000000000;
+
+        require(tx.outputs[0].nftCommitment == tallyCommitment);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+    }
+}

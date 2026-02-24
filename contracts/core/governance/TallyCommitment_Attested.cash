@@ -1,0 +1,64 @@
+/**
+ * TallyCommitment_Attested — M-of-N attested tally fallback
+ *
+ * ENFORCEABILITY: [HYBRID]
+ *
+ * PURPOSE: For proposals with > 3 voters (pre-Layla limit).
+ * Off-chain tally computation + on-chain 2-of-3 attestation.
+ * Independent validators verify tally independently.
+ *
+ * NFT COMMITMENT (40 bytes — within CashTokens 40-byte limit):
+ *   Same layout as TallyCommitment_FixedMax.
+ *
+ * POST-LAYLA: Loops CHIP enables fully trustless arbitrary tally.
+ */
+
+pragma cashscript ^0.13.0;
+
+contract TallyCommitment_Attested(
+    bytes32 proposalId,
+    bytes20 signer1Hash,
+    bytes20 signer2Hash,
+    bytes20 signer3Hash,
+    int requiredAttestations
+) {
+    /**
+     * attestTally() — 2-of-3 signers attest to off-chain computed tally
+     *
+     * Signers verify the tally off-chain and co-sign the commitment.
+     * On-chain: validates 2 distinct registered signers, correct proposal ref.
+     */
+    function attestTally(
+        sig sig1, pubkey pubkey1,
+        sig sig2, pubkey pubkey2,
+        bytes40 tallyCommitment
+    ) {
+        bytes20 pk1Hash = hash160(pubkey1);
+        bytes20 pk2Hash = hash160(pubkey2);
+
+        require(
+            pk1Hash == signer1Hash ||
+            pk1Hash == signer2Hash ||
+            pk1Hash == signer3Hash
+        );
+        require(
+            pk2Hash == signer1Hash ||
+            pk2Hash == signer2Hash ||
+            pk2Hash == signer3Hash
+        );
+        require(pk1Hash != pk2Hash);
+
+        require(checkSig(sig1, pubkey1));
+        require(checkSig(sig2, pubkey2));
+
+        // Tally commitment must reference this proposal (bytes [2:6])
+        require(tallyCommitment.split(2)[1].split(4)[0] == proposalId.split(4)[0]);
+
+        // Status byte at offset 1 must be FINALIZED (1)
+        require(int(tallyCommitment.split(1)[1].split(1)[0]) == 1);
+
+        require(tx.outputs[0].nftCommitment == tallyCommitment);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+        require(requiredAttestations == 2);
+    }
+}
