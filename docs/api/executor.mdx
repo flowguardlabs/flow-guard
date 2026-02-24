@@ -1,0 +1,44 @@
+---
+title: "Executor API"
+description: "Optional Postgres-backed automation worker that executes ready stream claims and payment intervals."
+icon: "robot"
+---
+
+The Executor is an optional background worker (`backend/executor/`) that automatically claims vested stream amounts and due payment intervals on behalf of recipients. It runs as a separate process alongside the core API.
+
+## What It Does
+
+The executor polls all `ACTIVE` streams and recurring payments. When a claimable amount is detected (based on current block time vs. stream schedule), it builds and broadcasts the claim transaction. Recipients receive their funds without needing to manually claim.
+
+## Running the Executor
+
+```bash
+cd backend/executor
+npm install
+npm run start
+```
+
+**Required environment variables**
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Postgres connection string |
+| `BCH_NETWORK` | `chipnet` or `mainnet` |
+| `EXECUTOR_PRIVATE_KEY` | WIF-encoded private key for the executor wallet |
+| `EXECUTOR_REWARD_ADDRESS` | BCH address to receive executor fees |
+
+## Executor Wallet
+
+The executor wallet (`EXECUTOR_PRIVATE_KEY`) pays transaction fees. It does not need to hold any stream funds — the covenant contracts pay execution rewards directly to `EXECUTOR_REWARD_ADDRESS` from the stream pool.
+
+## Poll Interval
+
+By default the executor polls every 60 seconds. Configure with `POLL_INTERVAL_MS` in environment.
+
+## Failure Handling
+
+If a claim transaction fails (e.g. nothing claimable yet, or UTXO race condition), the executor logs the error and continues. No retry limit — it will attempt again on the next poll cycle.
+
+<Warning>
+Running the executor on mainnet requires a funded executor wallet. Keep the private key secure and do not expose `EXECUTOR_PRIVATE_KEY` publicly.
+</Warning>

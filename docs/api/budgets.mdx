@@ -1,0 +1,144 @@
+---
+title: "Budgets API"
+description: "Endpoints for milestone-based grant disbursement contracts linked to a vault."
+icon: "chart-gantt"
+---
+
+Budget plans (also called grant plans) release funds to a recipient in discrete milestones. Each milestone unlocks after a defined duration from the previous release. Budget plans are always scoped to a vault.
+
+## Create Budget Plan
+
+```http
+POST /api/vaults/:vaultId/budget-plans
+x-user-address: bitcoincash:q...
+```
+
+Deploys the BudgetCovenant on-chain and stores `status: PENDING`.
+
+**Body (milestone array)**
+```json
+{
+  "recipient": "bitcoincash:qs...",
+  "recipientName": "Builder Inc.",
+  "tokenType": "BCH",
+  "cancelable": true,
+  "milestones": [
+    { "amount": 1.0, "durationSeconds": 2592000, "description": "Design phase" },
+    { "amount": 2.0, "durationSeconds": 2592000, "description": "Development" },
+    { "amount": 1.0, "durationSeconds": 2592000, "description": "Delivery" }
+  ],
+  "startDate": 1700000000
+}
+```
+
+**Body (legacy interval format)**
+```json
+{
+  "recipient": "bitcoincash:qs...",
+  "tokenType": "BCH",
+  "totalAmount": 4,
+  "amountPerInterval": 1,
+  "intervalSeconds": 2592000,
+  "startDate": 1700000000
+}
+```
+
+**Response** — `201`
+```json
+{
+  "success": true,
+  "plan": { "id": "...", "status": "PENDING", ... },
+  "deployment": {
+    "contractAddress": "bitcoincash:p...",
+    "budgetId": "hex32",
+    "fundingRequired": true
+  }
+}
+```
+
+## List Vault Budget Plans
+
+```http
+GET /api/vaults/:vaultId/budget-plans
+```
+
+## List All Budget Plans
+
+```http
+GET /api/budget-plans
+```
+
+## Get Budget Plan
+
+```http
+GET /api/budget-plans/:id
+```
+
+Returns the plan with its `milestones` and `releases` arrays.
+
+## Get Funding Info
+
+```http
+GET /api/budget-plans/:id/funding-info
+x-user-address: bitcoincash:q...
+```
+
+Returns the unsigned `wcTransaction` to fund the total budget amount upfront.
+
+## Confirm Funding
+
+```http
+POST /api/budget-plans/:id/confirm-funding
+
+{ "txHash": "hex64" }
+```
+
+Activates the budget plan after verifying the contract output on-chain.
+
+## Release Milestone
+
+```http
+POST /api/budget-plans/:id/release
+
+{ "recipientAddress": "bitcoincash:qs..." }
+```
+
+Recipient-only. Builds the release `wcTransaction` for the elapsed milestones. Returns `releasableAmount` and `milestonesReleasable`.
+
+**Response**
+```json
+{
+  "success": true,
+  "releasableAmount": 1.0,
+  "milestonesReleasable": 1,
+  "wcTransaction": { ... }
+}
+```
+
+## Confirm Release
+
+```http
+POST /api/budget-plans/:id/confirm-release
+
+{ "releasedAmount": 1.0, "txHash": "hex64" }
+```
+
+Verifies recipient output on-chain, advances `current_milestone`, and records the release in `budget_releases`.
+
+## Pause
+
+```http
+POST /api/budget-plans/:id/pause
+x-user-address: bitcoincash:q...
+```
+
+Controller-only (the address whose hash is stored in `constructor_params[1]`). Confirm with `POST /api/budget-plans/:id/confirm-pause`.
+
+## Cancel
+
+```http
+POST /api/budget-plans/:id/cancel
+x-user-address: bitcoincash:q...
+```
+
+Controller-only. Active or paused plans only. Returns `vestedAmount`, `unvestedAmount`, and the cancel `wcTransaction`. Unvested funds return to the controller address. Confirm with `POST /api/budget-plans/:id/confirm-cancel`.

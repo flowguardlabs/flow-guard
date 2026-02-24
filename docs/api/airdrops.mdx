@@ -1,0 +1,168 @@
+---
+title: "Airdrops API"
+description: "Endpoints for creating, funding, and managing airdrop campaigns with optional merkle-tree recipient verification."
+icon: "parachute-box"
+---
+
+Airdrops distribute BCH or CashTokens to many recipients at once. Open airdrops let anyone claim. KYC-restricted airdrops use a merkle tree to whitelist specific addresses.
+
+## List Campaigns (Creator)
+
+```http
+GET /api/airdrops?creator={address}
+```
+
+Returns all campaigns created by the given address.
+
+## List Claimable Campaigns
+
+```http
+GET /api/airdrops/claimable?address={address}
+```
+
+Returns all `ACTIVE` campaigns the given address has not yet claimed (or has remaining claims on).
+
+## Resolve Claim Link
+
+```http
+GET /api/airdrops/claim/:token
+```
+
+Resolves a claim link token (from the campaign's `claim_link` URL) to the full campaign record.
+
+## Get Campaign
+
+```http
+GET /api/airdrops/:id
+```
+
+Returns the campaign record and its full claim history.
+
+## Create Campaign
+
+```http
+POST /api/airdrops/create
+```
+
+Deploys the AirdropCovenant on-chain and stores `status: PENDING`.
+
+**Body**
+```json
+{
+  "creator": "bitcoincash:qr...",
+  "title": "Community Rewards Q1",
+  "campaignType": "AIRDROP",
+  "tokenType": "BCH",
+  "totalAmount": 100,
+  "amountPerClaim": 0.5,
+  "startDate": 1700000000,
+  "endDate": 1731536000,
+  "maxClaimsPerAddress": 1,
+  "requireKyc": false,
+  "vaultId": "optional-vault-uuid"
+}
+```
+
+For token airdrops add `"tokenType": "FUNGIBLE_TOKEN"` and `"tokenCategory": "hex32"`.
+
+**Response**
+```json
+{
+  "success": true,
+  "campaign": { "id": "...", "status": "PENDING", "claim_link": "https://..." },
+  "deployment": {
+    "contractAddress": "bitcoincash:p...",
+    "fundingRequired": true,
+    "nftCommitment": "hex..."
+  }
+}
+```
+
+## Generate Merkle Tree
+
+```http
+POST /api/airdrops/:id/generate-merkle
+```
+
+For KYC-restricted campaigns. Build a merkle tree from an explicit recipient list before funding.
+
+**Body**
+```json
+{
+  "recipients": [
+    { "address": "bitcoincash:qr...", "amount": 1.0 },
+    { "address": "bitcoincash:qs...", "amount": 0.5 }
+  ]
+}
+```
+
+**Response**
+```json
+{
+  "success": true,
+  "merkleRoot": "hex32",
+  "totalRecipients": 2,
+  "leaves": [...]
+}
+```
+
+## Get Funding Info
+
+```http
+GET /api/airdrops/:id/funding-info
+```
+
+Returns the unsigned `wcTransaction` to fund the campaign contract. KYC campaigns must generate their merkle tree first.
+
+## Confirm Funding
+
+```http
+POST /api/airdrops/:id/confirm-funding
+
+{ "txHash": "hex64" }
+```
+
+Verifies the contract output on-chain and transitions the campaign to `ACTIVE`.
+
+## Get Merkle Proof
+
+```http
+GET /api/airdrops/:id/proof/:address
+```
+
+Returns the merkle proof for an address. Public campaigns return `"publicCampaign": true` with an empty proof array.
+
+## Claim
+
+```http
+POST /api/airdrops/:id/claim
+
+{ "claimerAddress": "bitcoincash:q..." }
+```
+
+Builds the claim `wcTransaction`. For KYC campaigns, verifies the claimer is in the merkle tree. Enforces `maxClaimsPerAddress`.
+
+## Confirm Claim
+
+```http
+POST /api/airdrops/:id/confirm-claim
+
+{
+  "claimerAddress": "bitcoincash:q...",
+  "claimedAmount": 0.5,
+  "txHash": "hex64"
+}
+```
+
+Records the claim and increments `claimed_count`.
+
+## Pause / Resume / Cancel
+
+```http
+POST /api/airdrops/:id/pause
+POST /api/airdrops/:id/resume
+POST /api/airdrops/:id/cancel
+x-user-address: bitcoincash:q...
+```
+
+Creator-only. Each returns an unsigned `wcTransaction`. Follow with the matching `confirm-pause`, `confirm-resume`, or `confirm-cancel` endpoint.
