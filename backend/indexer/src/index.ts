@@ -104,11 +104,10 @@ export class FlowGuardIndexer {
   }
 
   /**
-   * Initialize database (check schema exists)
+   * Initialize database (auto-apply schema if missing)
    */
   private async initializeDatabase(): Promise<void> {
     try {
-      // Check if blocks table exists
       const result = await this.db.query(`
         SELECT EXISTS (
           SELECT FROM information_schema.tables
@@ -117,12 +116,18 @@ export class FlowGuardIndexer {
       `);
 
       if (!result.rows[0].exists) {
-        console.log('[Indexer] Database schema not found!');
-        console.log('[Indexer] Please run: psql -f backend/indexer/schema.sql');
-        throw new Error('Database schema missing');
+        console.log('[Indexer] Database schema not found, applying schema.sql...');
+        const { readFileSync } = await import('node:fs');
+        const { fileURLToPath } = await import('node:url');
+        const { dirname, join } = await import('node:path');
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const schemaPath = join(__dirname, '..', 'schema.sql');
+        const schema = readFileSync(schemaPath, 'utf-8');
+        await this.db.query(schema);
+        console.log('[Indexer] Database schema applied successfully');
+      } else {
+        console.log('[Indexer] Database schema OK');
       }
-
-      console.log('[Indexer] Database schema OK');
     } catch (error) {
       console.error('[Indexer] Database initialization failed:', error);
       throw error;
