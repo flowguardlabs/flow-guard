@@ -5,7 +5,7 @@ Based on a full audit of all contracts, backend services, and frontend product s
 FlowGuard docs are product-split throughout:
 **Vesting | Recurring Payments | Airdrops | Grants | Bounties | Rewards | Vaults | Governance**
 
--
+---
 
 ## Top-Level Navigation
 
@@ -18,7 +18,7 @@ FlowGuard docs are product-split throughout:
 | **App** | End users | UI walkthroughs for all products |
 | **Security** | Auditors & teams | Trust model, covenant mechanics |
 
--
+---
 
 ## CONCEPTS
 
@@ -56,7 +56,7 @@ _What FlowGuard is and why it works the way it does._
 - **Supported Assets**
   BCH (satoshis) and any CashToken fungible token. `usesTokens` flag in NFT commitment selects which path a covenant enforces.
 
--
+---
 
 ## GUIDES
 
@@ -117,7 +117,7 @@ _Step-by-step integration and usage for developers and DAOs._
 - Approve, Execute, Cancel, and Expire Proposals
 - Reclaim Governance Tokens — after `unlockTimestamp` or after proposal completes (`earlyReclaim()`)
 
--
+---
 
 ## REFERENCE
 
@@ -212,7 +212,7 @@ _Full technical specifications for every contract and shared type._
 
 Full list of CashScript constraint failures per contract and function.
 
--
+---
 
 ## API
 
@@ -276,7 +276,7 @@ _Data access layer for indexing and querying FlowGuard state._
 - Architecture — cycle-unlock scheduler, transaction builder, TransactionMonitor
 - Running the executor — executor eligibility, signing, fee handling
 
--
+---
 
 ## APP
 
@@ -302,7 +302,7 @@ _User-facing walkthroughs for the FlowGuard web interface._
 - Explorer — public explorer for all on-chain FlowGuard transactions, filterable by product and status
 - Status Page — indexer health, executor heartbeat, latest indexed block
 
--
+---
 
 ## SECURITY
 

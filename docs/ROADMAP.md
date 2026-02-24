@@ -2,7 +2,7 @@
 
 Features and improvements not yet in production. Every item here is feasible on BCH/CashTokens as of today or pending a specific, named CHIP. Nothing speculative.
 
--
+---
 
 ## Phase 1 — Production Hardening
 
@@ -42,7 +42,7 @@ What to build: `BatchManager` contract that accepts multiple covenant deployment
 
 Affects: `BatchCreateStreamsPage`, `StreamDeploymentService`, `TransactionBuilder`.
 
--
+---
 
 ## Phase 2 — New Product Surfaces
 
@@ -84,7 +84,7 @@ What to build: `TallyCommitment_FixedMax` already exists as a draft in `contract
 
 Affects: `TallyCommitment_FixedMax.cash`, `TallyCommitment_Attested.cash`, governance API, `GovernancePage`.
 
--
+---
 
 ## Phase 3 — Protocol Upgrades (Pending CHIPs)
 
@@ -106,7 +106,7 @@ Recurring payments currently require an off-chain executor. A future introspecti
 
 This is a research track, not a committed roadmap item.
 
--
+---
 
 ## Infrastructure
 
