@@ -1,13 +1,31 @@
 import { Artifact } from 'cashscript';
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Artifacts root relative to this file: backend/src/services → ../../../contracts/artifacts
-const ARTIFACTS_ROOT = join(__dirname, '../../../contracts/artifacts');
+// Resolve artifacts root from multiple fallbacks to survive different deploy layouts.
+const candidateRoots: string[] = [
+  process.env.ARTIFACTS_ROOT || '',
+  // Monorepo root /contracts/artifacts (ts-node)
+  resolve(__dirname, '../../../contracts/artifacts'),
+  // Compiled dist path: backend/dist/services → ../../../contracts/artifacts -> /app/contracts/artifacts
+  resolve(__dirname, '../../contracts/artifacts'),
+  // Monorepo root relative to process.cwd()
+  resolve(process.cwd(), 'contracts/artifacts'),
+].filter(Boolean);
+
+const resolvedArtifactsRoot = candidateRoots.find((p) => existsSync(p));
+
+if (!resolvedArtifactsRoot) {
+  throw new Error(
+    'Contract artifacts not found. Set ARTIFACTS_ROOT or ensure contracts are built (pnpm --filter @flowguard/contracts build).'
+  );
+}
+
+const ARTIFACTS_ROOT: string = resolvedArtifactsRoot;
 
 export interface ConstructorParam {
   type: 'bigint' | 'bytes' | 'string' | 'boolean';

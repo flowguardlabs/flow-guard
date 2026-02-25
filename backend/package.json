@@ -8,6 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "postinstall": "pnpm --filter @flowguard/contracts build",
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "deploy:chipnet": "pnpm tsx src/scripts/deploy-chipnet.ts",
