@@ -840,21 +840,39 @@ export async function fundPaymentContract(
       throw new Error('Wallet not connected');
     }
 
-    // Get funding info from backend
     const apiUrl = '/api';
-    const response = await fetch(`${apiUrl}/payments/${paymentId}/funding-info`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to get funding info');
+    const fetchFundingInfo = async () => {
+      const response = await fetch(`${apiUrl}/payments/${paymentId}/funding-info`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to get funding info');
+      }
+
+      return response.json();
+    };
+
+    let data = await fetchFundingInfo();
+
+    if (data.requiresPreparation && data.preparationTransaction) {
+      console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
+      const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
+      const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
+      console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
+
+      if (prepResult.signedTransactionHash) {
+        await broadcastTransaction(prepResult.signedTransactionHash);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      data = await fetchFundingInfo();
     }
 
-    const { wcTransaction } = await response.json();
+    const { wcTransaction } = data;
     if (!wcTransaction || !wallet.signCashScriptTransaction) {
       throw new Error(
         'Payment funding requires a CashScript-compatible wallet transaction object from backend.'
@@ -870,15 +888,10 @@ export async function fundPaymentContract(
     const broadcastResult = await broadcastTransaction(signResult.signedTransaction);
     console.log('[FlowGuard] Broadcast result:', broadcastResult);
 
-    // Confirm funding with backend
     const confirmResponse = await fetch(`${apiUrl}/payments/${paymentId}/confirm-funding`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        txHash: txId,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ txHash: txId }),
     });
 
     if (!confirmResponse.ok) {
@@ -1245,21 +1258,39 @@ export async function fundAirdropContract(
       throw new Error('Wallet not connected');
     }
 
-    // Get funding info from backend
     const apiUrl = '/api';
-    const response = await fetch(`${apiUrl}/airdrops/${airdropId}/funding-info`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to get funding info');
+    const fetchFundingInfo = async () => {
+      const response = await fetch(`${apiUrl}/airdrops/${airdropId}/funding-info`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to get funding info');
+      }
+
+      return response.json();
+    };
+
+    let data = await fetchFundingInfo();
+
+    if (data.requiresPreparation && data.preparationTransaction) {
+      console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
+      const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
+      const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
+      console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
+
+      if (prepResult.signedTransactionHash) {
+        await broadcastTransaction(prepResult.signedTransactionHash);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      data = await fetchFundingInfo();
     }
 
-    const { wcTransaction } = await response.json();
+    const { wcTransaction } = data;
     if (!wcTransaction || !wallet.signCashScriptTransaction) {
       throw new Error(
         'Airdrop funding requires a CashScript-compatible wallet transaction object from backend.'
@@ -1269,15 +1300,15 @@ export async function fundAirdropContract(
     const signResult = await wallet.signCashScriptTransaction(deserializeWcSignOptions(wcTransaction));
     const txId = signResult.signedTransactionHash;
 
-    // Confirm funding with backend
+    if (txId) {
+      const broadcastResult = await broadcastTransaction(txId);
+      console.log('[FlowGuard] Broadcast result:', broadcastResult);
+    }
+
     const confirmResponse = await fetch(`${apiUrl}/airdrops/${airdropId}/confirm-funding`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        txHash: txId,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ txHash: txId }),
     });
 
     if (!confirmResponse.ok) {

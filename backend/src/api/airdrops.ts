@@ -340,34 +340,51 @@ router.get('/airdrops/:id/funding-info', async (req: Request, res: Response) => 
     const fundingAmountOnChain = displayAmountToOnChain(campaign.total_amount, campaign.token_type);
     const nftCommitment = campaign.nft_commitment || '';
 
-    // Build funding transaction
     const fundingService = new AirdropFundingService('chipnet');
-    const fundingTx = await fundingService.buildFundingTransaction({
-      contractAddress: campaign.contract_address,
-      creatorAddress: campaign.creator,
-      totalAmount: fundingAmountOnChain,
-      merkleRoot: campaign.merkle_root,
-      tokenType: normalizeAirdropTokenType(campaign.token_type),
-      tokenCategory: campaign.token_category,
-      nftCommitment,
-      nftCapability: 'mutable',
-    });
 
-    res.json({
-      success: true,
-      fundingInfo: {
+    try {
+      const fundingTx = await fundingService.buildFundingTransaction({
         contractAddress: campaign.contract_address,
-        totalAmount: campaign.total_amount,
-        onChainAmount: fundingAmountOnChain,
-        tokenType: campaign.token_type,
-        merkleRoot: campaign.merkle_root || null,
-        requiresMerkle,
-        inputs: fundingTx.inputs,
-        outputs: fundingTx.outputs,
-        fee: fundingTx.fee,
-      },
-      wcTransaction: serializeWcTransaction(fundingTx.wcTransaction),
-    });
+        creatorAddress: campaign.creator,
+        totalAmount: fundingAmountOnChain,
+        merkleRoot: campaign.merkle_root,
+        tokenType: normalizeAirdropTokenType(campaign.token_type),
+        tokenCategory: campaign.token_category,
+        nftCommitment,
+        nftCapability: 'mutable',
+      });
+
+      res.json({
+        success: true,
+        fundingInfo: {
+          contractAddress: campaign.contract_address,
+          totalAmount: campaign.total_amount,
+          onChainAmount: fundingAmountOnChain,
+          tokenType: campaign.token_type,
+          merkleRoot: campaign.merkle_root || null,
+          requiresMerkle,
+          inputs: fundingTx.inputs,
+          outputs: fundingTx.outputs,
+          fee: fundingTx.fee,
+        },
+        wcTransaction: serializeWcTransaction(fundingTx.wcTransaction),
+      });
+    } catch (fundingError: any) {
+      if (fundingError.message?.includes('outpoint index 0')) {
+        const { checkAndPrepareGenesisUtxo } = await import('../utils/genesisPrep.js');
+        const provider = new (await import('cashscript')).ElectrumNetworkProvider('chipnet');
+        const prepResult = await checkAndPrepareGenesisUtxo(provider, campaign.creator);
+        if (prepResult.required && prepResult.wcTransaction) {
+          return res.json({
+            success: false,
+            requiresPreparation: true,
+            preparationTransaction: serializeWcTransaction(prepResult.wcTransaction),
+            message: 'Your wallet needs a consolidation transaction before funding. Please sign to proceed.',
+          });
+        }
+      }
+      throw fundingError;
+    }
   } catch (error: any) {
     console.error(`GET /airdrops/${req.params.id}/funding-info error:`, error);
     res.status(500).json({ error: 'Failed to get funding info', message: error.message });
@@ -406,9 +423,9 @@ router.post('/airdrops/:id/confirm-funding', async (req: Request, res: Response)
         minimumSatoshis: BigInt(isTokenAirdrop ? 546 : Math.max(546, fundingAmountOnChain)),
         ...(isTokenAirdrop && campaign.token_category
           ? {
-              tokenCategory: campaign.token_category,
-              minimumTokenAmount: BigInt(Math.max(0, Math.trunc(fundingAmountOnChain))),
-            }
+            tokenCategory: campaign.token_category,
+            minimumTokenAmount: BigInt(Math.max(0, Math.trunc(fundingAmountOnChain))),
+          }
           : {}),
         requireNft: true,
         requiredNftCapability: 'mutable',
@@ -633,9 +650,9 @@ router.post('/airdrops/:id/confirm-claim', async (req: Request, res: Response) =
         minimumSatoshis: BigInt(isTokenAirdrop ? 546 : Math.max(546, claimedAmountOnChain)),
         ...(isTokenAirdrop && campaign.token_category
           ? {
-              tokenCategory: campaign.token_category,
-              minimumTokenAmount: BigInt(Math.max(0, Math.trunc(claimedAmountOnChain))),
-            }
+            tokenCategory: campaign.token_category,
+            minimumTokenAmount: BigInt(Math.max(0, Math.trunc(claimedAmountOnChain))),
+          }
           : {}),
       },
       'chipnet',
@@ -831,7 +848,7 @@ router.post('/airdrops/:id/cancel', async (req: Request, res: Response) => {
     const warning = signerMatchesReturn
       ? undefined
       : 'Cancel refunds are enforced to authority hash in the contract constructor. ' +
-        'If this address is wrong, redeploy campaign with the correct creator authority address.';
+      'If this address is wrong, redeploy campaign with the correct creator authority address.';
 
     res.json({
       success: true,
@@ -888,9 +905,9 @@ router.post('/airdrops/:id/confirm-cancel', async (req: Request, res: Response) 
         minimumSatoshis: 546n,
         ...(isTokenAirdrop && campaign.token_category
           ? {
-              tokenCategory: campaign.token_category,
-              minimumTokenAmount: 1n,
-            }
+            tokenCategory: campaign.token_category,
+            minimumTokenAmount: 1n,
+          }
           : {}),
       },
       'chipnet',

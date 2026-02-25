@@ -545,31 +545,48 @@ router.get('/payments/:id/funding-info', async (req: Request, res: Response) => 
     const fundingAmountDisplay = Number(payment.amount_per_period) * fundedPeriods;
     const fundingAmountOnChain = displayAmountToOnChain(fundingAmountDisplay, payment.token_type);
 
-    // Build funding transaction
     const fundingService = new PaymentFundingService('chipnet');
-    const fundingTx = await fundingService.buildFundingTransaction({
-      contractAddress: payment.contract_address,
-      senderAddress: payment.sender,
-      amount: fundingAmountOnChain,
-      tokenType: normalizePaymentTokenType(payment.token_type),
-      tokenCategory: payment.token_category,
-      nftCommitment: payment.nft_commitment || '',
-      nftCapability: 'mutable',
-    });
 
-    res.json({
-      success: true,
-      fundingInfo: {
+    try {
+      const fundingTx = await fundingService.buildFundingTransaction({
         contractAddress: payment.contract_address,
-        amount: fundingAmountDisplay,
-        onChainAmount: fundingAmountOnChain,
-        tokenType: payment.token_type,
-        inputs: fundingTx.inputs,
-        outputs: fundingTx.outputs,
-        fee: fundingTx.fee,
-      },
-      wcTransaction: serializeWcTransaction(fundingTx.wcTransaction),
-    });
+        senderAddress: payment.sender,
+        amount: fundingAmountOnChain,
+        tokenType: normalizePaymentTokenType(payment.token_type),
+        tokenCategory: payment.token_category,
+        nftCommitment: payment.nft_commitment || '',
+        nftCapability: 'mutable',
+      });
+
+      res.json({
+        success: true,
+        fundingInfo: {
+          contractAddress: payment.contract_address,
+          amount: fundingAmountDisplay,
+          onChainAmount: fundingAmountOnChain,
+          tokenType: payment.token_type,
+          inputs: fundingTx.inputs,
+          outputs: fundingTx.outputs,
+          fee: fundingTx.fee,
+        },
+        wcTransaction: serializeWcTransaction(fundingTx.wcTransaction),
+      });
+    } catch (fundingError: any) {
+      if (fundingError.message?.includes('outpoint index 0')) {
+        const { checkAndPrepareGenesisUtxo } = await import('../utils/genesisPrep.js');
+        const provider = new (await import('cashscript')).ElectrumNetworkProvider('chipnet');
+        const prepResult = await checkAndPrepareGenesisUtxo(provider, payment.sender);
+        if (prepResult.required && prepResult.wcTransaction) {
+          return res.json({
+            success: false,
+            requiresPreparation: true,
+            preparationTransaction: serializeWcTransaction(prepResult.wcTransaction),
+            message: 'Your wallet needs a consolidation transaction before funding. Please sign to proceed.',
+          });
+        }
+      }
+      throw fundingError;
+    }
   } catch (error: any) {
     console.error(`GET /payments/${req.params.id}/funding-info error:`, error);
     res.status(500).json({ error: 'Failed to get funding info', message: error.message });
