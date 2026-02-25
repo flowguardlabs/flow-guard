@@ -22,41 +22,16 @@ router.get('/balance/:address', async (req, res) => {
       });
     }
 
-    // Determine network and API endpoint
     const isTestnet = address.startsWith('bchtest:');
     const network = isTestnet ? 'chipnet' : 'mainnet';
-    const apiUrl = isTestnet
-      ? 'https://gql.chaingraph.pat.mn/v1/graphql'
-      : 'https://gql.chaingraph.cash/v1/graphql';
 
-    // Extract address without prefix for query
-    const addressWithoutPrefix = address.split(':')[1];
+    // Use ElectrumNetworkProvider to get UTXOs and sum balances
+    const { ElectrumNetworkProvider } = await import('cashscript');
+    const provider = new ElectrumNetworkProvider(network as any);
+    const utxos = await provider.getUtxos(address);
 
-    // Query Chaingraph for UTXOs
-    const query = `
-      query GetBalance($address: String!) {
-        output(where: {
-          locking_bytecode_pattern: {_like: $address}
-          _not: {spent_by: {}}
-        }) {
-          value_satoshis
-        }
-      }
-    `;
-
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query,
-        variables: { address: `%${addressWithoutPrefix}%` },
-      }),
-    });
-
-    const data = await response.json() as any;
-    const outputs = data?.data?.output || [];
-    const balanceSat = outputs.reduce((sum: number, output: any) => sum + (output.value_satoshis || 0), 0);
-    const balanceBch = balanceSat / 100000000;
+    const balanceSat = utxos.reduce((sum, utxo) => sum + Number(utxo.satoshis), 0);
+    const balanceBch = balanceSat / 100_000_000;
 
     res.json({
       address,
