@@ -380,6 +380,28 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
   }
 
   /**
+   * Suppress chrome-extension:// redirects that the WC SDK triggers after requests.
+   * The SDK tries to deep-link to the wallet app but on desktop this causes
+   * unwanted navigation to chrome-extension://invalid/ or extension pages.
+   */
+  private async _requestWithoutRedirect<T>(fn: () => Promise<T>): Promise<T> {
+    const originalOpen = window.open;
+    window.open = (url?: string | URL, ...rest: any[]) => {
+      const urlStr = url?.toString() || '';
+      if (urlStr.startsWith('chrome-extension://') || urlStr === '') {
+        console.log('[Web3ModalWC] Suppressed extension redirect:', urlStr);
+        return null;
+      }
+      return originalOpen.call(window, url, ...rest);
+    };
+    try {
+      return await fn();
+    } finally {
+      window.open = originalOpen;
+    }
+  }
+
+  /**
    * Sign CashScript transaction via WalletConnect
    *
    * Uses libauth stringify for proper serialization of Uint8Array and BigInt
@@ -409,14 +431,16 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
         })
       );
 
-      const result = await this.client.request({
-        topic: this.session.topic,
-        chainId: connectedChain,
-        request: {
-          method: 'bch_signTransaction',
-          params: serializedParams,
-        },
-      });
+      const result = await this._requestWithoutRedirect(() =>
+        this.client!.request({
+          topic: this.session!.topic,
+          chainId: connectedChain,
+          request: {
+            method: 'bch_signTransaction',
+            params: serializedParams,
+          },
+        })
+      );
 
       const typedResult = result as {
         signedTransaction: string;
@@ -453,14 +477,16 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
 
       console.log('[Web3ModalWC] Signing message...');
 
-      const signature = await this.client.request({
-        topic: this.session.topic,
-        chainId: connectedChain,
-        request: {
-          method: 'bch_signMessage',
-          params: { message, userPrompt },
-        },
-      });
+      const signature = await this._requestWithoutRedirect(() =>
+        this.client!.request({
+          topic: this.session!.topic,
+          chainId: connectedChain,
+          request: {
+            method: 'bch_signMessage',
+            params: { message, userPrompt },
+          },
+        })
+      );
 
       console.log('[Web3ModalWC] Message signed');
       return signature as string;
