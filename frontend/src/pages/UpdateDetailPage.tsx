@@ -16,6 +16,592 @@ interface BlogPost {
 }
 
 const BLOG_POSTS: Record<string, BlogPost> = {
+    'whats-left-before-flowguard-goes-to-mainnet': {
+        slug: 'whats-left-before-flowguard-goes-to-mainnet',
+        title: "What's Left Before FlowGuard Goes to Mainnet",
+        date: '2026-02-25',
+        summary: 'FlowGuard has been tested end-to-end on Chipnet. This post outlines what remains before production deployment on Bitcoin Cash with a clear checklist.',
+        tags: ['Roadmap', 'Mainnet', 'BCH', 'Product'],
+        readingTime: 6,
+        author: 'FlowGuard Team',
+        content: `
+# What's Left Before FlowGuard Goes to Mainnet
+
+## Introduction
+
+FlowGuard has been tested end-to-end on Chipnet.
+
+Vaults deploy.
+Streams track state.
+Proposals execute.
+Budget unlocks enforce schedule.
+
+But Chipnet is not mainnet.
+
+This post outlines what remains before production deployment on Bitcoin Cash.
+
+Clear checklist. No assumptions.
+
+## 1. Covenant Signing UX Finalization
+
+The core transaction flow is working:
+
+Backend builds template → Wallet signs → Network validates
+
+Before mainnet, UX needs refinement:
+
+- Clear signer prompts
+- Better transaction previews
+- Error surface clarity
+- Improved multi-signer coordination
+
+The goal:
+
+Reduce user error without weakening contract enforcement.
+
+## 2. Independent Security Audit
+
+Treasury infrastructure must be audited.
+
+Audit scope includes:
+
+- VaultCovenant enforcement logic
+- Vesting commitment state transitions
+- Merkle airdrop validation
+- Governance threshold validation
+- Edge-case transaction ordering
+
+Focus areas:
+
+- Signature validation
+- Cap enforcement
+- State mutation correctness
+- Over-release prevention
+
+Mainnet treasury logic must be reviewed before live capital is locked.
+
+## 3. Mainnet Contract Deployment
+
+Initial mainnet rollout will include:
+
+Phase 1:
+
+- Vaults
+- Vesting Streams
+
+Phase 2:
+
+- Budget plans
+- Governance modules
+- Airdrops
+
+Deployment will follow:
+
+- Fresh contract compilation
+- Verified bytecode
+- Public contract address publication
+
+No hidden upgrades.
+
+## 4. Public Demo Treasury
+
+A public treasury will be deployed on mainnet to demonstrate:
+
+- Real vault
+- Real signers
+- Real cap enforcement
+- Real proposal execution
+
+This allows:
+
+- Open inspection
+- Community verification
+- Live transparency
+
+Infrastructure must be observable, not theoretical.
+
+## 5. First DAO and Grant Onboarding
+
+After deployment:
+
+Target early adopters:
+
+- BCH grant programs
+- Developer collectives
+- Hackathon prize pools
+- Contributor payroll teams
+
+FlowGuard will support onboarding:
+
+- Treasury structuring
+- Cap configuration
+- Vesting design
+- Governance integration
+
+The goal is real usage, not just deployment.
+
+## 6. Automation Layer (Executor Network)
+
+Future phase:
+
+- Automated cycle unlock triggers
+- Scheduled execution bots
+- Optional notification systems
+
+Important:
+
+Automation does not override contracts.
+It only submits valid transactions.
+
+Enforcement always remains on-chain.
+
+## Why This Matters
+
+Infrastructure credibility depends on:
+
+- Audit discipline
+- Production clarity
+- Transparent deployment
+- Real adoption
+
+FlowGuard is not being positioned as "finished."
+
+It is being positioned as:
+
+Tested → Audited → Deployed → Adopted.
+
+That sequence matters.
+
+## Long-Term Direction
+
+Beyond mainnet:
+
+- Executor marketplace
+- Treasury analytics layer
+- Template DAO stacks
+- BCH-native coordination tooling
+
+Treasury management is foundational.
+
+If done correctly, it supports:
+
+- Grants
+- Governance
+- Contributor alignment
+- Ecosystem capital allocation
+
+## Closing
+
+FlowGuard is not a demo submission.
+
+It is being built as enforceable treasury infrastructure on Bitcoin Cash.
+
+Chipnet proved mechanics.
+
+Next:
+
+Audit.
+Deploy.
+Onboard.
+Iterate.
+
+That's the roadmap.
+`
+    },
+    'why-flowguard-makes-bch-more-useful': {
+        slug: 'why-flowguard-makes-bch-more-useful',
+        title: 'Why FlowGuard Makes Bitcoin Cash More Useful',
+        date: '2026-02-25',
+        summary: 'Payments move value. Treasury rules protect value. Governance directs value. FlowGuard connects those pieces inside Bitcoin Cash.',
+        tags: ['BCH', 'Ecosystem', 'Product', 'Education'],
+        readingTime: 6,
+        author: 'FlowGuard Team',
+        content: `
+# Why FlowGuard Makes Bitcoin Cash More Useful
+
+## Introduction
+
+Bitcoin Cash already works well as:
+
+- A peer-to-peer payment system
+- A low-fee settlement network
+- A fast UTXO-based blockchain
+
+But payments alone are not enough to grow an ecosystem.
+
+For BCH to support:
+
+- Developer teams
+- Grant programs
+- DAOs
+- Long-term contributor alignment
+
+It needs structured treasury infrastructure.
+
+FlowGuard focuses on that layer.
+
+## BCH Today: Strong Payments, Limited Structure
+
+Today, BCH projects manage treasury using:
+
+- Shared wallets
+- Multisig setups
+- Manual distribution
+- Off-chain voting
+
+This works for small teams.
+
+But as capital grows, coordination becomes harder.
+
+Without structured treasury logic:
+
+- Budget discipline weakens
+- Governance becomes informal
+- Grants rely on trust
+- Payroll becomes manual
+
+That limits how scalable organizations on BCH can become.
+
+## What FlowGuard Adds
+
+FlowGuard introduces enforceable treasury mechanics:
+
+- Multisig with spending caps
+- Time-based unlock cycles
+- On-chain vesting streams
+- Merkle-based airdrops
+- Token-locked governance
+- Milestone budget enforcement
+
+All validated by covenant logic on Bitcoin Cash.
+
+This shifts BCH from:
+
+"Payment network"
+
+to
+
+"Coordination layer for capital."
+
+## Why Coordination Infrastructure Matters
+
+Growing ecosystems require:
+
+- Predictable capital allocation
+- Contributor retention
+- Transparent treasury operations
+- Structured grant releases
+- Binding governance outcomes
+
+Without enforceable rules, treasury decisions rely on:
+
+- Social agreement
+- Memory
+- Good intentions
+
+With covenant enforcement, rules become deterministic.
+
+This reduces ambiguity and increases confidence.
+
+## Who Benefits
+
+FlowGuard directly supports:
+
+**Developer Teams**
+
+- Monthly salary streams
+- Long-term vesting
+- Controlled spending caps
+
+**Grant Programs**
+
+- Milestone-based releases
+- Escrow-style enforcement
+- Transparent funding timelines
+
+**DAOs**
+
+- On-chain voting
+- Execution tied to results
+- Policy-based treasury management
+
+**Hackathons and Incentives**
+
+- Structured prize distribution
+- Retroactive contributor rewards
+- Claim-based allocations
+
+These are practical ecosystem needs.
+
+## Why This Is BCH-Native
+
+FlowGuard leverages:
+
+- UTXO model
+- Covenant scripting
+- CashTokens NFT commitments
+
+All inside Bitcoin Cash.
+
+No external chains.
+No bridge risk.
+No separate governance layer.
+
+That keeps infrastructure within the BCH ecosystem.
+
+## Growth Through Structure
+
+Ecosystems grow when:
+
+- Capital allocation becomes predictable
+- Governance becomes enforceable
+- Contributor incentives are clear
+- Risk is reduced
+
+FlowGuard focuses on treasury risk reduction and coordination clarity.
+
+This strengthens the foundation for long-term BCH development.
+
+## Not a New Token. Not a Fork.
+
+FlowGuard does not:
+
+- Introduce a new base token
+- Modify the protocol
+- Create a sidechain
+
+It builds on existing BCH capabilities.
+
+That means:
+
+- Immediate compatibility
+- No consensus change required
+- No fragmentation
+
+## The Bigger Picture
+
+If BCH is going to compete as infrastructure for:
+
+- Open organizations
+- Grant ecosystems
+- Community funding
+
+It needs tools beyond simple transfers.
+
+FlowGuard adds enforceable structure.
+
+That is what helps BCH become more useful.
+
+## Closing
+
+Payments move value.
+
+Treasury rules protect value.
+
+Governance directs value.
+
+FlowGuard connects those pieces inside Bitcoin Cash.
+
+It's not about hype.
+
+It's about giving BCH-native teams better tools to manage real capital.
+
+Next, we'll walk through a real-world scenario: how a 5-person BCH team could structure treasury using FlowGuard.
+`
+    },
+    'flowguard-end-to-end-testing-on-chipnet': {
+        slug: 'flowguard-end-to-end-testing-on-chipnet',
+        title: 'FlowGuard End-to-End Testing on Bitcoin Cash Chipnet',
+        date: '2026-02-25',
+        summary: 'FlowGuard has been tested end-to-end on the Bitcoin Cash Chipnet test network. This post explains what that means and what was actually executed.',
+        tags: ['Testing', 'Chipnet', 'BCH', 'Technical'],
+        readingTime: 7,
+        author: 'FlowGuard Team',
+        content: `
+# FlowGuard End-to-End Testing on Bitcoin Cash Chipnet
+
+## Introduction
+
+It's easy to build a clean UI.
+
+It's harder to prove that the system actually works on-chain.
+
+FlowGuard has been tested end-to-end on the Bitcoin Cash Chipnet test network.
+
+This post explains what that means — and what was actually executed.
+
+## What "End-to-End" Means
+
+End-to-end testing covers the full lifecycle:
+
+- Contract deployment
+- Contract funding
+- Transaction building
+- Wallet signing
+- Broadcast to network
+- On-chain validation
+- State updates
+- Explorer verification
+
+If any part fails, the flow is incomplete.
+
+We tested complete flows.
+
+## Vault Lifecycle Test
+
+The vault lifecycle included:
+
+- Deploying VaultCovenant
+- Encoding constructor parameters
+- Funding the vault with BCH
+- Creating proposals
+- Approving proposals (M-of-N signatures)
+- Executing payouts
+
+Validation checks enforced:
+
+- Approval threshold
+- Spending cap
+- Cycle unlock rules
+
+Transactions were signed via wallet and verified on the network.
+
+## Stream Lifecycle Test
+
+Streams were tested using NFT commitment state.
+
+Tested flows included:
+
+- Deploying VestingCovenant
+- Funding with BCH and NFT commitment
+- Claiming partial vested amounts
+- Updating commitment state
+- Preventing over-claim attempts
+
+Each claim transaction:
+
+- Calculated vested amount
+- Updated NFT commitment
+- Preserved remaining balance
+
+All enforced by covenant logic.
+
+## Proposal Execution Flow
+
+Governance-connected flows tested:
+
+- Proposal creation
+- Approval accumulation
+- Execution attempt before threshold (fail case)
+- Execution after threshold (success case)
+
+This confirmed:
+
+- Threshold enforcement
+- Cap enforcement
+- Contract-level validation
+
+Invalid transactions were rejected as expected.
+
+## Budget Unlock Testing
+
+Milestone-based unlock flows tested:
+
+- Attempted early unlock (rejected)
+- Unlock after timestamp passed (accepted)
+- Over-release attempt (rejected)
+
+This validated:
+
+- Time-based enforcement
+- Allocation boundaries
+- Deterministic state transitions
+
+## Non-Custodial Confirmation
+
+At no point did:
+
+- The backend sign transactions
+- A private key leave the wallet
+- A database override on-chain rules
+
+The pattern remained consistent:
+
+Backend builds template → Wallet signs → Blockchain validates
+
+If validation fails, the transaction never confirms.
+
+## Why Chipnet Testing Matters
+
+Chipnet testing verifies:
+
+- Real covenant execution
+- CashTokens compatibility
+- Transaction fee behavior
+- UTXO state updates
+- Explorer visibility
+
+It proves the contracts function under network conditions.
+
+This is different from:
+
+- Simulated logic
+- Hardcoded mock states
+- Off-chain execution demos
+
+## Transparency
+
+All transactions can be inspected via BCH explorers.
+
+- Contract addresses exist.
+- Funding transactions exist.
+- Claim transactions exist.
+- State transitions are visible in UTXOs.
+
+Testing is not theoretical.
+
+It is observable.
+
+## What This Proves
+
+FlowGuard is:
+
+- Not database-driven
+- Not admin-controlled
+- Not dependent on manual reconciliation
+
+It is covenant-enforced treasury logic operating on Bitcoin Cash.
+
+Testing confirms that the enforcement holds under live conditions.
+
+## What Comes Next
+
+Chipnet testing is the foundation.
+
+Next steps before mainnet:
+
+- Final UX refinements
+- Security audit
+- Production deployment
+- First live DAO treasury
+
+FlowGuard is not a sprint submission artifact.
+
+It is being built for long-term BCH ecosystem use.
+
+## Closing
+
+Infrastructure must be tested where it runs.
+
+FlowGuard contracts have been executed on-chain.
+
+Rules were validated by consensus.
+
+Transactions were verifiable.
+
+That is the standard treasury infrastructure requires.
+`
+    },
     'how-flowguard-implements-on-chain-governance': {
         slug: 'how-flowguard-implements-on-chain-governance',
         title: 'How FlowGuard Implements On-Chain Governance on Bitcoin Cash',

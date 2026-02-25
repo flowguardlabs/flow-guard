@@ -18,6 +18,36 @@ interface BlogPost {
 
 const BLOG_POSTS: BlogPost[] = [
     {
+        slug: 'whats-left-before-flowguard-goes-to-mainnet',
+        title: "What's Left Before FlowGuard Goes to Mainnet",
+        date: '2026-02-25',
+        summary: 'FlowGuard has been tested end-to-end on Chipnet. This post outlines what remains before production deployment on Bitcoin Cash with a clear checklist.',
+        tags: ['Roadmap', 'Mainnet', 'BCH', 'Product'],
+        readingTime: 6,
+        status: 'published',
+        author: 'FlowGuard Team'
+    },
+    {
+        slug: 'why-flowguard-makes-bch-more-useful',
+        title: 'Why FlowGuard Makes Bitcoin Cash More Useful',
+        date: '2026-02-25',
+        summary: 'Payments move value. Treasury rules protect value. Governance directs value. FlowGuard connects those pieces inside Bitcoin Cash.',
+        tags: ['BCH', 'Ecosystem', 'Product', 'Education'],
+        readingTime: 6,
+        status: 'published',
+        author: 'FlowGuard Team'
+    },
+    {
+        slug: 'flowguard-end-to-end-testing-on-chipnet',
+        title: 'FlowGuard End-to-End Testing on Bitcoin Cash Chipnet',
+        date: '2026-02-25',
+        summary: 'FlowGuard has been tested end-to-end on the Bitcoin Cash Chipnet test network. This post explains what that means and what was actually executed.',
+        tags: ['Testing', 'Chipnet', 'BCH', 'Technical'],
+        readingTime: 7,
+        status: 'published',
+        author: 'FlowGuard Team'
+    },
+    {
         slug: 'how-flowguard-implements-on-chain-governance',
         title: 'How FlowGuard Implements On-Chain Governance on Bitcoin Cash',
         date: '2026-02-24',
