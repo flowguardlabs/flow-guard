@@ -44,7 +44,7 @@ function toToken(
   const tokenAmount = toNonNegativeBigInt(amount, 'token amount');
 
   return {
-    category: hexToBin(category).slice().reverse(),
+    category: hexToBin(category),
     amount: tokenAmount,
     ...(nftCapability !== undefined && nftCommitment !== undefined
       ? {
@@ -71,7 +71,7 @@ export function buildFundingWcTransaction(params: {
   const inputLockingBytecode = getLockingBytecode(params.inputOwnerAddress);
 
   const txInputs = params.inputs.map((input) => ({
-    outpointTransactionHash: hexToBin(input.txid).slice().reverse(),
+    outpointTransactionHash: hexToBin(input.txid),
     outpointIndex: input.vout,
     unlockingBytecode: new Uint8Array(0),
     sequenceNumber: 0xfffffffe,
