@@ -8,7 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "postinstall": "if [ -d \"../contracts\" ]; then pnpm --dir ../contracts install --frozen-lockfile && pnpm --dir ../contracts build; fi",
+    "postinstall": "if [ -z \"$FLOWGUARD_POSTINSTALL\" ] && [ -d \"../contracts\" ]; then FLOWGUARD_POSTINSTALL=1 pnpm --dir ../contracts install --frozen-lockfile && pnpm --dir ../contracts build; fi",
     "test": "jest",
     "lint": "eslint src --ext .ts",
     "deploy:chipnet": "pnpm tsx src/scripts/deploy-chipnet.ts",

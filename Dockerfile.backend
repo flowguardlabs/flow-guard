@@ -13,6 +13,7 @@ RUN cd node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && npm ru
 
 COPY backend/src ./src
 COPY backend/tsconfig.json ./tsconfig.json
+COPY contracts/artifacts ./contracts/artifacts
 
 RUN pnpm build
 
