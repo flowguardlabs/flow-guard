@@ -12,11 +12,17 @@ COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm
 RUN pnpm install --frozen-lockfile
 
+# Build contracts (workspace sibling) to produce artifacts
+COPY ../contracts/package.json ../contracts/pnpm-lock.yaml /contracts/
+RUN cd /contracts && pnpm install --frozen-lockfile && pnpm build
+
 # Rebuild better-sqlite3 from source for Alpine (for SQLite fallback)
 RUN cd node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && npm run build-release
 
-# Copy source code
+# Copy backend source code
 COPY . .
+# Copy built contract artifacts into backend image
+COPY ../contracts/artifacts ./contracts/artifacts
 
 # Build TypeScript
 RUN pnpm build
