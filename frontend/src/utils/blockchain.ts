@@ -48,6 +48,13 @@ export interface SerializedWcTransaction {
   userPrompt?: string;
 }
 
+function requireSignedTransactionHex(signResult: CashScriptSignResponse, context: string): string {
+  if (!signResult?.signedTransaction || typeof signResult.signedTransaction !== 'string') {
+    throw new Error(`${context}: wallet did not return signed transaction hex`);
+  }
+  return signResult.signedTransaction;
+}
+
 /**
  * Deserialize a serialized WC transaction payload from backend into wallet-ready signing options.
  * Also ensures non-contract inputs keep empty unlocking bytecode so wallets can recognize owned inputs.
@@ -861,12 +868,11 @@ export async function fundPaymentContract(
     if (data.requiresPreparation && data.preparationTransaction) {
       console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
       const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
+      prepOptions.broadcast = false;
       const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
       console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
-
-      if (prepResult.signedTransactionHash) {
-        await broadcastTransaction(prepResult.signedTransactionHash);
-      }
+      const prepSignedHex = requireSignedTransactionHex(prepResult, 'Preparation signing failed');
+      await broadcastTransaction(prepSignedHex);
 
       await new Promise(resolve => setTimeout(resolve, 3000));
       data = await fetchFundingInfo();
@@ -882,10 +888,11 @@ export async function fundPaymentContract(
     const signOptions = deserializeWcSignOptions(wcTransaction);
     signOptions.broadcast = false;
     const signResult = await wallet.signCashScriptTransaction(signOptions);
-    const txId = signResult.signedTransactionHash;
+    const signedTxHex = requireSignedTransactionHex(signResult, 'Payment funding signing failed');
 
-    console.log('[FlowGuard] Payment signed successfully, broadcasting...', txId);
-    const broadcastResult = await broadcastTransaction(signResult.signedTransaction);
+    console.log('[FlowGuard] Payment signed successfully, broadcasting...', signResult.signedTransactionHash);
+    const broadcastResult = await broadcastTransaction(signedTxHex);
+    const txId = signResult.signedTransactionHash || broadcastResult.txid;
     console.log('[FlowGuard] Broadcast result:', broadcastResult);
 
     const confirmResponse = await fetch(`${apiUrl}/payments/${paymentId}/confirm-funding`, {
@@ -1279,12 +1286,11 @@ export async function fundAirdropContract(
     if (data.requiresPreparation && data.preparationTransaction) {
       console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
       const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
+      prepOptions.broadcast = false;
       const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
       console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
-
-      if (prepResult.signedTransactionHash) {
-        await broadcastTransaction(prepResult.signedTransactionHash);
-      }
+      const prepSignedHex = requireSignedTransactionHex(prepResult, 'Preparation signing failed');
+      await broadcastTransaction(prepSignedHex);
 
       await new Promise(resolve => setTimeout(resolve, 3000));
       data = await fetchFundingInfo();
@@ -1297,13 +1303,13 @@ export async function fundAirdropContract(
       );
     }
 
-    const signResult = await wallet.signCashScriptTransaction(deserializeWcSignOptions(wcTransaction));
-    const txId = signResult.signedTransactionHash;
-
-    if (txId) {
-      const broadcastResult = await broadcastTransaction(txId);
-      console.log('[FlowGuard] Broadcast result:', broadcastResult);
-    }
+    const signOptions = deserializeWcSignOptions(wcTransaction);
+    signOptions.broadcast = false;
+    const signResult = await wallet.signCashScriptTransaction(signOptions);
+    const signedTxHex = requireSignedTransactionHex(signResult, 'Airdrop funding signing failed');
+    const broadcastResult = await broadcastTransaction(signedTxHex);
+    const txId = signResult.signedTransactionHash || broadcastResult.txid;
+    console.log('[FlowGuard] Broadcast result:', broadcastResult);
 
     const confirmResponse = await fetch(`${apiUrl}/airdrops/${airdropId}/confirm-funding`, {
       method: 'POST',
