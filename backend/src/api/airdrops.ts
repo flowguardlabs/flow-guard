@@ -36,11 +36,12 @@ router.get('/airdrops', async (req: Request, res: Response) => {
     }
 
     const rows = db!.prepare('SELECT * FROM airdrops WHERE creator = ? ORDER BY created_at DESC').all(creator);
+    const campaigns = rows.map((row: any) => normalizeCampaignForResponse(req, row));
 
     res.json({
       success: true,
-      campaigns: rows,
-      total: rows.length,
+      campaigns,
+      total: campaigns.length,
     });
   } catch (error: any) {
     console.error('GET /airdrops error:', error);
@@ -70,11 +71,12 @@ router.get('/airdrops/claimable', async (req: Request, res: Response) => {
           WHERE c.campaign_id = a.id AND c.claimer = ?
         ) < COALESCE(a.max_claims_per_address, 1)
     `).all(now, address);
+    const campaigns = rows.map((row: any) => normalizeCampaignForResponse(req, row));
 
     res.json({
       success: true,
-      campaigns: rows,
-      total: rows.length,
+      campaigns,
+      total: campaigns.length,
     });
   } catch (error: any) {
     console.error('GET /airdrops/claimable error:', error);
@@ -104,7 +106,7 @@ router.get('/airdrops/claim/:token', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       campaignId: campaign.id,
-      campaign,
+      campaign: normalizeCampaignForResponse(req, campaign),
     });
   } catch (error: any) {
     console.error(`GET /airdrops/claim/${req.params.token} error:`, error);
@@ -129,7 +131,7 @@ router.get('/airdrops/:id', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      campaign,
+      campaign: normalizeCampaignForResponse(req, campaign),
       claims,
     });
   } catch (error: any) {
@@ -186,7 +188,8 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
     const campaignId = `#FG-DROP-${String((countRow?.cnt ?? 0) + 1).padStart(3, '0')}`;
     const now = Math.floor(Date.now() / 1000);
     const claimToken = randomUUID();
-    const claimLink = `${process.env.APP_URL || 'http://localhost:5173'}/claim/${claimToken}`;
+    const publicAppBaseUrl = resolvePublicAppBaseUrl(req);
+    const claimLink = `${publicAppBaseUrl}/claim/${claimToken}`;
 
     // Deploy airdrop contract with proper NFT state
     const deploymentService = new AirdropDeploymentService('chipnet');
@@ -241,7 +244,7 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
     res.json({
       success: true,
       message: 'Airdrop contract deployed - awaiting funding transaction',
-      campaign,
+      campaign: normalizeCampaignForResponse(req, campaign),
       deployment: {
         contractAddress: deployment.contractAddress,
         fundingRequired: deployment.fundingTxRequired,
@@ -973,4 +976,46 @@ function hashToP2pkhAddress(hash20: Uint8Array): string {
     throw new Error(`Failed to encode authority P2PKH address: ${encoded}`);
   }
   return encoded.address;
+}
+
+function resolvePublicAppBaseUrl(req: Request): string {
+  const configured = (process.env.APP_URL || process.env.FRONTEND_URL || process.env.PUBLIC_APP_URL || '').trim();
+  if (configured) {
+    return configured.replace(/\/+$/, '');
+  }
+
+  const origin = (req.get('origin') || '').trim();
+  if (origin) {
+    return origin.replace(/\/+$/, '');
+  }
+
+  const forwardedProto = (req.get('x-forwarded-proto') || '').split(',')[0]?.trim();
+  const forwardedHost = (req.get('x-forwarded-host') || '').split(',')[0]?.trim();
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, '');
+  }
+
+  return 'http://localhost:5173';
+}
+
+function normalizeCampaignForResponse(req: Request, campaign: any): any {
+  if (!campaign || typeof campaign !== 'object') {
+    return campaign;
+  }
+  return {
+    ...campaign,
+    claim_link: normalizeClaimLinkForResponse(req, campaign.claim_link),
+  };
+}
+
+function normalizeClaimLinkForResponse(req: Request, claimLink: unknown): string {
+  if (typeof claimLink !== 'string') {
+    return '';
+  }
+  const trimmed = claimLink.trim();
+  const match = trimmed.match(/\/claim\/([a-zA-Z0-9-]{8,128})$/);
+  if (!match) {
+    return trimmed;
+  }
+  return `${resolvePublicAppBaseUrl(req)}/claim/${match[1]}`;
 }
