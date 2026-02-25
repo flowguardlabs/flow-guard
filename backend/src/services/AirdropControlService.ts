@@ -2,7 +2,6 @@ import {
   Contract,
   ElectrumNetworkProvider,
   TransactionBuilder,
-  SignatureTemplate,
   placeholderPublicKey,
   placeholderSignature,
   type WcTransactionObject,
@@ -72,7 +71,7 @@ export class AirdropControlService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.pause(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );
@@ -127,7 +126,7 @@ export class AirdropControlService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.cancel(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );

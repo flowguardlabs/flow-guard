@@ -55,6 +55,45 @@ function requireSignedTransactionHex(signResult: CashScriptSignResponse, context
   return signResult.signedTransaction;
 }
 
+async function resolveTxHashFromSignResult(
+  signResult: CashScriptSignResponse,
+  signOptions: CashScriptSignOptions,
+  context: string,
+  metadata?: {
+    txType?: 'create' | 'unlock' | 'proposal' | 'approve' | 'payout';
+    vaultId?: string;
+    proposalId?: string;
+    amount?: number;
+    fromAddress?: string;
+    toAddress?: string;
+  }
+): Promise<string> {
+  const signedTxHex = requireSignedTransactionHex(signResult, context);
+  const walletBroadcasts = signOptions.broadcast ?? true;
+
+  if (walletBroadcasts) {
+    if (!signResult.signedTransactionHash) {
+      throw new Error(`${context}: wallet did not return transaction hash after broadcast`);
+    }
+    return signResult.signedTransactionHash;
+  }
+
+  const broadcastResult = await broadcastTransaction(signedTxHex, metadata);
+  return signResult.signedTransactionHash || broadcastResult.txid;
+}
+
+function getApiErrorMessage(error: any, fallback: string): string {
+  if (!error || typeof error !== 'object') {
+    return fallback;
+  }
+  const generic = typeof error.error === 'string' ? error.error.trim() : '';
+  const detail = typeof error.message === 'string' ? error.message.trim() : '';
+  if (generic && detail && generic !== detail) {
+    return `${generic}: ${detail}`;
+  }
+  return detail || generic || fallback;
+}
+
 /**
  * Deserialize a serialized WC transaction payload from backend into wallet-ready signing options.
  * Also ensures non-contract inputs keep empty unlocking bytecode so wallets can recognize owned inputs.
@@ -266,7 +305,7 @@ async function signFromBackendPayload(
     const signResult = await wallet.signCashScriptTransaction(
       signOptions
     );
-    return signResult.signedTransactionHash;
+    return resolveTxHashFromSignResult(signResult, signOptions, 'WalletConnect signing failed', metadata);
   }
 
   if (payload?.transaction?.txHex) {
@@ -868,11 +907,9 @@ export async function fundPaymentContract(
     if (data.requiresPreparation && data.preparationTransaction) {
       console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
       const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
-      prepOptions.broadcast = false;
       const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
       console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
-      const prepSignedHex = requireSignedTransactionHex(prepResult, 'Preparation signing failed');
-      await broadcastTransaction(prepSignedHex);
+      await resolveTxHashFromSignResult(prepResult, prepOptions, 'Preparation signing failed');
 
       await new Promise(resolve => setTimeout(resolve, 3000));
       data = await fetchFundingInfo();
@@ -886,14 +923,9 @@ export async function fundPaymentContract(
     }
 
     const signOptions = deserializeWcSignOptions(wcTransaction);
-    signOptions.broadcast = false;
     const signResult = await wallet.signCashScriptTransaction(signOptions);
-    const signedTxHex = requireSignedTransactionHex(signResult, 'Payment funding signing failed');
-
-    console.log('[FlowGuard] Payment signed successfully, broadcasting...', signResult.signedTransactionHash);
-    const broadcastResult = await broadcastTransaction(signedTxHex);
-    const txId = signResult.signedTransactionHash || broadcastResult.txid;
-    console.log('[FlowGuard] Broadcast result:', broadcastResult);
+    const txId = await resolveTxHashFromSignResult(signResult, signOptions, 'Payment funding signing failed');
+    console.log('[FlowGuard] Payment signed successfully, tx hash:', txId);
 
     const confirmResponse = await fetch(`${apiUrl}/payments/${paymentId}/confirm-funding`, {
       method: 'POST',
@@ -1024,7 +1056,7 @@ export async function pausePaymentOnChain(
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to build pause transaction' }));
-    throw new Error(error.error || error.message || 'Failed to build pause transaction');
+    throw new Error(getApiErrorMessage(error, 'Failed to build pause transaction'));
   }
 
   const { wcTransaction } = await response.json();
@@ -1032,8 +1064,9 @@ export async function pausePaymentOnChain(
     throw new Error('Backend did not return pause transaction');
   }
 
-  const signResult = await wallet.signCashScriptTransaction(deserializeWcSignOptions(wcTransaction));
-  const txHash = signResult.signedTransactionHash;
+  const signOptions = deserializeWcSignOptions(wcTransaction);
+  const signResult = await wallet.signCashScriptTransaction(signOptions);
+  const txHash = await resolveTxHashFromSignResult(signResult, signOptions, 'Airdrop pause signing failed');
 
   const confirmResponse = await fetch(`${apiUrl}/payments/${paymentId}/confirm-pause`, {
     method: 'POST',
@@ -1042,7 +1075,7 @@ export async function pausePaymentOnChain(
   });
   if (!confirmResponse.ok) {
     const error = await confirmResponse.json().catch(() => ({ error: 'Failed to confirm pause transaction' }));
-    throw new Error(error.error || error.message || 'Failed to confirm pause transaction');
+    throw new Error(getApiErrorMessage(error, 'Failed to confirm pause transaction'));
   }
 
   return txHash;
@@ -1120,7 +1153,7 @@ export async function cancelPaymentOnChain(
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Failed to build cancel transaction' }));
-    throw new Error(error.error || error.message || 'Failed to build cancel transaction');
+    throw new Error(getApiErrorMessage(error, 'Failed to build cancel transaction'));
   }
 
   const { wcTransaction } = await response.json();
@@ -1128,8 +1161,9 @@ export async function cancelPaymentOnChain(
     throw new Error('Backend did not return cancel transaction');
   }
 
-  const signResult = await wallet.signCashScriptTransaction(deserializeWcSignOptions(wcTransaction));
-  const txHash = signResult.signedTransactionHash;
+  const signOptions = deserializeWcSignOptions(wcTransaction);
+  const signResult = await wallet.signCashScriptTransaction(signOptions);
+  const txHash = await resolveTxHashFromSignResult(signResult, signOptions, 'Airdrop cancel signing failed');
 
   const confirmResponse = await fetch(`${apiUrl}/payments/${paymentId}/confirm-cancel`, {
     method: 'POST',
@@ -1138,7 +1172,7 @@ export async function cancelPaymentOnChain(
   });
   if (!confirmResponse.ok) {
     const error = await confirmResponse.json().catch(() => ({ error: 'Failed to confirm cancel transaction' }));
-    throw new Error(error.error || error.message || 'Failed to confirm cancel transaction');
+    throw new Error(getApiErrorMessage(error, 'Failed to confirm cancel transaction'));
   }
 
   return txHash;
@@ -1286,11 +1320,9 @@ export async function fundAirdropContract(
     if (data.requiresPreparation && data.preparationTransaction) {
       console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
       const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
-      prepOptions.broadcast = false;
       const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
       console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
-      const prepSignedHex = requireSignedTransactionHex(prepResult, 'Preparation signing failed');
-      await broadcastTransaction(prepSignedHex);
+      await resolveTxHashFromSignResult(prepResult, prepOptions, 'Preparation signing failed');
 
       await new Promise(resolve => setTimeout(resolve, 3000));
       data = await fetchFundingInfo();
@@ -1304,12 +1336,9 @@ export async function fundAirdropContract(
     }
 
     const signOptions = deserializeWcSignOptions(wcTransaction);
-    signOptions.broadcast = false;
     const signResult = await wallet.signCashScriptTransaction(signOptions);
-    const signedTxHex = requireSignedTransactionHex(signResult, 'Airdrop funding signing failed');
-    const broadcastResult = await broadcastTransaction(signedTxHex);
-    const txId = signResult.signedTransactionHash || broadcastResult.txid;
-    console.log('[FlowGuard] Broadcast result:', broadcastResult);
+    const txId = await resolveTxHashFromSignResult(signResult, signOptions, 'Airdrop funding signing failed');
+    console.log('[FlowGuard] Airdrop funding tx hash:', txId);
 
     const confirmResponse = await fetch(`${apiUrl}/airdrops/${airdropId}/confirm-funding`, {
       method: 'POST',
@@ -1366,8 +1395,8 @@ export async function claimAirdropFunds(
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to build claim transaction');
+      const error = await response.json().catch(() => ({ error: 'Failed to build claim transaction' }));
+      throw new Error(getApiErrorMessage(error, 'Failed to build claim transaction'));
     }
 
     const { claimAmount, wcTransaction } = await response.json();
@@ -1380,8 +1409,9 @@ export async function claimAirdropFunds(
       throw new Error('No WalletConnect-compatible claim transaction returned from backend');
     }
 
-    const signResult = await wallet.signCashScriptTransaction(deserializeWcSignOptions(wcTransaction));
-    const txId = signResult.signedTransactionHash;
+    const signOptions = deserializeWcSignOptions(wcTransaction);
+    const signResult = await wallet.signCashScriptTransaction(signOptions);
+    const txId = await resolveTxHashFromSignResult(signResult, signOptions, 'Airdrop claim signing failed');
 
     const confirmResponse = await fetch(`${apiUrl}/airdrops/${airdropId}/confirm-claim`, {
       method: 'POST',
