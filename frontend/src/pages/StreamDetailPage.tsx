@@ -364,11 +364,25 @@ export default function StreamDetailPage() {
 
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-textPrimary mb-2">
-              {stream.stream_id}
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-textPrimary mb-1">
+              {stream.stream_type} Stream
             </h1>
-            <p className="text-textSecondary">
-              {stream.stream_type} Stream • Created {formatDate(stream.created_at)}
+            <button
+              onClick={() => copyToClipboard(stream.stream_id, 'stream_id')}
+              className="flex items-center gap-2 group"
+              title="Click to copy full ID"
+            >
+              <p className="text-sm font-mono text-textMuted truncate max-w-[300px] md:max-w-[500px]">
+                {stream.stream_id.slice(0, 8)}...{stream.stream_id.slice(-8)}
+              </p>
+              {copiedAddress === 'stream_id' ? (
+                <Check className="w-3 h-3 text-green-600" />
+              ) : (
+                <Copy className="w-3 h-3 text-textMuted opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
+            </button>
+            <p className="text-textSecondary text-sm mt-1">
+              Created {formatDate(stream.created_at)}
             </p>
           </div>
           {getStatusBadge(stream.status)}
