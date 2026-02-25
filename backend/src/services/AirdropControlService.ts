@@ -65,7 +65,8 @@ export class AirdropControlService {
     const feeReserve = 1200n;
 
     const txBuilder = new TransactionBuilder({ provider: this.provider });
-    txBuilder.setLocktime(params.currentTime);
+    // pause() does not depend on locktime; keep final tx behavior across wallets
+    txBuilder.setLocktime(0);
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.pause(
@@ -147,7 +148,8 @@ export class AirdropControlService {
     const cancelReturnAddress = this.p2pkhFromHash(authorityHash);
 
     const txBuilder = new TransactionBuilder({ provider: this.provider });
-    txBuilder.setLocktime(params.currentTime);
+    // cancel() does not depend on locktime; keep final tx behavior across wallets
+    txBuilder.setLocktime(0);
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.cancel(
@@ -340,10 +342,15 @@ export class AirdropControlService {
       .sort((a: any, b: any) => {
         const aSats = BigInt(a.satoshis);
         const bSats = BigInt(b.satoshis);
-        if (aSats < bSats) return -1;
-        if (aSats > bSats) return 1;
+        if (aSats < bSats) return 1;
+        if (aSats > bSats) return -1;
         return 0;
       });
+
+    const singleInput = spendable.find((utxo: any) => BigInt(utxo.satoshis) >= requiredFee);
+    if (singleInput) {
+      return { utxos: [singleInput], total: BigInt(singleInput.satoshis) };
+    }
 
     const selected: any[] = [];
     let total = 0n;

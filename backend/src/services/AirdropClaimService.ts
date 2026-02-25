@@ -15,7 +15,7 @@ export interface ClaimTransactionParams {
   contractAddress: string;
   claimer: string;
   claimAmount: number;
-  totalClaimed: number;
+  totalClaimed?: number;
   tokenType?: 'BCH' | 'FUNGIBLE_TOKEN';
   tokenCategory?: string;
   constructorParams: any[];
@@ -42,7 +42,6 @@ export class AirdropClaimService {
       contractAddress,
       claimer,
       claimAmount,
-      totalClaimed,
       tokenType,
       tokenCategory,
       constructorParams,
@@ -74,17 +73,18 @@ export class AirdropClaimService {
       throw new Error(`Invalid airdrop state commitment length: expected >=40, got ${commitment.length}`);
     }
     const newCommitment = new Uint8Array(commitment);
-    const newTotalClaimed = totalClaimed + claimAmount;
-    const totalPool = BigInt(
-      typeof constructorParams[3] === 'bigint'
-        ? constructorParams[3]
-        : Number(constructorParams[3] ?? 0),
-    );
-    const nextStatus = totalPool > 0n && BigInt(newTotalClaimed) >= totalPool ? 3 : 0;
+    const totalClaimedOnChain = this.readUint64LE(commitment, 2);
+    const claimAmountBig = BigInt(claimAmount);
+    const newTotalClaimed = totalClaimedOnChain + claimAmountBig;
+    const totalPool = this.toBigIntParam(constructorParams[3], 'totalPool');
+    if (newTotalClaimed > totalPool) {
+      throw new Error('Claim exceeds remaining campaign pool');
+    }
+    const nextStatus = totalPool > 0n && newTotalClaimed >= totalPool ? 3 : 0;
     newCommitment[0] = nextStatus;
 
     new DataView(newCommitment.buffer, newCommitment.byteOffset + 2, 8)
-      .setBigUint64(0, BigInt(newTotalClaimed), true);
+      .setBigUint64(0, newTotalClaimed, true);
 
     const currentCount = new DataView(newCommitment.buffer, newCommitment.byteOffset + 10, 8)
       .getBigUint64(0, true);
@@ -109,7 +109,6 @@ export class AirdropClaimService {
     }
     const claimerHash = b.slice(3, 23);
 
-    const claimAmountBig = BigInt(claimAmount);
     const fee = 1500n;
     const feePayer = await this.selectFeePayerInputs(claimer, fee);
     const recipientOutputSatoshis = tokenType === 'FUNGIBLE_TOKEN' ? 1000n : claimAmountBig;
@@ -121,7 +120,8 @@ export class AirdropClaimService {
     }
 
     const txBuilder = new TransactionBuilder({ provider: this.provider });
-    txBuilder.setLocktime(currentTime);
+    const locktime = this.resolveClaimLocktime(constructorParams, BigInt(currentTime));
+    txBuilder.setLocktime(Number(locktime));
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.claim(
@@ -191,6 +191,7 @@ export class AirdropClaimService {
       tokenType: tokenType || 'BCH',
       tokenCategory: tokenCategory || null,
       inputSatoshis: contractUtxo.satoshis.toString(),
+      locktime: locktime.toString(),
     });
 
     return { claimAmount, wcTransaction };
@@ -215,10 +216,15 @@ export class AirdropClaimService {
       .sort((a: any, b: any) => {
         const aSats = BigInt(a.satoshis);
         const bSats = BigInt(b.satoshis);
-        if (aSats < bSats) return -1;
-        if (aSats > bSats) return 1;
+        if (aSats < bSats) return 1;
+        if (aSats > bSats) return -1;
         return 0;
       });
+
+    const singleInput = spendable.find((utxo: any) => BigInt(utxo.satoshis) >= requiredFee);
+    if (singleInput) {
+      return { utxos: [singleInput], total: BigInt(singleInput.satoshis) };
+    }
 
     const selected: any[] = [];
     let total = 0n;
@@ -231,6 +237,50 @@ export class AirdropClaimService {
     }
 
     return null;
+  }
+
+  private resolveClaimLocktime(constructorParams: any[], now: bigint): bigint {
+    const startTimestamp = this.toBigIntParam(constructorParams?.[4] ?? 0, 'startTimestamp');
+    const endTimestamp = this.toBigIntParam(constructorParams?.[5] ?? 0, 'endTimestamp');
+
+    if (startTimestamp > 0n && endTimestamp > 0n && startTimestamp > endTimestamp) {
+      throw new Error('Campaign has invalid claim schedule');
+    }
+    if (startTimestamp > 0n && now < startTimestamp) {
+      throw new Error('Campaign claim window has not started yet');
+    }
+    if (endTimestamp > 0n && now > endTimestamp) {
+      throw new Error('Campaign claim window has ended');
+    }
+
+    let locktime = now > 30n ? now - 30n : now;
+    if (startTimestamp > 0n && locktime < startTimestamp) {
+      locktime = startTimestamp;
+    }
+    if (endTimestamp > 0n && locktime > endTimestamp) {
+      locktime = endTimestamp;
+    }
+    return locktime;
+  }
+
+  private readUint64LE(source: Uint8Array, offset: number): bigint {
+    const view = new DataView(source.buffer, source.byteOffset + offset, 8);
+    return view.getBigUint64(0, true);
+  }
+
+  private toBigIntParam(value: unknown, name: string): bigint {
+    if (typeof value === 'bigint') return value;
+    if (typeof value === 'number') return BigInt(Math.trunc(value));
+    if (typeof value === 'string' && value.length > 0) return BigInt(value);
+    if (value instanceof Uint8Array) {
+      if (value.length > 8) throw new Error(`Unsupported byte length for ${name}`);
+      let result = 0n;
+      for (let i = value.length - 1; i >= 0; i--) {
+        result = (result << 8n) + BigInt(value[i]);
+      }
+      return result;
+    }
+    throw new Error(`Invalid constructor parameter for ${name}`);
   }
 
   /**

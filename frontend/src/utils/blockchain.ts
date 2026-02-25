@@ -21,6 +21,7 @@ export interface WalletInterface {
   signTransaction: (tx: Transaction) => Promise<SignedTransaction>;
   signRawTransaction?: (txHex: string) => Promise<string>;
   signCashScriptTransaction?: (options: CashScriptSignOptions) => Promise<CashScriptSignResponse>;
+  getAddress?: () => Promise<string | null>;
   isConnected: boolean;
   address: string | null;
   walletType?: string | null;
@@ -92,6 +93,23 @@ function getApiErrorMessage(error: any, fallback: string): string {
     return `${generic}: ${detail}`;
   }
   return detail || generic || fallback;
+}
+
+async function resolveWalletAddress(wallet: WalletInterface): Promise<string> {
+  if (wallet.getAddress) {
+    try {
+      const refreshed = await wallet.getAddress();
+      if (refreshed) return refreshed;
+    } catch (error) {
+      console.warn('[FlowGuard] Failed to refresh wallet address, using cached value:', error);
+    }
+  }
+
+  if (wallet.address) {
+    return wallet.address;
+  }
+
+  throw new Error('Wallet not connected');
 }
 
 /**
@@ -1185,9 +1203,7 @@ export async function pauseAirdropOnChain(
   wallet: WalletInterface,
   airdropId: string
 ): Promise<string> {
-  if (!wallet.address) {
-    throw new Error('Wallet not connected');
-  }
+  const signerAddress = await resolveWalletAddress(wallet);
   if (!wallet.signCashScriptTransaction) {
     throw new Error('Connected wallet does not support CashScript transactions');
   }
@@ -1197,7 +1213,7 @@ export async function pauseAirdropOnChain(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-address': wallet.address,
+      'x-user-address': signerAddress,
     },
   });
   if (!response.ok) {
@@ -1222,7 +1238,7 @@ export async function pauseAirdropOnChain(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-address': wallet.address,
+      'x-user-address': signerAddress,
     },
     body: JSON.stringify({ txHash }),
   });
@@ -1242,9 +1258,7 @@ export async function cancelAirdropOnChain(
   airdropId: string,
   options?: { allowUnsafeRecovery?: boolean }
 ): Promise<string> {
-  if (!wallet.address) {
-    throw new Error('Wallet not connected');
-  }
+  const signerAddress = await resolveWalletAddress(wallet);
   if (!wallet.signCashScriptTransaction) {
     throw new Error('Connected wallet does not support CashScript transactions');
   }
@@ -1254,7 +1268,7 @@ export async function cancelAirdropOnChain(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-address': wallet.address,
+      'x-user-address': signerAddress,
     },
     body: JSON.stringify({
       allowUnsafeRecovery: options?.allowUnsafeRecovery === true,
@@ -1282,7 +1296,7 @@ export async function cancelAirdropOnChain(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-address': wallet.address,
+      'x-user-address': signerAddress,
     },
     body: JSON.stringify({ txHash }),
   });
@@ -1388,9 +1402,7 @@ export async function claimAirdropFunds(
   airdropId: string
 ): Promise<string> {
   try {
-    if (!wallet.address) {
-      throw new Error('Wallet not connected');
-    }
+    const claimerAddress = await resolveWalletAddress(wallet);
 
     // Get claim transaction from backend
     const apiUrl = '/api';
@@ -1400,7 +1412,7 @@ export async function claimAirdropFunds(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        claimerAddress: wallet.address,
+        claimerAddress,
       }),
     });
 
@@ -1433,7 +1445,7 @@ export async function claimAirdropFunds(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        claimerAddress: wallet.address,
+        claimerAddress,
         claimedAmount: claimAmount,
         txHash: txId,
       }),

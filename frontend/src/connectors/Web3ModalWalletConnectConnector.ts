@@ -61,6 +61,69 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
     }
   }
 
+  private _normalizeCashAddress(raw: string): string {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return trimmed;
+    if (trimmed.startsWith('bitcoincash:') || trimmed.startsWith('bchtest:')) {
+      return trimmed;
+    }
+    const [, chain] = this._getPrimaryChain().split(':');
+    return `${chain}:${trimmed}`;
+  }
+
+  private _extractAddress(result: unknown): string | null {
+    if (typeof result === 'string' && result.trim().length > 0) {
+      return this._normalizeCashAddress(result);
+    }
+    if (Array.isArray(result) && result.length > 0 && typeof result[0] === 'string') {
+      return this._normalizeCashAddress(result[0]);
+    }
+    if (result && typeof result === 'object') {
+      const addresses = (result as { addresses?: unknown }).addresses;
+      if (Array.isArray(addresses) && addresses.length > 0 && typeof addresses[0] === 'string') {
+        return this._normalizeCashAddress(addresses[0]);
+      }
+    }
+    return null;
+  }
+
+  private _emitAddressChanged(address: string): void {
+    const listeners = this.eventListeners.get('addressChanged');
+    if (listeners) {
+      listeners.forEach((cb) => cb(address));
+    }
+  }
+
+  private async _syncAddressFromWallet(): Promise<string | null> {
+    if (!this.client || !this.session) {
+      return this.currentAddress;
+    }
+
+    try {
+      const connectedChain = this._getPrimaryChain();
+      const result = await this._requestWithoutRedirect(() =>
+        this.client!.request({
+          topic: this.session!.topic,
+          chainId: connectedChain,
+          request: {
+            method: 'bch_getAddresses',
+            params: {},
+          },
+        })
+      );
+
+      const nextAddress = this._extractAddress(result);
+      if (nextAddress && nextAddress !== this.currentAddress) {
+        this.currentAddress = nextAddress;
+        this._emitAddressChanged(nextAddress);
+      }
+    } catch (error) {
+      console.warn('[Web3ModalWC] Failed to refresh address from wallet:', error);
+    }
+
+    return this.currentAddress;
+  }
+
   /**
    * Check if WalletConnect is available
    * (WalletConnect works in all modern browsers)
@@ -228,6 +291,14 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
       const { params } = args;
       if (params.chainId !== this._getPrimaryChain()) return;
 
+      if (params.event.name === 'addressesChanged') {
+        const nextAddress = this._extractAddress(params.event.data);
+        if (nextAddress && nextAddress !== this.currentAddress) {
+          this.currentAddress = nextAddress;
+          this._emitAddressChanged(nextAddress);
+        }
+      }
+
       // Emit event to registered listeners
       const listeners = this.eventListeners.get(params.event.name);
       if (listeners) {
@@ -272,9 +343,12 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
 
     // Format: bch:bitcoincash:qr... or bch:bchtest:qr...
     const accountString = bchNamespace.accounts[0];
-    const [, chain, address] = accountString.split(':');
+    const accountParts = accountString.split(':');
+    const chain = accountParts[1] || (BCH_NETWORK === 'chipnet' ? 'bchtest' : 'bitcoincash');
+    const accountAddress = accountParts.slice(2).join(':');
 
-    this.currentAddress = `${chain}:${address}`;
+    this.currentAddress = this._normalizeCashAddress(accountAddress || accountString);
+    await this._syncAddressFromWallet();
 
     // Determine network
     const network = chain === 'bchtest' ? 'chipnet' : 'mainnet';
@@ -343,6 +417,7 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
    * Get connected address
    */
   async getAddress(): Promise<string> {
+    await this._syncAddressFromWallet();
     if (!this.currentAddress) {
       throw new Error('Wallet not connected');
     }
@@ -432,6 +507,7 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
 
     try {
       const connectedChain = this._getPrimaryChain();
+      await this._syncAddressFromWallet();
 
       console.log('[Web3ModalWC] Signing transaction...', {
         chain: connectedChain,

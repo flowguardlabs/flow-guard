@@ -151,6 +151,7 @@ export interface WalletState {
 export interface WalletActions {
   connect: (walletType: WalletType, seedPhrase?: string) => Promise<void>;
   disconnect: () => Promise<void>;
+  getAddress: () => Promise<string | null>;
   getPublicKey: () => Promise<string | null>;
   signTransaction: (tx: Transaction) => Promise<SignedTransaction>;
   signCashScriptTransaction?: (options: CashScriptSignOptions) => Promise<CashScriptSignResponse>;

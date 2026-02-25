@@ -33,6 +33,7 @@ interface WalletStore extends WalletState {
   signTransaction: (tx: Transaction) => Promise<SignedTransaction>;
   signCashScriptTransaction: (options: CashScriptSignOptions) => Promise<CashScriptSignResponse>;
   signMessage: (message: string) => Promise<string>;
+  getAddress: () => Promise<string | null>;
   getPublicKey: () => Promise<string | null>;
   refreshBalance: () => Promise<void>;
 }
@@ -206,6 +207,26 @@ const useWalletStore = create<WalletStore>((set, get) => ({
     return state.connector.signMessage(message);
   },
 
+  getAddress: async () => {
+    const state = get();
+
+    if (!state.connector) {
+      return state.address;
+    }
+
+    try {
+      const address = await state.connector.getAddress();
+      if (address && address !== state.address) {
+        set({ address });
+        localStorage.setItem('wallet_address', address);
+      }
+      return address || state.address;
+    } catch (error) {
+      console.error('Failed to get wallet address:', error);
+      return state.address;
+    }
+  },
+
   getPublicKey: async () => {
     const state = get();
 
@@ -257,6 +278,7 @@ export function useWallet() {
     signTransaction,
     signCashScriptTransaction,
     signMessage,
+    getAddress,
     getPublicKey,
     refreshBalance,
     setState,
@@ -353,6 +375,7 @@ export function useWallet() {
     signTransaction,
     signCashScriptTransaction,
     signMessage,
+    getAddress,
     refreshBalance,
   };
 }

@@ -585,16 +585,11 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
 
     const claimService = new AirdropClaimService('chipnet');
     const claimAmountOnChain = displayAmountToOnChain(claimAmountDisplay, campaign.token_type);
-    const totalClaimedOnChain = displayAmountToOnChain(
-      campaign.claimed_count * campaign.amount_per_claim,
-      campaign.token_type,
-    );
     const claimTx = await claimService.buildClaimTransaction({
       airdropId: campaign.campaign_id,
       contractAddress: campaign.contract_address,
       claimer: claimerAddress,
       claimAmount: claimAmountOnChain,
-      totalClaimed: totalClaimedOnChain,
       tokenType: normalizeAirdropTokenType(campaign.token_type),
       tokenCategory: campaign.token_category,
       constructorParams: constructorParams.map((p: any) => {
@@ -985,24 +980,29 @@ function hashToP2pkhAddress(hash20: Uint8Array): string {
 function resolvePublicAppBaseUrl(req: Request): string {
   const configured = (process.env.APP_URL || process.env.FRONTEND_URL || process.env.PUBLIC_APP_URL || '').trim();
   if (configured) {
-    return configured.replace(/\/+$/, '');
+    return configured
+      .replace('://api.', '://')
+      .replace(/\/api\/?$/i, '')
+      .replace(/\/+$/, '');
   }
 
   const origin = (req.get('origin') || '').trim();
   if (origin) {
-    return origin.replace(/\/+$/, '');
+    return origin.replace('://api.', '://').replace(/\/+$/, '');
   }
 
   const forwardedProto = (req.get('x-forwarded-proto') || '').split(',')[0]?.trim();
   const forwardedHost = (req.get('x-forwarded-host') || '').split(',')[0]?.trim();
   if (forwardedProto && forwardedHost) {
-    return `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, '');
+    const normalizedForwardedHost = forwardedHost.replace(/^api\./i, '');
+    return `${forwardedProto}://${normalizedForwardedHost}`.replace(/\/+$/, '');
   }
 
   const host = (req.get('host') || '').trim();
   if (host) {
     const protocol = forwardedProto || req.protocol || 'https';
-    return `${protocol}://${host}`.replace(/\/+$/, '');
+    const normalizedHost = host.replace(/^api\./i, '');
+    return `${protocol}://${normalizedHost}`.replace(/\/+$/, '');
   }
 
   return 'http://localhost:5173';
