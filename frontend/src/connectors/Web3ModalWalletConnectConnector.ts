@@ -35,32 +35,6 @@ const WALLETCONNECT_PROJECT_ID =
 // Get network from environment
 const BCH_NETWORK = (import.meta.env.VITE_BCH_NETWORK || 'chipnet') as 'mainnet' | 'chipnet';
 
-// Default desktop wallets for Web3Modal
-const DEFAULT_DESKTOP_WALLETS: any[] = [
-  {
-    id: 'Cashonize',
-    name: 'Cashonize',
-    links: {
-      universal: 'https://cashonize.com/#',
-    },
-  },
-  {
-    id: 'Paytaca',
-    name: 'Paytaca',
-    links: {
-      universal:
-        'chrome-extension://pakphhpnneopheifihmjcjnbdbhaaiaa/www/index.html#/apps/wallet-connect',
-    },
-  },
-  {
-    id: 'Zapit',
-    name: 'Zapit',
-    links: {
-      universal: 'chrome-extension://fccgmnglbhajioalokbcidhcaikhlcpm/index.html#/wallet-connect',
-    },
-  },
-];
-
 export class Web3ModalWalletConnectConnector implements IWalletConnector {
   type: WalletType = 'walletconnect' as WalletType;
 
@@ -192,7 +166,6 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
     this.web3Modal = new Web3Modal({
       projectId: WALLETCONNECT_PROJECT_ID,
       walletConnectVersion: 2,
-      desktopWallets: DEFAULT_DESKTOP_WALLETS,
       enableExplorer: false,
       enableAccountView: true,
     });
