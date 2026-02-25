@@ -72,7 +72,7 @@ contract BountyCovenant(
             toPaddedBytes(newTotalPaid, 8) +
             toPaddedBytes(newWinnersCount, 4) +
             toPaddedBytes(tx.locktime, 5) +
-            0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
+            0x000000000000000000000000000000000000000000;
 
         require(tx.outputs[1].nftCommitment == newCommitment);
         require(tx.outputs[1].tokenCategory == tx.inputs[0].tokenCategory);
@@ -93,7 +93,7 @@ contract BountyCovenant(
         bytes newCommitment =
             0x01 +
             c.split(1)[1].split(18)[0] +
-            0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
+            0x000000000000000000000000000000000000000000;
 
         require(tx.outputs[0].nftCommitment == newCommitment);
         require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
@@ -111,7 +111,7 @@ contract BountyCovenant(
         bytes newCommitment =
             0x00 +
             c.split(1)[1].split(18)[0] +
-            0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000;
+            0x000000000000000000000000000000000000000000;
 
         require(tx.outputs[0].nftCommitment == newCommitment);
         require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
