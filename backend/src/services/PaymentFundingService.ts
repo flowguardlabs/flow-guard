@@ -180,10 +180,52 @@ export class PaymentFundingService {
       tokenType === 'FUNGIBLE_TOKEN' && totalTokenInputAmount > amountOnChain
         ? totalTokenInputAmount - amountOnChain
         : 0n;
-    const estimatedOutputCount = tokenChangeAmount > 0n ? 3 : 2;
-    const estimatedFee = this.estimateFee(selectedUtxos.length, estimatedOutputCount);
     const tokenContractSatoshis = getTokenFundingSatoshis('payment');
     const contractOutput = tokenType === 'FUNGIBLE_TOKEN' ? tokenContractSatoshis : amountOnChain;
+
+    if (!stateTokenCategory) {
+      throw new Error('Missing state token category for payment funding output');
+    }
+
+    const preliminaryOutputs: TransactionOutput[] = [
+      {
+        to: contractAddress,
+        amount: contractOutput.toString(),
+        token: tokenType === 'FUNGIBLE_TOKEN'
+          ? {
+            category: tokenCategory!,
+            amount: amountOnChain.toString(),
+            nft: {
+              commitment: nftCommitment,
+              capability: nftCapability,
+            },
+          }
+          : {
+            category: stateTokenCategory,
+            amount: 0,
+            nft: {
+              commitment: nftCommitment,
+              capability: nftCapability,
+            },
+          },
+      },
+    ];
+
+    if (tokenChangeAmount > 0n) {
+      preliminaryOutputs.push({
+        to: senderAddress,
+        amount: dustAmount.toString(),
+        token: {
+          category: tokenCategory!,
+          amount: tokenChangeAmount.toString(),
+        },
+      });
+    }
+
+    // Add a placeholder change output for fee estimation
+    preliminaryOutputs.push({ to: senderAddress, amount: '0' });
+
+    const estimatedFee = this.estimateFee(selectedUtxos.length, preliminaryOutputs.length, preliminaryOutputs);
     const bchBudgetAfterContractAndFee = totalInputValue - contractOutput - estimatedFee;
     const bchBudgetAfterTokenChange =
       tokenChangeAmount > 0n ? bchBudgetAfterContractAndFee - dustAmount : bchBudgetAfterContractAndFee;
@@ -194,44 +236,8 @@ export class PaymentFundingService {
       );
     }
 
-    if (!stateTokenCategory) {
-      throw new Error('Missing state token category for payment funding output');
-    }
-
-    const outputs: TransactionOutput[] = [
-      {
-        to: contractAddress,
-        amount: contractOutput.toString(),
-        token: tokenType === 'FUNGIBLE_TOKEN'
-          ? {
-              category: tokenCategory!,
-              amount: amountOnChain.toString(),
-              nft: {
-                commitment: nftCommitment,
-                capability: nftCapability,
-              },
-            }
-          : {
-              category: stateTokenCategory,
-              amount: 0,
-              nft: {
-                commitment: nftCommitment,
-                capability: nftCapability,
-              },
-            },
-      },
-    ];
-
-    if (tokenChangeAmount > 0n) {
-      outputs.push({
-        to: senderAddress,
-        amount: dustAmount.toString(),
-        token: {
-          category: tokenCategory!,
-          amount: tokenChangeAmount.toString(),
-        },
-      });
-    }
+    // Build final outputs (remove placeholder, add real change if enough)
+    const outputs: TransactionOutput[] = preliminaryOutputs.slice(0, -1);
 
     if (bchBudgetAfterTokenChange > 546n) {
       outputs.push({
@@ -245,7 +251,6 @@ export class PaymentFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund recurring payment contract ${contractAddress}`,
-      broadcast: true,
     });
 
     return {
@@ -259,9 +264,33 @@ export class PaymentFundingService {
     };
   }
 
-  estimateFee(numInputs: number, numOutputs: number): bigint {
-    const estimatedSize = numInputs * 148 + numOutputs * 34 + 10;
-    const feeRate = 1n;
+  estimateFee(numInputs: number, numOutputs: number, outputs?: TransactionOutput[]): bigint {
+    let outputBytes = 0;
+    if (outputs) {
+      for (const output of outputs) {
+        let outSize = 8; // valueSatoshis
+        if (output.token) {
+          // Token prefix: 1 (prefix byte) + 32 (category) + 1 (bitfield)
+          outSize += 34;
+          if (output.token.nft?.commitment) {
+            // commitment length varint + commitment bytes
+            const commitmentLen = output.token.nft.commitment.length / 2;
+            outSize += 1 + commitmentLen;
+          }
+          if (output.token.amount && BigInt(output.token.amount) > 0n) {
+            outSize += 9; // compact uint for fungible amount
+          }
+        }
+        // P2PKH = 26 bytes, P2SH-20 = 24 bytes, P2SH-32 = 36 bytes
+        // Use 36 as safe upper bound for locking bytecode + its length prefix
+        outSize += 36;
+        outputBytes += outSize;
+      }
+    } else {
+      outputBytes = numOutputs * 36;
+    }
+    const estimatedSize = numInputs * 148 + outputBytes + 10;
+    const feeRate = 2n; // 2 sat/byte for safety margin
     return BigInt(estimatedSize) * feeRate;
   }
 }
