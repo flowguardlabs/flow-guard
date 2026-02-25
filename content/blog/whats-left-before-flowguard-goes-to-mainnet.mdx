@@ -1,0 +1,191 @@
+---
+title: "What's Left Before FlowGuard Goes to Mainnet"
+date: "2026-02-25"
+summary: "FlowGuard has been tested end-to-end on Chipnet. This post outlines what remains before production deployment on Bitcoin Cash with a clear checklist."
+tags: ["Roadmap", "Mainnet", "BCH", "Product"]
+status: "published"
+author: "FlowGuard Team"
+readingTime: 6
+---
+
+# What's Left Before FlowGuard Goes to Mainnet
+
+## Introduction
+
+FlowGuard has been tested end-to-end on Chipnet.
+
+Vaults deploy.
+Streams track state.
+Proposals execute.
+Budget unlocks enforce schedule.
+
+But Chipnet is not mainnet.
+
+This post outlines what remains before production deployment on Bitcoin Cash.
+
+Clear checklist. No assumptions.
+
+## 1. Covenant Signing UX Finalization
+
+The core transaction flow is working:
+
+Backend builds template → Wallet signs → Network validates
+
+Before mainnet, UX needs refinement:
+
+- Clear signer prompts
+- Better transaction previews
+- Error surface clarity
+- Improved multi-signer coordination
+
+The goal:
+
+Reduce user error without weakening contract enforcement.
+
+## 2. Independent Security Audit
+
+Treasury infrastructure must be audited.
+
+Audit scope includes:
+
+- VaultCovenant enforcement logic
+- Vesting commitment state transitions
+- Merkle airdrop validation
+- Governance threshold validation
+- Edge-case transaction ordering
+
+Focus areas:
+
+- Signature validation
+- Cap enforcement
+- State mutation correctness
+- Over-release prevention
+
+Mainnet treasury logic must be reviewed before live capital is locked.
+
+## 3. Mainnet Contract Deployment
+
+Initial mainnet rollout will include:
+
+Phase 1:
+
+- Vaults
+- Vesting Streams
+
+Phase 2:
+
+- Budget plans
+- Governance modules
+- Airdrops
+
+Deployment will follow:
+
+- Fresh contract compilation
+- Verified bytecode
+- Public contract address publication
+
+No hidden upgrades.
+
+## 4. Public Demo Treasury
+
+A public treasury will be deployed on mainnet to demonstrate:
+
+- Real vault
+- Real signers
+- Real cap enforcement
+- Real proposal execution
+
+This allows:
+
+- Open inspection
+- Community verification
+- Live transparency
+
+Infrastructure must be observable, not theoretical.
+
+## 5. First DAO and Grant Onboarding
+
+After deployment:
+
+Target early adopters:
+
+- BCH grant programs
+- Developer collectives
+- Hackathon prize pools
+- Contributor payroll teams
+
+FlowGuard will support onboarding:
+
+- Treasury structuring
+- Cap configuration
+- Vesting design
+- Governance integration
+
+The goal is real usage, not just deployment.
+
+## 6. Automation Layer (Executor Network)
+
+Future phase:
+
+- Automated cycle unlock triggers
+- Scheduled execution bots
+- Optional notification systems
+
+Important:
+
+Automation does not override contracts.
+It only submits valid transactions.
+
+Enforcement always remains on-chain.
+
+## Why This Matters
+
+Infrastructure credibility depends on:
+
+- Audit discipline
+- Production clarity
+- Transparent deployment
+- Real adoption
+
+FlowGuard is not being positioned as "finished."
+
+It is being positioned as:
+
+Tested → Audited → Deployed → Adopted.
+
+That sequence matters.
+
+## Long-Term Direction
+
+Beyond mainnet:
+
+- Executor marketplace
+- Treasury analytics layer
+- Template DAO stacks
+- BCH-native coordination tooling
+
+Treasury management is foundational.
+
+If done correctly, it supports:
+
+- Grants
+- Governance
+- Contributor alignment
+- Ecosystem capital allocation
+
+## Closing
+
+FlowGuard is not a demo submission.
+
+It is being built as enforceable treasury infrastructure on Bitcoin Cash.
+
+Chipnet proved mechanics.
+
+Next:
+
+Audit.
+Deploy.
+Onboard.
+Iterate.
+
+That's the roadmap.
