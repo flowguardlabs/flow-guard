@@ -210,7 +210,11 @@ router.post('/streams/create', async (req: Request, res: Response) => {
       deployment = await deploymentService.deployVestingStream(deploymentParams);
     }
 
-    const streamId = deployment.streamId;
+    const countRow = db!.prepare('SELECT COUNT(*) as cnt FROM streams').get() as any;
+    const streamId = streamService.generateStreamId(
+      normalizedTokenType === 'BCH' ? 'BCH' : 'CASHTOKENS',
+      Number(countRow?.cnt || 0) + 1,
+    );
 
     // Store with PENDING status - becomes ACTIVE after funding tx confirmed
     db!.prepare(`
@@ -241,6 +245,8 @@ router.post('/streams/create', async (req: Request, res: Response) => {
       stream,
       deployment: {
         contractAddress: deployment.contractAddress,
+        streamId,
+        onChainStreamId: deployment.streamId,
         fundingRequired: deployment.fundingTxRequired,
         nftCommitment: deployment.initialCommitment,
       },

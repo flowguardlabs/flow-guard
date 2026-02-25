@@ -6,7 +6,6 @@
 import {
   Contract,
   ElectrumNetworkProvider,
-  SignatureTemplate,
   TransactionBuilder,
   placeholderPublicKey,
   placeholderSignature,
@@ -247,7 +246,7 @@ export class BudgetReleaseService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.claim(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );

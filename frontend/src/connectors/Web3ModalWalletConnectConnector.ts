@@ -44,6 +44,23 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
   private currentAddress: string | null = null;
   private eventListeners: Map<string, Function[]> = new Map();
 
+  private async _withRequestTimeout<T>(promise: Promise<T>, context: string): Promise<T> {
+    const timeoutMs = Number(import.meta.env.VITE_WALLETCONNECT_REQUEST_TIMEOUT_MS || 90000);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error(`${context} timed out after ${timeoutMs / 1000}s`));
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
+
   /**
    * Check if WalletConnect is available
    * (WalletConnect works in all modern browsers)
@@ -432,15 +449,18 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
       );
 
 
-      const result = await this._requestWithoutRedirect(() =>
-        this.client!.request({
-          topic: this.session!.topic,
-          chainId: connectedChain,
-          request: {
-            method: 'bch_signTransaction',
-            params: serializedParams,
-          },
-        })
+      const result = await this._withRequestTimeout(
+        this._requestWithoutRedirect(() =>
+          this.client!.request({
+            topic: this.session!.topic,
+            chainId: connectedChain,
+            request: {
+              method: 'bch_signTransaction',
+              params: serializedParams,
+            },
+          })
+        ),
+        'WalletConnect sign transaction request'
       );
 
       const typedResult = result as {
@@ -459,6 +479,16 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
 
       if (error.message?.includes('rejected') || error.message?.includes('cancelled')) {
         throw new Error('Transaction rejected by user');
+      }
+      if (error.message?.includes('timed out')) {
+        try {
+          await this.disconnect();
+        } catch {
+          // Best-effort reset for stale WalletConnect sessions.
+        }
+        throw new Error(
+          'WalletConnect signing timed out. Reconnect wallet and try again (old WC sessions can hang).'
+        );
       }
 
       throw new Error(`Transaction signing failed: ${error.message}`);

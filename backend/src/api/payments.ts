@@ -186,7 +186,8 @@ router.post('/payments/create', async (req: Request, res: Response) => {
       payment,
       deployment: {
         contractAddress: deployment.contractAddress,
-        paymentId: deployment.paymentId,
+        paymentId,
+        onChainPaymentId: deployment.paymentId,
         fundingRequired: deployment.fundingTxRequired,
         cancelable: cancelableEnabled,
       },

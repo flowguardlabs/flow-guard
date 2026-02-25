@@ -227,7 +227,7 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
         contract_address, constructor_params, nft_commitment, nft_capability)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      id, deployment.campaignId, vaultId || null, creator, title, description || null,
+      id, campaignId, vaultId || null, creator, title, description || null,
       campaignType || 'AIRDROP', normalizedTokenType, tokenCategory || null,
       totalAmount, amountPerClaim, totalRecipients, claimLink,
       startDate || now, endDate || null,
@@ -247,6 +247,8 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
       campaign: normalizeCampaignForResponse(req, campaign),
       deployment: {
         contractAddress: deployment.contractAddress,
+        campaignId,
+        onChainCampaignId: deployment.campaignId,
         fundingRequired: deployment.fundingTxRequired,
         nftCommitment: deployment.initialCommitment,
       },
@@ -732,6 +734,7 @@ router.post('/airdrops/:id/pause', async (req: Request, res: Response) => {
       currentCommitment,
       currentTime: Math.floor(Date.now() / 1000),
       tokenType: normalizeAirdropTokenType(campaign.token_type),
+      feePayerAddress: signerAddress,
     });
 
     res.json({
@@ -845,6 +848,7 @@ router.post('/airdrops/:id/cancel', async (req: Request, res: Response) => {
       currentCommitment,
       currentTime: Math.floor(Date.now() / 1000),
       tokenType: normalizeAirdropTokenType(campaign.token_type),
+      feePayerAddress: signerAddress,
     });
 
     const signerMatchesReturn = authorityReturnAddress.toLowerCase() === signerAddress.toLowerCase();
@@ -993,6 +997,12 @@ function resolvePublicAppBaseUrl(req: Request): string {
   const forwardedHost = (req.get('x-forwarded-host') || '').split(',')[0]?.trim();
   if (forwardedProto && forwardedHost) {
     return `${forwardedProto}://${forwardedHost}`.replace(/\/+$/, '');
+  }
+
+  const host = (req.get('host') || '').trim();
+  if (host) {
+    const protocol = forwardedProto || req.protocol || 'https';
+    return `${protocol}://${host}`.replace(/\/+$/, '');
   }
 
   return 'http://localhost:5173';

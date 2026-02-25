@@ -8,7 +8,7 @@ import db from '../database/schema.js';
 import { VaultService } from './vaultService.js';
 import { StateService } from './state-service.js';
 import { ContractService } from './contract-service.js';
-import { Contract, ElectrumNetworkProvider, SignatureTemplate, TransactionBuilder, placeholderPublicKey, placeholderSignature } from 'cashscript';
+import { Contract, ElectrumNetworkProvider, TransactionBuilder, placeholderPublicKey, placeholderSignature } from 'cashscript';
 import { ContractFactory } from './ContractFactory.js';
 import { binToHex, hexToBin } from '@bitauth/libauth';
 
@@ -303,7 +303,7 @@ export class CycleUnlockScheduler {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.unlockPeriod(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
         BigInt(newPeriodId),
         newSpent,

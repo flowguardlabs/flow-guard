@@ -2,6 +2,7 @@ import {
   Contract,
   ElectrumNetworkProvider,
   TransactionBuilder,
+  placeholderP2PKHUnlocker,
   placeholderPublicKey,
   placeholderSignature,
   type WcTransactionObject,
@@ -110,8 +111,9 @@ export class AirdropClaimService {
 
     const claimAmountBig = BigInt(claimAmount);
     const fee = 1500n;
+    const feePayer = await this.selectFeePayerInputs(claimer, fee);
     const recipientOutputSatoshis = tokenType === 'FUNGIBLE_TOKEN' ? 1000n : claimAmountBig;
-    const remainingAmount = contractBalance - recipientOutputSatoshis - fee;
+    const remainingAmount = contractBalance - recipientOutputSatoshis - (feePayer ? 0n : fee);
     const minimumStateOutput = 546n;
 
     if (remainingAmount < minimumStateOutput) {
@@ -128,6 +130,12 @@ export class AirdropClaimService {
         claimerHash,
       ),
     );
+    if (feePayer) {
+      const unlocker = placeholderP2PKHUnlocker(claimer);
+      for (const utxo of feePayer.utxos) {
+        txBuilder.addInput(utxo, unlocker);
+      }
+    }
 
     if (tokenType === 'FUNGIBLE_TOKEN' && tokenCategory && contractUtxo.token) {
       txBuilder.addOutput({
@@ -162,6 +170,15 @@ export class AirdropClaimService {
         },
       });
     }
+    if (feePayer) {
+      const feeChange = feePayer.total - fee;
+      if (feeChange > 546n) {
+        txBuilder.addOutput({
+          to: claimer,
+          amount: feeChange,
+        });
+      }
+    }
 
     const wcTransaction = txBuilder.generateWcTransactionObject({
       broadcast: true,
@@ -186,5 +203,33 @@ export class AirdropClaimService {
     target[offset + 2] = (safe >>> 16) & 0xff;
     target[offset + 3] = (safe >>> 24) & 0xff;
     target[offset + 4] = Math.floor(safe / 0x100000000) & 0xff;
+  }
+
+  private async selectFeePayerInputs(address: string, requiredFee: bigint): Promise<{
+    utxos: any[];
+    total: bigint;
+  } | null> {
+    const utxos = await this.provider.getUtxos(address);
+    const spendable = utxos
+      .filter((utxo: any) => !utxo.token)
+      .sort((a: any, b: any) => {
+        const aSats = BigInt(a.satoshis);
+        const bSats = BigInt(b.satoshis);
+        if (aSats < bSats) return -1;
+        if (aSats > bSats) return 1;
+        return 0;
+      });
+
+    const selected: any[] = [];
+    let total = 0n;
+    for (const utxo of spendable) {
+      selected.push(utxo);
+      total += BigInt(utxo.satoshis);
+      if (total >= requiredFee) {
+        return { utxos: selected, total };
+      }
+    }
+
+    return null;
   }
 }

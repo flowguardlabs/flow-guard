@@ -2,6 +2,7 @@ import {
   Contract,
   ElectrumNetworkProvider,
   TransactionBuilder,
+  placeholderP2PKHUnlocker,
   placeholderPublicKey,
   placeholderSignature,
   type WcTransactionObject,
@@ -19,6 +20,7 @@ export interface AirdropControlBuildParams {
   currentCommitment: string;
   currentTime: number;
   tokenType: 'BCH' | 'FUNGIBLE_TOKEN';
+  feePayerAddress?: string;
 }
 
 export interface AirdropControlBuildResult {
@@ -60,11 +62,7 @@ export class AirdropControlService {
     newCommitment.set(commitment.slice(1, 23), 1);
     newCommitment.fill(0, 23);
 
-    const feeReserve = 900n;
-    const stateOutputSatoshis = contractUtxo.satoshis - feeReserve;
-    if (stateOutputSatoshis < 546n) {
-      throw new Error('Insufficient contract balance to pause campaign');
-    }
+    const feeReserve = 1200n;
 
     const txBuilder = new TransactionBuilder({ provider: this.provider });
     txBuilder.setLocktime(params.currentTime);
@@ -75,6 +73,22 @@ export class AirdropControlService {
         placeholderPublicKey(),
       ),
     );
+    const feePayer = params.feePayerAddress
+      ? await this.selectFeePayerInputs(params.feePayerAddress, feeReserve)
+      : null;
+    if (feePayer) {
+      const unlocker = placeholderP2PKHUnlocker(params.feePayerAddress!);
+      for (const utxo of feePayer.utxos) {
+        txBuilder.addInput(utxo, unlocker);
+      }
+    }
+    const stateOutputSatoshis = feePayer
+      ? contractUtxo.satoshis
+      : contractUtxo.satoshis - feeReserve;
+    if (stateOutputSatoshis < 546n) {
+      throw new Error('Insufficient contract balance to pause campaign');
+    }
+
     txBuilder.addOutput({
       to: contract.tokenAddress,
       amount: stateOutputSatoshis,
@@ -87,6 +101,15 @@ export class AirdropControlService {
         },
       },
     });
+    if (feePayer) {
+      const feeChange = feePayer.total - feeReserve;
+      if (feeChange > 546n) {
+        txBuilder.addOutput({
+          to: params.feePayerAddress!,
+          amount: feeChange,
+        });
+      }
+    }
 
     return {
       wcTransaction: txBuilder.generateWcTransactionObject({
@@ -130,10 +153,25 @@ export class AirdropControlService {
         placeholderPublicKey(),
       ),
     );
+    const feeReserve = 1500n;
+    const feePayer = params.feePayerAddress
+      ? await this.selectFeePayerInputs(params.feePayerAddress, feeReserve)
+      : null;
+    if (feePayer) {
+      const unlocker = placeholderP2PKHUnlocker(params.feePayerAddress!);
+      for (const utxo of feePayer.utxos) {
+        txBuilder.addInput(utxo, unlocker);
+      }
+    }
 
-    const feeReserve = 1200n;
     let spentSatoshis = 0n;
     if (params.tokenType === 'FUNGIBLE_TOKEN') {
+      if (!contractUtxo.token?.category) {
+        throw new Error('Cancel requires tokenized covenant UTXO with token category');
+      }
+      if (contractUtxo.satoshis < 1000n) {
+        throw new Error('Insufficient contract satoshis to build token cancel output');
+      }
       txBuilder.addOutput({
         to: cancelReturnAddress,
         amount: 1000n,
@@ -147,6 +185,9 @@ export class AirdropControlService {
       if (remainingPool < 546n) {
         throw new Error('Remaining BCH pool is below dust and cannot be cancelled');
       }
+      if (contractUtxo.satoshis < remainingPool) {
+        throw new Error('Contract balance is below remaining BCH pool; cannot build valid cancel transaction');
+      }
       txBuilder.addOutput({
         to: cancelReturnAddress,
         amount: remainingPool,
@@ -154,15 +195,38 @@ export class AirdropControlService {
       spentSatoshis += remainingPool;
     }
 
-    const change = contractUtxo.satoshis - spentSatoshis - feeReserve;
-    if (change < 0n) {
-      throw new Error('Insufficient contract balance to cover cancel transaction fee');
-    }
-    if (change > 546n) {
-      txBuilder.addOutput({
-        to: cancelReturnAddress,
-        amount: change,
-      });
+    if (feePayer) {
+      const contractChange = contractUtxo.satoshis - spentSatoshis;
+      if (contractChange < 0n) {
+        throw new Error('Contract balance is insufficient for required cancel outputs');
+      }
+      if (contractChange > 546n) {
+        txBuilder.addOutput({
+          to: cancelReturnAddress,
+          amount: contractChange,
+        });
+      }
+
+      const feeChange = feePayer.total - feeReserve;
+      if (feeChange > 546n) {
+        txBuilder.addOutput({
+          to: params.feePayerAddress!,
+          amount: feeChange,
+        });
+      }
+    } else {
+      const contractChange = contractUtxo.satoshis - spentSatoshis - feeReserve;
+      if (contractChange < 0n) {
+        throw new Error(
+          'Cancel requires an additional fee-paying input. Provide signer address with spendable BCH.'
+        );
+      }
+      if (contractChange > 546n) {
+        txBuilder.addOutput({
+          to: cancelReturnAddress,
+          amount: contractChange,
+        });
+      }
     }
 
     return {
@@ -260,6 +324,38 @@ export class AirdropControlService {
 
   private clampToZero(value: bigint): bigint {
     return value > 0n ? value : 0n;
+  }
+
+  private async selectFeePayerInputs(address: string, requiredFee: bigint): Promise<{
+    utxos: any[];
+    total: bigint;
+  }> {
+    const utxos = await this.provider.getUtxos(address);
+    const spendable = utxos
+      .filter((utxo: any) => !utxo.token)
+      .sort((a: any, b: any) => {
+        const aSats = BigInt(a.satoshis);
+        const bSats = BigInt(b.satoshis);
+        if (aSats < bSats) return -1;
+        if (aSats > bSats) return 1;
+        return 0;
+      });
+
+    const selected: any[] = [];
+    let total = 0n;
+    for (const utxo of spendable) {
+      selected.push(utxo);
+      total += BigInt(utxo.satoshis);
+      if (total >= requiredFee) break;
+    }
+
+    if (total < requiredFee) {
+      throw new Error(
+        `Signer ${address} needs at least ${requiredFee} sats of BCH UTXOs to pay network fee for this action`
+      );
+    }
+
+    return { utxos: selected, total };
   }
 
   private networkPrefix(): 'bitcoincash' | 'bchtest' {
