@@ -1,7 +1,6 @@
 import {
   Contract,
   ElectrumNetworkProvider,
-  SignatureTemplate,
   TransactionBuilder,
   placeholderPublicKey,
   placeholderSignature,
@@ -67,7 +66,7 @@ export class StreamCancelService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.cancel(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );

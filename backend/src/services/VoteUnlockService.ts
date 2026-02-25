@@ -13,7 +13,6 @@
 import {
   Contract,
   ElectrumNetworkProvider,
-  SignatureTemplate,
   TransactionBuilder,
   placeholderPublicKey,
   placeholderSignature,
@@ -88,7 +87,7 @@ export class VoteUnlockService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.reclaim(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );

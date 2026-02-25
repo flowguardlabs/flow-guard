@@ -6,7 +6,6 @@ import { VaultService } from './vaultService.js';
 import {
   Contract,
   ElectrumNetworkProvider,
-  SignatureTemplate,
   TransactionBuilder,
   placeholderSignature,
   type WcTransactionObject,
@@ -560,7 +559,7 @@ export class ProposalService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.approve(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         hexToBin(signerPubkey),
       ),
     );
@@ -796,9 +795,9 @@ export class ProposalService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.spend(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         hexToBin(signerPubkeys[0]),
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         hexToBin(signerPubkeys[1]),
         payoutHash,
         recipientHash,

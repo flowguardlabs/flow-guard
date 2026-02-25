@@ -18,6 +18,7 @@ import { useNetwork } from '../hooks/useNetwork';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { CircularProgress } from '../components/streams/CircularProgress';
+import { formatLogicalId } from '../utils/display';
 import {
   deserializeWcSignOptions,
   fundStreamContract,
@@ -349,6 +350,7 @@ export default function StreamDetailPage() {
 
   const isSender = wallet.address?.toLowerCase() === stream.sender.toLowerCase();
   const isRecipient = wallet.address?.toLowerCase() === stream.recipient.toLowerCase();
+  const displayStreamId = formatLogicalId(stream.stream_id);
 
   return (
     <div className="p-8">
@@ -373,7 +375,7 @@ export default function StreamDetailPage() {
               title="Click to copy full ID"
             >
               <p className="text-sm font-mono text-textMuted truncate max-w-[300px] md:max-w-[500px]">
-                {stream.stream_id.slice(0, 8)}...{stream.stream_id.slice(-8)}
+                {displayStreamId}
               </p>
               {copiedAddress === 'stream_id' ? (
                 <Check className="w-3 h-3 text-green-600" />

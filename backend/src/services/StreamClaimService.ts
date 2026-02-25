@@ -1,7 +1,6 @@
 import {
   Contract,
   ElectrumNetworkProvider,
-  SignatureTemplate,
   TransactionBuilder,
   placeholderPublicKey,
   placeholderSignature,
@@ -127,7 +126,7 @@ export class StreamClaimService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.claim(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );

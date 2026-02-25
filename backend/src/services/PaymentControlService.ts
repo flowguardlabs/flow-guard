@@ -1,7 +1,6 @@
 import {
   Contract,
   ElectrumNetworkProvider,
-  SignatureTemplate,
   TransactionBuilder,
   placeholderPublicKey,
   placeholderSignature,
@@ -68,7 +67,7 @@ export class PaymentControlService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.pause(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );
@@ -129,7 +128,7 @@ export class PaymentControlService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.resume(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );
@@ -181,7 +180,7 @@ export class PaymentControlService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.cancel(
-        new SignatureTemplate(placeholderSignature()),
+        placeholderSignature(),
         placeholderPublicKey(),
       ),
     );
