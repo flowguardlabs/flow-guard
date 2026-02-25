@@ -1,0 +1,192 @@
+---
+title: "FlowGuard End-to-End Testing on Bitcoin Cash Chipnet"
+date: "2026-02-25"
+summary: "FlowGuard has been tested end-to-end on the Bitcoin Cash Chipnet test network. This post explains what that means and what was actually executed."
+tags: ["Testing", "Chipnet", "BCH", "Technical"]
+status: "published"
+author: "FlowGuard Team"
+readingTime: 7
+---
+
+# FlowGuard End-to-End Testing on Bitcoin Cash Chipnet
+
+## Introduction
+
+It's easy to build a clean UI.
+
+It's harder to prove that the system actually works on-chain.
+
+FlowGuard has been tested end-to-end on the Bitcoin Cash Chipnet test network.
+
+This post explains what that means — and what was actually executed.
+
+## What "End-to-End" Means
+
+End-to-end testing covers the full lifecycle:
+
+- Contract deployment
+- Contract funding
+- Transaction building
+- Wallet signing
+- Broadcast to network
+- On-chain validation
+- State updates
+- Explorer verification
+
+If any part fails, the flow is incomplete.
+
+We tested complete flows.
+
+## Vault Lifecycle Test
+
+The vault lifecycle included:
+
+- Deploying VaultCovenant
+- Encoding constructor parameters
+- Funding the vault with BCH
+- Creating proposals
+- Approving proposals (M-of-N signatures)
+- Executing payouts
+
+Validation checks enforced:
+
+- Approval threshold
+- Spending cap
+- Cycle unlock rules
+
+Transactions were signed via wallet and verified on the network.
+
+## Stream Lifecycle Test
+
+Streams were tested using NFT commitment state.
+
+Tested flows included:
+
+- Deploying VestingCovenant
+- Funding with BCH and NFT commitment
+- Claiming partial vested amounts
+- Updating commitment state
+- Preventing over-claim attempts
+
+Each claim transaction:
+
+- Calculated vested amount
+- Updated NFT commitment
+- Preserved remaining balance
+
+All enforced by covenant logic.
+
+## Proposal Execution Flow
+
+Governance-connected flows tested:
+
+- Proposal creation
+- Approval accumulation
+- Execution attempt before threshold (fail case)
+- Execution after threshold (success case)
+
+This confirmed:
+
+- Threshold enforcement
+- Cap enforcement
+- Contract-level validation
+
+Invalid transactions were rejected as expected.
+
+## Budget Unlock Testing
+
+Milestone-based unlock flows tested:
+
+- Attempted early unlock (rejected)
+- Unlock after timestamp passed (accepted)
+- Over-release attempt (rejected)
+
+This validated:
+
+- Time-based enforcement
+- Allocation boundaries
+- Deterministic state transitions
+
+## Non-Custodial Confirmation
+
+At no point did:
+
+- The backend sign transactions
+- A private key leave the wallet
+- A database override on-chain rules
+
+The pattern remained consistent:
+
+Backend builds template → Wallet signs → Blockchain validates
+
+If validation fails, the transaction never confirms.
+
+## Why Chipnet Testing Matters
+
+Chipnet testing verifies:
+
+- Real covenant execution
+- CashTokens compatibility
+- Transaction fee behavior
+- UTXO state updates
+- Explorer visibility
+
+It proves the contracts function under network conditions.
+
+This is different from:
+
+- Simulated logic
+- Hardcoded mock states
+- Off-chain execution demos
+
+## Transparency
+
+All transactions can be inspected via BCH explorers.
+
+- Contract addresses exist.
+- Funding transactions exist.
+- Claim transactions exist.
+- State transitions are visible in UTXOs.
+
+Testing is not theoretical.
+
+It is observable.
+
+## What This Proves
+
+FlowGuard is:
+
+- Not database-driven
+- Not admin-controlled
+- Not dependent on manual reconciliation
+
+It is covenant-enforced treasury logic operating on Bitcoin Cash.
+
+Testing confirms that the enforcement holds under live conditions.
+
+## What Comes Next
+
+Chipnet testing is the foundation.
+
+Next steps before mainnet:
+
+- Final UX refinements
+- Security audit
+- Production deployment
+- First live DAO treasury
+
+FlowGuard is not a sprint submission artifact.
+
+It is being built for long-term BCH ecosystem use.
+
+## Closing
+
+Infrastructure must be tested where it runs.
+
+FlowGuard contracts have been executed on-chain.
+
+Rules were validated by consensus.
+
+Transactions were verifiable.
+
+That is the standard treasury infrastructure requires.
