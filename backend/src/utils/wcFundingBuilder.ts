@@ -46,13 +46,13 @@ function toToken(
   return {
     category: hexToBin(category),
     amount: tokenAmount,
-    ...(nftCapability && nftCommitment
+    ...(nftCapability !== undefined && nftCommitment !== undefined
       ? {
-          nft: {
-            capability: nftCapability,
-            commitment: hexToBin(nftCommitment),
-          },
-        }
+        nft: {
+          capability: nftCapability,
+          commitment: hexToBin(nftCommitment),
+        },
+      }
       : {}),
   };
 }
@@ -80,11 +80,11 @@ export function buildFundingWcTransaction(params: {
   const txOutputs = params.outputs.map((output) => {
     const outputToken = output.token
       ? toToken(
-          output.token.category,
-          output.token.amount,
-          output.token.nft?.capability,
-          output.token.nft?.commitment,
-        )
+        output.token.category,
+        output.token.amount,
+        output.token.nft?.capability,
+        output.token.nft?.commitment,
+      )
       : undefined;
 
     return {
@@ -97,11 +97,11 @@ export function buildFundingWcTransaction(params: {
   const sourceOutputs = params.inputs.map((input, index) => {
     const inputToken = input.tokenCategory && input.tokenAmount !== undefined
       ? toToken(
-          input.tokenCategory,
-          input.tokenAmount,
-          input.tokenNftCapability,
-          input.tokenNftCommitment,
-        )
+        input.tokenCategory,
+        input.tokenAmount,
+        input.tokenNftCapability,
+        input.tokenNftCommitment,
+      )
       : undefined;
 
     return {
