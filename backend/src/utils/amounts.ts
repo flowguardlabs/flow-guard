@@ -8,7 +8,7 @@ function finiteNumber(value: unknown): number {
 }
 
 export function bchToSatoshis(amountBch: number): number {
-  return Math.max(0, Math.floor(finiteNumber(amountBch) * SATOSHIS_PER_BCH));
+  return Math.max(0, Math.round(finiteNumber(amountBch) * SATOSHIS_PER_BCH));
 }
 
 export function satoshisToBch(amountSats: number): number {
@@ -25,7 +25,7 @@ export function isFungibleTokenType(tokenType: TokenTypeLike): boolean {
  * - CashTokens => token base units (integer)
  */
 export function displayAmountToOnChain(amount: number, tokenType: TokenTypeLike): number {
-  return isFungibleTokenType(tokenType) ? Math.max(0, Math.trunc(finiteNumber(amount))) : bchToSatoshis(amount);
+  return isFungibleTokenType(tokenType) ? Math.max(0, Math.round(finiteNumber(amount))) : bchToSatoshis(amount);
 }
 
 /**
