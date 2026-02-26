@@ -929,15 +929,11 @@ export async function fundStreamContract(
   } catch (error: any) {
     console.error('Failed to fund stream:', error);
 
-    if (error.message.includes('insufficient') || error.message.includes('balance')) {
-      throw new Error('Insufficient balance in wallet');
-    }
-
     if (error.message.includes('user') || error.message.includes('cancel')) {
       throw new Error('Transaction cancelled by user');
     }
 
-    throw new Error(`Funding failed: ${error.message || 'Unknown error'}`);
+    throw error;
   }
 }
 
@@ -1091,15 +1087,11 @@ export async function fundPaymentContract(
   } catch (error: any) {
     console.error('Failed to fund payment:', error);
 
-    if (error.message.includes('insufficient') || error.message.includes('balance')) {
-      throw new Error('Insufficient balance in wallet');
-    }
-
     if (error.message.includes('user') || error.message.includes('cancel')) {
       throw new Error('Transaction cancelled by user');
     }
 
-    throw new Error(`Funding failed: ${error.message || 'Unknown error'}`);
+    throw error;
   }
 }
 
