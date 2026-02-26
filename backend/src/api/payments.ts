@@ -612,17 +612,9 @@ router.get('/payments/:id/funding-info', async (req: Request, res: Response) => 
       return res.status(400).json({ error: 'Payment contract not deployed' });
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const startTime = Number(payment.start_date || now);
-    const endTime = Number(payment.end_date || 0);
-    const intervalSec = Number(payment.interval_seconds || 86400);
-    let fundedPeriods = 12;
-    if (endTime > 0 && intervalSec > 0) {
-      const remainingSeconds = Math.max(0, endTime - Math.max(startTime, now));
-      fundedPeriods = Math.min(12, Math.max(1, Math.ceil(remainingSeconds / intervalSec)));
-    }
-    const fundingAmountDisplay = Number(payment.amount_per_period) * fundedPeriods;
-    const fundingAmountOnChain = displayAmountToOnChain(fundingAmountDisplay, payment.token_type);
+    const fundingExpectation = resolvePaymentFundingExpectation(payment);
+    const fundingAmountDisplay = fundingExpectation.fundingAmountDisplay;
+    const fundingAmountOnChain = fundingExpectation.fundingAmountOnChain;
 
     const fundingService = new PaymentFundingService('chipnet');
 
@@ -694,19 +686,9 @@ router.post('/payments/:id/confirm-funding', async (req: Request, res: Response)
       return res.status(404).json({ error: 'Payment not found' });
     }
 
-    const cfNow = Math.floor(Date.now() / 1000);
-    const cfStart = Number(payment.start_date || cfNow);
-    const cfEnd = Number(payment.end_date || 0);
-    const cfInterval = Number(payment.interval_seconds || 86400);
-    let fundedPeriods = 12;
-    if (cfEnd > 0 && cfInterval > 0) {
-      const remaining = Math.max(0, cfEnd - Math.max(cfStart, cfNow));
-      fundedPeriods = Math.min(12, Math.max(1, Math.ceil(remaining / cfInterval)));
-    }
-    const fundingAmountOnChain = displayAmountToOnChain(
-      Number(payment.amount_per_period) * fundedPeriods,
-      payment.token_type,
-    );
+    const fundingExpectation = resolvePaymentFundingExpectation(payment);
+    const fundedPeriods = fundingExpectation.fundedPeriods;
+    const fundingAmountOnChain = fundingExpectation.fundingAmountOnChain;
     const isTokenPayment = isFungibleTokenType(payment.token_type);
 
     const expectedContractOutput = await transactionHasExpectedOutput(
@@ -1075,6 +1057,56 @@ function toBigIntParam(value: unknown, name: string): bigint {
   if (typeof value === 'number') return BigInt(Math.trunc(value));
   if (typeof value === 'string' && value.length > 0) return BigInt(value);
   throw new Error(`Invalid ${name} in constructor parameters`);
+}
+
+function toSafeNumber(value: bigint, label: string): number {
+  const max = BigInt(Number.MAX_SAFE_INTEGER);
+  if (value > max) {
+    throw new Error(`${label} exceeds Number.MAX_SAFE_INTEGER`);
+  }
+  return Number(value);
+}
+
+function resolvePaymentFundingExpectation(payment: any): {
+  fundedPeriods: number;
+  fundingAmountOnChain: number;
+  fundingAmountDisplay: number;
+} {
+  try {
+    const constructorParams = deserializeConstructorParams(payment.constructor_params || '[]');
+    if (Array.isArray(constructorParams) && constructorParams.length >= 6) {
+      const amountPerIntervalOnChain = toBigIntParam(constructorParams[3], 'amountPerInterval');
+      const totalAmountOnChain = toBigIntParam(constructorParams[5], 'totalAmount');
+      if (amountPerIntervalOnChain > 0n && totalAmountOnChain > 0n) {
+        const periods = (totalAmountOnChain + amountPerIntervalOnChain - 1n) / amountPerIntervalOnChain;
+        const fundingAmountOnChain = toSafeNumber(totalAmountOnChain, 'totalAmount');
+        return {
+          fundedPeriods: Math.max(1, toSafeNumber(periods, 'fundedPeriods')),
+          fundingAmountOnChain,
+          fundingAmountDisplay: Number(onChainAmountToDisplay(fundingAmountOnChain, payment.token_type)),
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('[payments] Failed to derive funding expectation from constructor params, using legacy fallback', {
+      paymentId: payment?.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  // Legacy fallback for rows created before constructor params were stored.
+  const now = Math.floor(Date.now() / 1000);
+  const startTime = Number(payment.start_date || now);
+  const endTime = Number(payment.end_date || 0);
+  const intervalSec = Number(payment.interval_seconds || 86400);
+  let fundedPeriods = 12;
+  if (endTime > 0 && intervalSec > 0) {
+    const duration = Math.max(0, endTime - startTime);
+    fundedPeriods = Math.max(1, Math.ceil(duration / intervalSec));
+  }
+  const fundingAmountDisplay = Number(payment.amount_per_period || 0) * fundedPeriods;
+  const fundingAmountOnChain = displayAmountToOnChain(fundingAmountDisplay, payment.token_type);
+  return { fundedPeriods, fundingAmountOnChain, fundingAmountDisplay };
 }
 
 function hashToP2pkhAddress(hash20: Uint8Array): string {

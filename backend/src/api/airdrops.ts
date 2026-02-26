@@ -235,7 +235,7 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
       }
     }
 
-    // Authority controls admin paths (pause/resume/cancel). Claims are claimer-signed.
+    // Authority controls admin paths (pause/resume/cancel). Claims require claimer + claim-authority signatures.
     const deployment = await deploymentService.deployAirdrop({
       vaultId: actualVaultId,
       authorityAddress: creator,
@@ -253,8 +253,9 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
         campaign_type, token_type, token_category, total_amount, amount_per_claim,
         total_recipients, claimed_count, claim_link, start_date, end_date, status,
         require_kyc, max_claims_per_address, created_at, updated_at,
-        contract_address, constructor_params, nft_commitment, nft_capability)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?)
+        contract_address, constructor_params, nft_commitment, nft_capability,
+        claim_authority_privkey)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, campaignId, vaultId || null, creator, title, description || null,
       campaignType || 'AIRDROP', normalizedTokenType, tokenCategory || null,
@@ -266,6 +267,7 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
       JSON.stringify(deployment.constructorParams),
       deployment.initialCommitment,
       'mutable',
+      deployment.claimAuthorityPrivKey,
     );
     recordActivityEvent({
       entityType: 'airdrop',
@@ -616,7 +618,7 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
 
     const constructorParams = deserializeConstructorParams(campaign.constructor_params || '[]');
     const constructorAmountPerClaim = readBigIntParam(
-      constructorParams[2],
+      constructorParams[3],
       'amountPerClaim',
     );
     if (constructorAmountPerClaim <= 0n) {
@@ -678,6 +680,7 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
       constructorParams,
       currentCommitment,
       currentTime: now,
+      claimAuthorityPrivKey: campaign.claim_authority_privkey,
     });
 
     const claimedDisplayAmount = onChainAmountToDisplay(claimTx.claimAmount, campaign.token_type);

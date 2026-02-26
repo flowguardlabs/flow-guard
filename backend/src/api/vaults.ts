@@ -24,6 +24,11 @@ router.post('/', async (req, res) => {
     if (!dto.signerPubkeys || dto.signerPubkeys.length !== 3) {
       return res.status(400).json({ error: 'Exactly 3 signer public keys are required for blockchain deployment' });
     }
+    if (!Number.isInteger(dto.approvalThreshold) || dto.approvalThreshold < 1 || dto.approvalThreshold > 2) {
+      return res.status(400).json({
+        error: 'approvalThreshold must be 1 or 2 (current on-chain vault spend path is 2-of-3 maximum)',
+      });
+    }
 
     const vault = await VaultService.createVault(dto, creator);
     res.status(201).json(vault);
