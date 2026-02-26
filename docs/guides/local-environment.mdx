@@ -34,17 +34,14 @@ Required variables in `backend/.env`:
 
 ```env
 BCH_NETWORK=chipnet
-ELECTRUM_HOST=chipnet.imaginary.cash
-ELECTRUM_PORT=50004
-ELECTRUM_PROTOCOL=tls
 DATABASE_PATH=./flowguard-chipnet.db
 ```
 
 Required variables in `frontend/.env`:
 
 ```env
-VITE_API_URL=http://localhost:3001
-VITE_NETWORK=chipnet
+VITE_API_URL=http://localhost:3001/api
+VITE_BCH_NETWORK=chipnet
 ```
 
 ## Get Chipnet BCH
@@ -88,7 +85,7 @@ Chipnet BCH has no real value. Use it freely for testing all FlowGuard products 
 Check that the indexer is running correctly:
 
 ```bash
-curl http://localhost:3001/api/admin
+curl http://localhost:3001/api/admin/indexer/status
 ```
 
-Expected response includes `indexer.status: "running"` and the latest indexed block height.
+Expected response includes indexer status and block progress metrics.

@@ -1,7 +1,7 @@
 ---
 title: "Deployment Addresses"
 description: "Canonical contract addresses for all FlowGuard covenants on mainnet and chipnet."
-icon: "map-pin"
+icon: "location-dot"
 ---
 
 <Warning>
@@ -29,7 +29,7 @@ The `DeploymentRegistryService` in the backend tracks all addresses deployed thr
 | VoteLockCovenant | v1.0 | Per-deployment (parameterized) |
 
 <Info>
-Because each covenant is parameterized at deploy time, there is no single canonical address for most contracts. The deployment registry API at `GET /api/deployment` returns all active deployments with their parameters and addresses.
+Because each covenant is parameterized at deploy time, there is no single canonical address for most contracts. Use `GET /api/deployment/registry` to list tracked deployments.
 </Info>
 
 ## Chipnet (Testing)
@@ -41,7 +41,7 @@ Chipnet deployments are tracked separately in `flowguard-chipnet.db`. Use the AP
 To verify that a given BCH address corresponds to a FlowGuard covenant with specific parameters:
 
 ```bash
-curl https://api.flowguard.cash/api/deployment?address=<address>
+curl https://api.flowguard.cash/api/deployment/verify/<address>
 ```
 
 The response includes the contract type, version, parameters, and the bytecode hash used to derive the address.
