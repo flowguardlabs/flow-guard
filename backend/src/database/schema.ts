@@ -260,6 +260,24 @@ const createTablesSQL = `
   CREATE INDEX IF NOT EXISTS idx_airdrop_claims_campaign ON airdrop_claims(campaign_id);
   CREATE INDEX IF NOT EXISTS idx_airdrop_claims_claimer ON airdrop_claims(claimer);
 
+  CREATE TABLE IF NOT EXISTS activity_events (
+    id TEXT PRIMARY KEY,
+    entity_type TEXT NOT NULL, -- stream | payment | airdrop
+    entity_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    actor TEXT,
+    amount REAL,
+    status TEXT,
+    tx_hash TEXT,
+    details TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_activity_events_entity
+    ON activity_events(entity_type, entity_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_activity_events_tx_hash
+    ON activity_events(tx_hash);
+
   CREATE TABLE IF NOT EXISTS budget_plans (
     id TEXT PRIMARY KEY,
     vault_id TEXT,
