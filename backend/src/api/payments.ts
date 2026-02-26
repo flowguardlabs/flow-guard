@@ -20,6 +20,11 @@ import {
   isFungibleTokenType,
   onChainAmountToDisplay,
 } from '../utils/amounts.js';
+import {
+  getLatestActivityEvents,
+  listActivityEvents,
+  recordActivityEvent,
+} from '../utils/activityEvents.js';
 
 const router = Router();
 
@@ -54,10 +59,19 @@ router.get('/payments', async (req: Request, res: Response) => {
       rows = db!.prepare('SELECT * FROM payments WHERE recipient = ? ORDER BY created_at DESC').all(recipient);
     }
 
+    const latestByPaymentId = getLatestActivityEvents(
+      'payment',
+      rows.map((row: any) => String(row.id)),
+    );
+    const payments = rows.map((row: any) => ({
+      ...row,
+      latest_event: latestByPaymentId.get(String(row.id)) || null,
+    }));
+
     res.json({
       success: true,
-      payments: rows,
-      total: rows.length,
+      payments,
+      total: payments.length,
     });
   } catch (error: any) {
     console.error('GET /payments error:', error);
@@ -79,11 +93,16 @@ router.get('/payments/:id', async (req: Request, res: Response) => {
     }
 
     const history = db!.prepare('SELECT * FROM payment_executions WHERE payment_id = ? ORDER BY paid_at DESC').all(id);
+    const storedEvents = listActivityEvents('payment', id, 200);
+    const events = storedEvents.length > 0
+      ? storedEvents
+      : buildFallbackPaymentEvents(payment, history);
 
     res.json({
       success: true,
       payment,
       history,
+      events,
     });
   } catch (error: any) {
     console.error(`GET /payments/${req.params.id} error:`, error);
@@ -190,6 +209,21 @@ router.post('/payments/create', async (req: Request, res: Response) => {
       deployment.initialCommitment,
       'mutable'
     );
+    recordActivityEvent({
+      entityType: 'payment',
+      entityId: id,
+      eventType: 'created',
+      actor: sender,
+      amount: amountPerPeriod,
+      status: 'PENDING',
+      details: {
+        paymentId,
+        interval,
+        startDate: start,
+        endDate: endDate || null,
+      },
+      createdAt: now,
+    });
 
     const payment = db!.prepare('SELECT * FROM payments WHERE id = ?').get(id);
 
@@ -412,6 +446,15 @@ router.post('/payments/:id/confirm-pause', async (req: Request, res: Response) =
     const now = Math.floor(Date.now() / 1000);
     db!.prepare('UPDATE payments SET status = ?, updated_at = ? WHERE id = ?')
       .run('PAUSED', now, id);
+    recordActivityEvent({
+      entityType: 'payment',
+      entityId: id,
+      eventType: 'paused',
+      actor: payment.sender,
+      status: 'PAUSED',
+      txHash,
+      createdAt: now,
+    });
 
     res.json({ success: true, txHash, status: 'PAUSED' });
   } catch (error: any) {
@@ -461,6 +504,15 @@ router.post('/payments/:id/confirm-resume', async (req: Request, res: Response) 
     const nextPaymentDate = now + Number(payment.interval_seconds || 0);
     db!.prepare('UPDATE payments SET status = ?, next_payment_date = ?, updated_at = ? WHERE id = ?')
       .run('ACTIVE', nextPaymentDate, now, id);
+    recordActivityEvent({
+      entityType: 'payment',
+      entityId: id,
+      eventType: 'resumed',
+      actor: payment.sender,
+      status: 'ACTIVE',
+      txHash,
+      createdAt: now,
+    });
 
     res.json({ success: true, txHash, status: 'ACTIVE' });
   } catch (error: any) {
@@ -522,6 +574,19 @@ router.post('/payments/:id/confirm-cancel', async (req: Request, res: Response) 
     const now = Math.floor(Date.now() / 1000);
     db!.prepare('UPDATE payments SET status = ?, updated_at = ? WHERE id = ?')
       .run('CANCELLED', now, id);
+    recordActivityEvent({
+      entityType: 'payment',
+      entityId: id,
+      eventType: 'cancelled',
+      actor: payment.sender,
+      status: 'CANCELLED',
+      txHash,
+      amount: Number(onChainAmountToDisplay(Number(remainingPool), payment.token_type)),
+      details: {
+        senderReturnAddress,
+      },
+      createdAt: now,
+    });
 
     res.json({ success: true, txHash, status: 'CANCELLED' });
   } catch (error: any) {
@@ -676,6 +741,20 @@ router.post('/payments/:id/confirm-funding', async (req: Request, res: Response)
       SET tx_hash = ?, status = 'ACTIVE', updated_at = ?
       WHERE id = ?
     `).run(txHash, now, id);
+    recordActivityEvent({
+      entityType: 'payment',
+      entityId: id,
+      eventType: 'funded',
+      actor: payment.sender,
+      amount: Number(payment.amount_per_period) * fundedPeriods,
+      status: 'ACTIVE',
+      txHash,
+      details: {
+        fundedPeriods,
+        intervalSeconds: payment.interval_seconds,
+      },
+      createdAt: now,
+    });
 
     res.json({
       success: true,
@@ -833,6 +912,20 @@ router.post('/payments/:id/confirm-claim', async (req: Request, res: Response) =
       // Table might not exist, ignore
       console.log('payment_executions table not found, skipping record');
     }
+    recordActivityEvent({
+      entityType: 'payment',
+      entityId: id,
+      eventType: 'claim',
+      actor: payment.recipient,
+      amount: claimedAmountNumber,
+      status: String(payment.status || 'ACTIVE'),
+      txHash,
+      details: {
+        intervalsClaimed: normalizedIntervals,
+        totalPaidAfterClaim: newTotalPaid,
+      },
+      createdAt: now,
+    });
 
     res.json({
       success: true,
@@ -854,6 +947,107 @@ function normalizePaymentTokenType(tokenType: unknown): 'BCH' | 'FUNGIBLE_TOKEN'
   return tokenType === 'FUNGIBLE_TOKEN' || tokenType === 'CASHTOKENS'
     ? 'FUNGIBLE_TOKEN'
     : 'BCH';
+}
+
+function buildFallbackPaymentEvents(payment: any, history: any[]): Array<{
+  id: string;
+  entity_type: 'payment';
+  entity_id: string;
+  event_type: string;
+  actor: string | null;
+  amount: number | null;
+  status: string | null;
+  tx_hash: string | null;
+  details: null;
+  created_at: number;
+}> {
+  const events: Array<{
+    id: string;
+    entity_type: 'payment';
+    entity_id: string;
+    event_type: string;
+    actor: string | null;
+    amount: number | null;
+    status: string | null;
+    tx_hash: string | null;
+    details: null;
+    created_at: number;
+  }> = [];
+
+  events.push({
+    id: `fallback-payment-created-${payment.id}`,
+    entity_type: 'payment',
+    entity_id: payment.id,
+    event_type: 'created',
+    actor: payment.sender || null,
+    amount: typeof payment.amount_per_period === 'number' ? payment.amount_per_period : null,
+    status: payment.status || null,
+    tx_hash: null,
+    details: null,
+    created_at: Number(payment.created_at || Math.floor(Date.now() / 1000)),
+  });
+
+  if (payment.tx_hash) {
+    events.push({
+      id: `fallback-payment-funded-${payment.id}`,
+      entity_type: 'payment',
+      entity_id: payment.id,
+      event_type: 'funded',
+      actor: payment.sender || null,
+      amount: null,
+      status: payment.status || null,
+      tx_hash: payment.tx_hash,
+      details: null,
+      created_at: Number(payment.updated_at || payment.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  if (payment.status === 'PAUSED') {
+    events.push({
+      id: `fallback-payment-paused-${payment.id}`,
+      entity_type: 'payment',
+      entity_id: payment.id,
+      event_type: 'paused',
+      actor: payment.sender || null,
+      amount: null,
+      status: 'PAUSED',
+      tx_hash: null,
+      details: null,
+      created_at: Number(payment.updated_at || payment.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  if (payment.status === 'CANCELLED') {
+    events.push({
+      id: `fallback-payment-cancelled-${payment.id}`,
+      entity_type: 'payment',
+      entity_id: payment.id,
+      event_type: 'cancelled',
+      actor: payment.sender || null,
+      amount: null,
+      status: 'CANCELLED',
+      tx_hash: null,
+      details: null,
+      created_at: Number(payment.updated_at || payment.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  history.forEach((entry: any) => {
+    events.push({
+      id: `fallback-payment-claim-${entry.id}`,
+      entity_type: 'payment',
+      entity_id: payment.id,
+      event_type: 'claim',
+      actor: payment.recipient || null,
+      amount: typeof entry.amount === 'number' ? entry.amount : null,
+      status: payment.status || null,
+      tx_hash: entry.tx_hash || null,
+      details: null,
+      created_at: Number(entry.paid_at || payment.updated_at || payment.created_at || Math.floor(Date.now() / 1000)),
+    });
+  });
+
+  return events.sort((a, b) => b.created_at - a.created_at);
 }
 
 function deserializeConstructorParams(raw: string): any[] {

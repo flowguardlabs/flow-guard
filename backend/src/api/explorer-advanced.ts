@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { ElectrumNetworkProvider } from 'cashscript';
 import db from '../database/schema.js';
+import { getLatestActivityEvents } from '../utils/activityEvents.js';
 
 const router = Router();
 const provider = new ElectrumNetworkProvider('chipnet');
@@ -89,16 +90,29 @@ router.get('/explorer/transactions', async (req, res) => {
 
     const results: any[] = [];
     const params: any[] = [];
+    const startIso = typeof startDate === 'string' ? startDate : '';
+    const endIso = typeof endDate === 'string' ? endDate : '';
+    const parsedStartEpoch = startIso ? Math.floor(Date.parse(startIso) / 1000) : null;
+    const parsedEndEpoch = endIso ? Math.floor(Date.parse(endIso) / 1000) : null;
+    const startEpoch = typeof parsedStartEpoch === 'number' && Number.isFinite(parsedStartEpoch)
+      ? parsedStartEpoch
+      : null;
+    const endEpoch = typeof parsedEndEpoch === 'number' && Number.isFinite(parsedEndEpoch)
+      ? parsedEndEpoch
+      : null;
 
     // Build dynamic query based on type
     if (!type || type === 'vault') {
       let sql = `SELECT
         v.vault_id as id,
+        v.id as entity_id,
+        NULL as entity_type,
         v.name,
         v.contract_address,
         v.total_deposit as amount,
         v.creator as sender,
         NULL as recipient,
+        'BCH' as token_type,
         'VAULT' as tx_type,
         CASE WHEN v.contract_address IS NOT NULL THEN 'DEPLOYED' ELSE 'CREATED' END as status,
         v.created_at,
@@ -119,11 +133,11 @@ router.get('/explorer/transactions', async (req, res) => {
       }
       if (startDate) {
         sql += ' AND v.created_at >= ?';
-        params.push(startDate);
+        params.push(startIso);
       }
       if (endDate) {
         sql += ' AND v.created_at <= ?';
-        params.push(endDate);
+        params.push(endIso);
       }
 
       const rows = db!.prepare(sql).all(...params) as any[];
@@ -134,10 +148,13 @@ router.get('/explorer/transactions', async (req, res) => {
     if (!type || type === 'stream') {
       let sql = `SELECT
         s.stream_id as id,
+        s.id as entity_id,
+        'stream' as entity_type,
         s.sender,
         s.recipient,
         s.total_amount as amount,
         s.stream_type as name,
+        s.token_type,
         'STREAM' as tx_type,
         s.status,
         s.created_at,
@@ -162,11 +179,103 @@ router.get('/explorer/transactions', async (req, res) => {
       }
       if (startDate) {
         sql += ' AND s.created_at >= ?';
-        params.push(startDate);
+        params.push(startEpoch ?? 0);
       }
       if (endDate) {
         sql += ' AND s.created_at <= ?';
-        params.push(endDate);
+        params.push(endEpoch ?? Number.MAX_SAFE_INTEGER);
+      }
+
+      const rows = db!.prepare(sql).all(...params) as any[];
+      results.push(...rows);
+      params.length = 0;
+    }
+
+    if (!type || type === 'payment') {
+      let sql = `SELECT
+        p.payment_id as id,
+        p.id as entity_id,
+        'payment' as entity_type,
+        p.sender,
+        p.recipient,
+        p.amount_per_period as amount,
+        p.interval as name,
+        p.token_type,
+        'PAYMENT' as tx_type,
+        p.status,
+        p.created_at,
+        p.tx_hash
+      FROM payments p WHERE 1=1`;
+
+      if (address) {
+        sql += ' AND (p.sender = ? OR p.recipient = ?)';
+        params.push(address, address);
+      }
+      if (status) {
+        sql += ' AND p.status = ?';
+        params.push(status);
+      }
+      if (minAmount) {
+        sql += ' AND p.amount_per_period >= ?';
+        params.push(Number(minAmount));
+      }
+      if (maxAmount) {
+        sql += ' AND p.amount_per_period <= ?';
+        params.push(Number(maxAmount));
+      }
+      if (startDate) {
+        sql += ' AND p.created_at >= ?';
+        params.push(startEpoch ?? 0);
+      }
+      if (endDate) {
+        sql += ' AND p.created_at <= ?';
+        params.push(endEpoch ?? Number.MAX_SAFE_INTEGER);
+      }
+
+      const rows = db!.prepare(sql).all(...params) as any[];
+      results.push(...rows);
+      params.length = 0;
+    }
+
+    if (!type || type === 'airdrop') {
+      let sql = `SELECT
+        a.campaign_id as id,
+        a.id as entity_id,
+        'airdrop' as entity_type,
+        a.creator as sender,
+        NULL as recipient,
+        a.total_amount as amount,
+        a.title as name,
+        a.token_type,
+        'AIRDROP' as tx_type,
+        a.status,
+        a.created_at,
+        a.tx_hash
+      FROM airdrops a WHERE 1=1`;
+
+      if (address) {
+        sql += ' AND a.creator = ?';
+        params.push(address);
+      }
+      if (status) {
+        sql += ' AND a.status = ?';
+        params.push(status);
+      }
+      if (minAmount) {
+        sql += ' AND a.total_amount >= ?';
+        params.push(Number(minAmount));
+      }
+      if (maxAmount) {
+        sql += ' AND a.total_amount <= ?';
+        params.push(Number(maxAmount));
+      }
+      if (startDate) {
+        sql += ' AND a.created_at >= ?';
+        params.push(startEpoch ?? 0);
+      }
+      if (endDate) {
+        sql += ' AND a.created_at <= ?';
+        params.push(endEpoch ?? Number.MAX_SAFE_INTEGER);
       }
 
       const rows = db!.prepare(sql).all(...params) as any[];
@@ -177,10 +286,13 @@ router.get('/explorer/transactions', async (req, res) => {
     if (!type || type === 'proposal') {
       let sql = `SELECT
         p.id,
+        p.id as entity_id,
+        NULL as entity_type,
         p.vault_id,
         p.recipient,
         p.amount,
         p.reason as name,
+        'BCH' as token_type,
         'PROPOSAL' as tx_type,
         p.status,
         p.created_at,
@@ -205,19 +317,60 @@ router.get('/explorer/transactions', async (req, res) => {
       }
       if (startDate) {
         sql += ' AND p.created_at >= ?';
-        params.push(startDate);
+        params.push(startIso);
       }
       if (endDate) {
         sql += ' AND p.created_at <= ?';
-        params.push(endDate);
+        params.push(endIso);
       }
 
       const rows = db!.prepare(sql).all(...params) as any[];
       results.push(...rows);
     }
 
+    // Attach latest lifecycle event data for entities backed by activity_events.
+    const latestStreamEvents = getLatestActivityEvents(
+      'stream',
+      results
+        .filter((row) => row.entity_type === 'stream')
+        .map((row) => String(row.entity_id)),
+    );
+    const latestPaymentEvents = getLatestActivityEvents(
+      'payment',
+      results
+        .filter((row) => row.entity_type === 'payment')
+        .map((row) => String(row.entity_id)),
+    );
+    const latestAirdropEvents = getLatestActivityEvents(
+      'airdrop',
+      results
+        .filter((row) => row.entity_type === 'airdrop')
+        .map((row) => String(row.entity_id)),
+    );
+
+    for (const row of results) {
+      const latestEvent = row.entity_type === 'stream'
+        ? latestStreamEvents.get(String(row.entity_id))
+        : row.entity_type === 'payment'
+        ? latestPaymentEvents.get(String(row.entity_id))
+        : row.entity_type === 'airdrop'
+        ? latestAirdropEvents.get(String(row.entity_id))
+        : null;
+
+      row.latest_event = latestEvent || null;
+      if (!row.tx_hash && latestEvent?.tx_hash) {
+        row.tx_hash = latestEvent.tx_hash;
+      }
+      if (latestEvent?.status) {
+        row.status = latestEvent.status;
+      }
+      row.created_at = toUnixMs(row.created_at);
+      delete row.entity_type;
+      delete row.entity_id;
+    }
+
     // Sort by created_at desc
-    results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    results.sort((a, b) => Number(b.created_at) - Number(a.created_at));
 
     // Apply pagination
     const paginated = results.slice(Number(offset), Number(offset) + Number(limit));
@@ -495,5 +648,22 @@ router.get('/explorer/timeline', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+function toUnixMs(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value > 1_000_000_000_000 ? value : value * 1000;
+  }
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric > 1_000_000_000_000 ? numeric : numeric * 1000;
+    }
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return Date.now();
+}
 
 export default router;

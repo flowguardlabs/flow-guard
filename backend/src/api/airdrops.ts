@@ -20,6 +20,11 @@ import {
   isFungibleTokenType,
   onChainAmountToDisplay,
 } from '../utils/amounts.js';
+import {
+  getLatestActivityEvents,
+  listActivityEvents,
+  recordActivityEvent,
+} from '../utils/activityEvents.js';
 
 const router = Router();
 
@@ -36,7 +41,9 @@ router.get('/airdrops', async (req: Request, res: Response) => {
     }
 
     const rows = db!.prepare('SELECT * FROM airdrops WHERE creator = ? ORDER BY created_at DESC').all(creator);
-    const campaigns = rows.map((row: any) => normalizeCampaignForResponse(req, row));
+    const campaigns = attachLatestAirdropEvents(
+      rows.map((row: any) => normalizeCampaignForResponse(req, row)),
+    );
 
     res.json({
       success: true,
@@ -71,7 +78,9 @@ router.get('/airdrops/claimable', async (req: Request, res: Response) => {
           WHERE c.campaign_id = a.id AND c.claimer = ?
         ) < COALESCE(a.max_claims_per_address, 1)
     `).all(now, address);
-    const campaigns = rows.map((row: any) => normalizeCampaignForResponse(req, row));
+    const campaigns = attachLatestAirdropEvents(
+      rows.map((row: any) => normalizeCampaignForResponse(req, row)),
+    );
 
     res.json({
       success: true,
@@ -128,11 +137,16 @@ router.get('/airdrops/:id', async (req: Request, res: Response) => {
     }
 
     const claims = db!.prepare('SELECT * FROM airdrop_claims WHERE campaign_id = ? ORDER BY claimed_at DESC').all(id);
+    const storedEvents = listActivityEvents('airdrop', id, 200);
+    const events = storedEvents.length > 0
+      ? storedEvents
+      : buildFallbackAirdropEvents(campaign, claims);
 
     res.json({
       success: true,
       campaign: normalizeCampaignForResponse(req, campaign),
       claims,
+      events,
     });
   } catch (error: any) {
     console.error(`GET /airdrops/${req.params.id} error:`, error);
@@ -253,6 +267,22 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
       deployment.initialCommitment,
       'mutable',
     );
+    recordActivityEvent({
+      entityType: 'airdrop',
+      entityId: id,
+      eventType: 'created',
+      actor: creator,
+      amount: normalizedTotalAmount,
+      status: 'PENDING',
+      details: {
+        campaignId,
+        campaignType: campaignType || 'AIRDROP',
+        totalRecipients,
+        startDate: startDate || now,
+        endDate: endDate || null,
+      },
+      createdAt: now,
+    });
 
     const campaign = db!.prepare('SELECT * FROM airdrops WHERE id = ?').get(id);
 
@@ -468,6 +498,21 @@ router.post('/airdrops/:id/confirm-funding', async (req: Request, res: Response)
       SET tx_hash = ?, status = 'ACTIVE', updated_at = ?
       WHERE id = ?
     `).run(txHash, now, id);
+    recordActivityEvent({
+      entityType: 'airdrop',
+      entityId: id,
+      eventType: 'funded',
+      actor: campaign.creator,
+      amount: campaign.total_amount,
+      status: 'ACTIVE',
+      txHash,
+      details: {
+        contractAddress: campaign.contract_address,
+        tokenType: campaign.token_type,
+        tokenCategory: campaign.token_category || null,
+      },
+      createdAt: now,
+    });
 
     res.json({
       success: true,
@@ -712,6 +757,16 @@ router.post('/airdrops/:id/confirm-claim', async (req: Request, res: Response) =
       SET claimed_count = claimed_count + 1, updated_at = ?
       WHERE id = ?
     `).run(now, id);
+    recordActivityEvent({
+      entityType: 'airdrop',
+      entityId: id,
+      eventType: 'claim',
+      actor: claimerAddress,
+      amount: claimedAmountNumber,
+      txHash,
+      status: String(campaign.status || 'ACTIVE'),
+      createdAt: now,
+    });
 
     res.json({
       success: true,
@@ -825,6 +880,15 @@ router.post('/airdrops/:id/confirm-pause', async (req: Request, res: Response) =
     const now = Math.floor(Date.now() / 1000);
     db!.prepare('UPDATE airdrops SET status = ?, updated_at = ? WHERE id = ?')
       .run('PAUSED', now, id);
+    recordActivityEvent({
+      entityType: 'airdrop',
+      entityId: id,
+      eventType: 'paused',
+      actor: signerAddress,
+      status: 'PAUSED',
+      txHash,
+      createdAt: now,
+    });
 
     res.json({ success: true, txHash, status: 'PAUSED' });
   } catch (error: any) {
@@ -957,6 +1021,18 @@ router.post('/airdrops/:id/confirm-cancel', async (req: Request, res: Response) 
     const now = Math.floor(Date.now() / 1000);
     db!.prepare('UPDATE airdrops SET status = ?, updated_at = ? WHERE id = ?')
       .run('CANCELLED', now, id);
+    recordActivityEvent({
+      entityType: 'airdrop',
+      entityId: id,
+      eventType: 'cancelled',
+      actor: signerAddress,
+      status: 'CANCELLED',
+      txHash,
+      details: {
+        authorityReturnAddress,
+      },
+      createdAt: now,
+    });
 
     res.json({ success: true, txHash, status: 'CANCELLED' });
   } catch (error: any) {
@@ -971,6 +1047,107 @@ function normalizeAirdropTokenType(tokenType: unknown): 'BCH' | 'FUNGIBLE_TOKEN'
   return tokenType === 'FUNGIBLE_TOKEN' || tokenType === 'CASHTOKENS'
     ? 'FUNGIBLE_TOKEN'
     : 'BCH';
+}
+
+function buildFallbackAirdropEvents(campaign: any, claims: any[]): Array<{
+  id: string;
+  entity_type: 'airdrop';
+  entity_id: string;
+  event_type: string;
+  actor: string | null;
+  amount: number | null;
+  status: string | null;
+  tx_hash: string | null;
+  details: null;
+  created_at: number;
+}> {
+  const events: Array<{
+    id: string;
+    entity_type: 'airdrop';
+    entity_id: string;
+    event_type: string;
+    actor: string | null;
+    amount: number | null;
+    status: string | null;
+    tx_hash: string | null;
+    details: null;
+    created_at: number;
+  }> = [];
+
+  events.push({
+    id: `fallback-airdrop-created-${campaign.id}`,
+    entity_type: 'airdrop',
+    entity_id: campaign.id,
+    event_type: 'created',
+    actor: campaign.creator || null,
+    amount: typeof campaign.total_amount === 'number' ? campaign.total_amount : null,
+    status: campaign.status || null,
+    tx_hash: null,
+    details: null,
+    created_at: Number(campaign.created_at || Math.floor(Date.now() / 1000)),
+  });
+
+  if (campaign.tx_hash) {
+    events.push({
+      id: `fallback-airdrop-funded-${campaign.id}`,
+      entity_type: 'airdrop',
+      entity_id: campaign.id,
+      event_type: 'funded',
+      actor: campaign.creator || null,
+      amount: typeof campaign.total_amount === 'number' ? campaign.total_amount : null,
+      status: 'ACTIVE',
+      tx_hash: campaign.tx_hash,
+      details: null,
+      created_at: Number(campaign.updated_at || campaign.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  if (campaign.status === 'PAUSED') {
+    events.push({
+      id: `fallback-airdrop-paused-${campaign.id}`,
+      entity_type: 'airdrop',
+      entity_id: campaign.id,
+      event_type: 'paused',
+      actor: campaign.creator || null,
+      amount: null,
+      status: 'PAUSED',
+      tx_hash: null,
+      details: null,
+      created_at: Number(campaign.updated_at || campaign.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  if (campaign.status === 'CANCELLED') {
+    events.push({
+      id: `fallback-airdrop-cancelled-${campaign.id}`,
+      entity_type: 'airdrop',
+      entity_id: campaign.id,
+      event_type: 'cancelled',
+      actor: campaign.creator || null,
+      amount: null,
+      status: 'CANCELLED',
+      tx_hash: null,
+      details: null,
+      created_at: Number(campaign.updated_at || campaign.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  claims.forEach((claim: any) => {
+    events.push({
+      id: `fallback-airdrop-claim-${claim.id}`,
+      entity_type: 'airdrop',
+      entity_id: campaign.id,
+      event_type: 'claim',
+      actor: claim.claimer || null,
+      amount: typeof claim.amount === 'number' ? claim.amount : null,
+      status: campaign.status || null,
+      tx_hash: claim.tx_hash || null,
+      details: null,
+      created_at: Number(claim.claimed_at || campaign.updated_at || campaign.created_at || Math.floor(Date.now() / 1000)),
+    });
+  });
+
+  return events.sort((a, b) => b.created_at - a.created_at);
 }
 
 function deserializeConstructorParams(raw: string): any[] {
@@ -1079,6 +1256,20 @@ function normalizeCampaignForResponse(req: Request, campaign: any): any {
     ...campaign,
     claim_link: normalizeClaimLinkForResponse(req, campaign.claim_link),
   };
+}
+
+function attachLatestAirdropEvents(campaigns: any[]): any[] {
+  if (!Array.isArray(campaigns) || campaigns.length === 0) {
+    return campaigns;
+  }
+  const latestByCampaignId = getLatestActivityEvents(
+    'airdrop',
+    campaigns.map((campaign) => String(campaign.id)),
+  );
+  return campaigns.map((campaign) => ({
+    ...campaign,
+    latest_event: latestByCampaignId.get(String(campaign.id)) || null,
+  }));
 }
 
 function normalizeClaimLinkForResponse(req: Request, claimLink: unknown): string {

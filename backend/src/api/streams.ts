@@ -22,6 +22,11 @@ import {
   isFungibleTokenType,
   onChainAmountToDisplay,
 } from '../utils/amounts.js';
+import {
+  getLatestActivityEvents,
+  listActivityEvents,
+  recordActivityEvent,
+} from '../utils/activityEvents.js';
 
 const router = Router();
 
@@ -59,11 +64,19 @@ router.get('/streams', async (req: Request, res: Response) => {
     }
 
     const enrichedStreams = streamService.enrichStreams(streams);
+    const latestByStreamId = getLatestActivityEvents(
+      'stream',
+      enrichedStreams.map((stream) => String(stream.id)),
+    );
+    const responseStreams = enrichedStreams.map((stream) => ({
+      ...stream,
+      latest_event: latestByStreamId.get(String(stream.id)) || null,
+    }));
 
     res.json({
       success: true,
-      streams: enrichedStreams,
-      total: enrichedStreams.length,
+      streams: responseStreams,
+      total: responseStreams.length,
     });
   } catch (error: any) {
     console.error('GET /streams error:', error);
@@ -95,11 +108,16 @@ router.get('/streams/:id', async (req: Request, res: Response) => {
       claimed_at: c.claimed_at,
       tx_hash: c.tx_hash || undefined,
     }));
+    const storedEvents = listActivityEvents('stream', id, 200);
+    const events = storedEvents.length > 0
+      ? storedEvents
+      : buildFallbackStreamEvents(row, claimRows);
 
     res.json({
       success: true,
       stream: streamService.enrichStream(stream),
       claims,
+      events,
     });
   } catch (error: any) {
     console.error(`GET /streams/${req.params.id} error:`, error);
@@ -236,6 +254,22 @@ router.post('/streams/create', async (req: Request, res: Response) => {
       deployment.initialCommitment,
       'mutable'
     );
+    recordActivityEvent({
+      entityType: 'stream',
+      entityId: id,
+      eventType: 'created',
+      actor: sender,
+      amount: Number(totalAmount),
+      status: 'PENDING',
+      details: {
+        streamId,
+        streamType,
+        startTime,
+        endTime: resolvedEndTime || null,
+        cliffTimestamp: cliffTimestamp || null,
+      },
+      createdAt: now,
+    });
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
     const stream = streamService.enrichStream(rowToStream(row));
@@ -387,6 +421,21 @@ router.post('/streams/:id/confirm-funding', async (req: Request, res: Response) 
       SET status = 'ACTIVE', tx_hash = ?, updated_at = ?
       WHERE id = ?
     `).run(txHash, Math.floor(Date.now() / 1000), id);
+    recordActivityEvent({
+      entityType: 'stream',
+      entityId: id,
+      eventType: 'funded',
+      actor: row.sender,
+      amount: Number(row.total_amount),
+      status: 'ACTIVE',
+      txHash,
+      details: {
+        contractAddress: row.contract_address,
+        tokenType: row.token_type,
+        tokenCategory: row.token_category || null,
+      },
+      createdAt: Math.floor(Date.now() / 1000),
+    });
 
     const updatedRow = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
     const stream = streamService.enrichStream(rowToStream(updatedRow));
@@ -597,6 +646,19 @@ router.post('/streams/:id/confirm-claim', async (req: Request, res: Response) =>
       Math.floor(Date.now() / 1000),
       txHash
     );
+    recordActivityEvent({
+      entityType: 'stream',
+      entityId: id,
+      eventType: 'claim',
+      actor: row.recipient,
+      amount: Number(claimedAmount),
+      status: String(row.status || 'ACTIVE'),
+      txHash,
+      details: {
+        withdrawnAmountAfterClaim: newWithdrawnAmount,
+      },
+      createdAt: Math.floor(Date.now() / 1000),
+    });
 
     const updatedRow = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
     const stream = streamService.enrichStream(rowToStream(updatedRow));
@@ -869,6 +931,15 @@ router.post('/streams/:id/confirm-cancel', async (req: Request, res: Response) =
       SET status = 'CANCELLED', tx_hash = ?, updated_at = ?
       WHERE id = ?
     `).run(txHash, now, id);
+    recordActivityEvent({
+      entityType: 'stream',
+      entityId: id,
+      eventType: 'cancelled',
+      actor: signerAddress,
+      status: 'CANCELLED',
+      txHash,
+      createdAt: now,
+    });
 
     const updatedRow = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
     const stream = streamService.enrichStream(rowToStream(updatedRow));
@@ -1017,6 +1088,92 @@ function rowToStream(row: any): Stream {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+function buildFallbackStreamEvents(row: any, claimRows: any[]): Array<{
+  id: string;
+  entity_type: 'stream';
+  entity_id: string;
+  event_type: string;
+  actor: string | null;
+  amount: number | null;
+  status: string | null;
+  tx_hash: string | null;
+  details: null;
+  created_at: number;
+}> {
+  const events: Array<{
+    id: string;
+    entity_type: 'stream';
+    entity_id: string;
+    event_type: string;
+    actor: string | null;
+    amount: number | null;
+    status: string | null;
+    tx_hash: string | null;
+    details: null;
+    created_at: number;
+  }> = [];
+
+  events.push({
+    id: `fallback-stream-created-${row.id}`,
+    entity_type: 'stream',
+    entity_id: row.id,
+    event_type: 'created',
+    actor: row.sender || null,
+    amount: typeof row.total_amount === 'number' ? row.total_amount : null,
+    status: row.status || null,
+    tx_hash: null,
+    details: null,
+    created_at: Number(row.created_at || Math.floor(Date.now() / 1000)),
+  });
+
+  if (row.tx_hash) {
+    events.push({
+      id: `fallback-stream-funded-${row.id}`,
+      entity_type: 'stream',
+      entity_id: row.id,
+      event_type: 'funded',
+      actor: row.sender || null,
+      amount: typeof row.total_amount === 'number' ? row.total_amount : null,
+      status: row.status || null,
+      tx_hash: row.tx_hash,
+      details: null,
+      created_at: Number(row.updated_at || row.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  if (row.status === 'CANCELLED') {
+    events.push({
+      id: `fallback-stream-cancelled-${row.id}`,
+      entity_type: 'stream',
+      entity_id: row.id,
+      event_type: 'cancelled',
+      actor: row.sender || null,
+      amount: null,
+      status: 'CANCELLED',
+      tx_hash: row.tx_hash || null,
+      details: null,
+      created_at: Number(row.updated_at || row.created_at || Math.floor(Date.now() / 1000)),
+    });
+  }
+
+  claimRows.forEach((claim: any) => {
+    events.push({
+      id: `fallback-stream-claim-${claim.id}`,
+      entity_type: 'stream',
+      entity_id: row.id,
+      event_type: 'claim',
+      actor: claim.recipient || null,
+      amount: typeof claim.amount === 'number' ? claim.amount : null,
+      status: row.status || null,
+      tx_hash: claim.tx_hash || null,
+      details: null,
+      created_at: Number(claim.claimed_at || row.updated_at || row.created_at || Math.floor(Date.now() / 1000)),
+    });
+  });
+
+  return events.sort((a, b) => b.created_at - a.created_at);
 }
 
 function deserializeConstructorParams(rawParams: string): any[] {
