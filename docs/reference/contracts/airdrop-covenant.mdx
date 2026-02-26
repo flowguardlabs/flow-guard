@@ -4,16 +4,18 @@ description: "Full parameter, function, and state reference for the AirdropCoven
 icon: "parachute-box"
 ---
 
-`AirdropCovenant` enforces a fixed-amount self-service token distribution. Anyone can call `claim()` within the time window.
+`AirdropCovenant` enforces fixed-size BCH/FT claims with dual-signature claiming (claimer + claim-authority) and authority-only administration.
 
 **Contract path:** `contracts/core/distribution/AirdropCovenant.cash`
+**CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
 | `vaultId` | `bytes32` | Links to source vault |
 | `authorityHash` | `bytes20` | Controls pause/resume/cancel |
+| `claimAuthorityHash` | `bytes20` | Backend-held claim co-signer hash for eligibility/rate-limit enforcement |
 | `amountPerClaim` | `int` | Fixed amount per claim |
 | `totalPool` | `int` | Total distribution pool |
 | `startTimestamp` | `int` | Claims open time. `0` = immediate. |
@@ -30,16 +32,53 @@ icon: "parachute-box"
 [23-39]: reserved
 ```
 
+## Transaction Structure
+
+All entrypoints spend the covenant UTXO at `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `claim` | `tx.outputs[0]` claimant payout, `tx.outputs[1]` updated covenant UTXO | `locktime` enforces start/end window and is written into state. |
+| `pause` | `tx.outputs[0]` updated covenant UTXO | Status `ACTIVE -> PAUSED`. |
+| `resume` | `tx.outputs[0]` updated covenant UTXO | Status `PAUSED -> ACTIVE`. |
+| `cancel` | `tx.outputs[0]` authority payout | Campaign UTXO is consumed (no continuing state output required). |
+
 ## Functions
 
-### `claim(sig claimerSig, pubkey claimerPubkey, bytes20 claimerHash)`
+### `claim(sig claimerSig, pubkey claimerPubkey, bytes20 claimerHash, sig claimAuthSig, pubkey claimAuthPubkey)`
 
-Self-service. Claimer signs and provides their own `hash160`. Validates time window and pool availability.
+Claim requires both claimant signature and claim-authority co-signature.
 
-**Auto-completes** when `newTotalClaimed >= totalPool`
+**Validation**
+- `hash160(claimerPubkey) == claimerHash`
+- `checkSig(claimerSig, claimerPubkey)`
+- `hash160(claimAuthPubkey) == claimAuthorityHash`
+- `checkSig(claimAuthSig, claimAuthPubkey)`
+- Current status is `ACTIVE`
+- Time window checks (`startTimestamp`, `endTimestamp`) if configured
+- `newTotalClaimed = totalClaimed + amountPerClaim` must stay `<= totalPool`
+
+**Output rules**
+- `tx.outputs[0]` must pay `claimerHash` with `amountPerClaim` (BCH or FT mode by flag bit2).
+- `tx.outputs[1]` must keep same locking bytecode and token category as input.
+- `tx.outputs[1].nftCommitment` must encode:
+  - updated `total_claimed`
+  - updated `claims_count`
+  - `last_claim_timestamp = tx.locktime`
+  - `status = COMPLETED` when `newTotalClaimed >= totalPool`, else `ACTIVE`
 
 ### `pause(sig authSig, pubkey authPubkey)`
 ### `resume(sig authSig, pubkey authPubkey)`
 ### `cancel(sig authSig, pubkey authPubkey)`
 
-Authority-only. Cancel returns `totalPool - totalClaimed` to `authorityHash`.
+Authority-only admin paths (`hash160(authPubkey) == authorityHash`, valid signature).
+
+**Pause / Resume**
+- `pause` requires `status == ACTIVE` and cancelable flag bit0 set.
+- `resume` requires `status == PAUSED`.
+- Both require output `0` to keep covenant locking bytecode and token category with updated status commitment.
+
+**Cancel**
+- Allowed only from `ACTIVE` or `PAUSED`, with cancelable flag bit0 set.
+- Computes `remainingPool = totalPool - totalClaimed`, requires `remainingPool > 0`.
+- `tx.outputs[0]` must pay `authorityHash` with `remainingPool` (BCH or FT mode by flag bit2).

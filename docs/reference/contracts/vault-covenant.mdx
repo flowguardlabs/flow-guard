@@ -4,19 +4,19 @@ description: "Complete technical reference for the VaultCovenant contract — pa
 icon: "vault"
 ---
 
-`VaultCovenant` is the treasury enforcement contract. It holds funds and enforces M-of-N multi-party approval for all spending, with optional period caps and recipient allowlists.
+`VaultCovenant` is the treasury enforcement contract. It holds funds, enforces signer-gated spending, and applies optional period caps and recipient allowlists.
 
 **Contract path:** `contracts/core/treasury/VaultCovenant.cash`
 **CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 All parameters are compiled into the P2SH32 bytecode at deployment. They are immutable.
 
 | Parameter | Type | Description |
 |-|-|-|
 | `vaultId` | `bytes32` | Unique vault identifier. Non-zero required. |
-| `requiredApprovals` | `int` | M in M-of-N (must be ≥ 1, ≤ 3 pre-Loops CHIP) |
+| `requiredApprovals` | `int` | Governance threshold metadata (used by proposal layer; spend path here is 2-signer) |
 | `signer1Hash` | `bytes20` | `hash160(pubkey)` of signer 1 |
 | `signer2Hash` | `bytes20` | `hash160(pubkey)` of signer 2 |
 | `signer3Hash` | `bytes20` | `hash160(pubkey)` of signer 3 |
@@ -27,6 +27,18 @@ All parameters are compiled into the P2SH32 bytecode at deployment. They are imm
 | `allowedAddr1` | `bytes20` | Allowlisted recipient 1 |
 | `allowedAddr2` | `bytes20` | Allowlisted recipient 2 |
 | `allowedAddr3` | `bytes20` | Allowlisted recipient 3 |
+
+## Transaction Structure
+
+All entrypoints spend vault state from `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `unlockPeriod` | `tx.outputs[0]` updated vault UTXO | Allows small fee delta (`<= 2000 sats`) from vault UTXO. |
+| `spend` | `tx.outputs[0]` recipient payout, `tx.outputs[1]` updated vault UTXO | Enforces caps/allowlist on payout path. |
+| `pause` | `tx.outputs[0]` updated vault UTXO | Any single registered signer. |
+| `resume` | `tx.outputs[0]` updated vault UTXO | Exactly 2 distinct registered signers in this version. |
+| `emergencyLock` | `tx.outputs[0]` updated vault UTXO | Exactly 3 signatures in fixed signer order. |
 
 ## NFT State (32 bytes)
 
@@ -60,6 +72,10 @@ Execute a spending proposal. Requires two distinct registered signers.
 - `outputs[0]`: P2PKH to `recipientHash`, value = `payoutAmount`
 - `outputs[1]`: Updated vault UTXO with new NFT state
 
+<Note>
+`requiredApprovals` is not directly used inside `spend()` in this contract version. The spend path itself is hardcoded to two distinct signer signatures.
+</Note>
+
 ### `unlockPeriod(sig authSig, pubkey authPubkey, int newPeriodId, int newSpent)`
 
 Roll the accounting period forward without spending. Any single registered signer.
@@ -78,7 +94,7 @@ Any single registered signer freezes the vault immediately.
 
 ### `resume(sig sig1, pubkey pubkey1, sig sig2, pubkey pubkey2)`
 
-Resume a paused vault. Requires M-of-N two distinct signers.
+Resume a paused vault. Requires exactly two distinct registered signers.
 
 **State change:** `status` → `ACTIVE`
 
@@ -101,4 +117,4 @@ feeDelta = inputs[0].value - outputs[0].value
 require(feeDelta >= 0 && feeDelta <= 2000)  // max 2000 satoshis fee
 ```
 
-All other functions require the vault output value to be preserved exactly.
+Other functions do not define an explicit on-chain fee-delta cap in this contract. Operationally, keep miner fees and value transitions constrained in transaction builder policy.

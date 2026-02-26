@@ -7,8 +7,9 @@ icon: "file-contract"
 `ProposalCovenant` manages the lifecycle of a vault spending proposal: PENDING → APPROVED → EXECUTED.
 
 **Contract path:** `contracts/core/treasury/ProposalCovenant.cash`
+**CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
@@ -23,7 +24,7 @@ icon: "file-contract"
 ```
 [0]:    version
 [1]:    status (0=PENDING, 1=APPROVED, 2=EXECUTED, 3=CANCELLED, 4=EXPIRED)
-[2]:    approval_count (uint8)
+[2]:    approval_bitmask (uint8: bit0=signer1, bit1=signer2, bit2=signer3)
 [3]:    required_approvals (uint8)
 [4-8]:  voting_end_timestamp (5 bytes)
 [9-13]: execution_timelock (5 bytes)
@@ -31,20 +32,70 @@ icon: "file-contract"
 [34-39]: reserved
 ```
 
+## Transaction Structure
+
+All entrypoints spend proposal state from `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `approve` | `tx.outputs[0]` updated proposal UTXO | Updates approvals and status transition logic. |
+| `execute` | No proposal continuation output required | Proposal NFT is consumed/burned by design. |
+| `cancel` | `tx.outputs[0]` updated proposal UTXO | Sets status to `CANCELLED`. |
+| `expire` | `tx.outputs[0]` updated proposal UTXO | Requires locktime >= voting deadline. |
+
 ## Functions
 
 ### `approve(sig approverSig, pubkey approverPubkey)`
 
-Any single vault signer adds their approval. Increments `approval_count`. Transitions to `APPROVED` when quorum reached.
+Single registered vault signer approval.
+
+**Validation**
+- Signer hash must match one of `signer1Hash`, `signer2Hash`, `signer3Hash`.
+- Signature must validate.
+- Status must be `PENDING`.
+- Signer must not have already approved (their bit in `approval_bitmask` must be unset).
+
+**State update**
+- Signer bit is set in `approval_bitmask`.
+- Status becomes `APPROVED` when the number of set bits in `approval_bitmask` reaches `requiredApprovals`, otherwise stays `PENDING`.
+- `tx.outputs[0]` must preserve locking bytecode/token category with updated commitment.
 
 ### `execute()`
 
 Permissionless. Callable by anyone after `executionTimelock` has elapsed. Burns the proposal NFT (`EXECUTED` — no NFT output).
 
+**Validation**
+- Status must be `APPROVED`.
+- `tx.locktime >= execution_timelock`.
+- `vaultId` must be non-zero.
+
 ### `cancel(sig sig1, pubkey pubkey1, sig sig2, pubkey pubkey2)`
 
-M-of-N vault signers cancel a PENDING or APPROVED proposal.
+Two distinct registered signer signatures required.
+
+**Validation**
+- Both signer hashes must be in signer set.
+- Signer hashes must be distinct.
+- Both signatures must validate.
+- Status must be `PENDING` or `APPROVED`.
+
+**State update**
+- Status is set to `CANCELLED`.
+- `tx.outputs[0]` must preserve locking bytecode/token category with updated commitment.
+
+<Note>
+In this contract version, `cancel()` is hardcoded to require two distinct signers. It does not directly use `requiredApprovals`.
+</Note>
 
 ### `expire()`
 
 Permissionless. Marks proposal as `EXPIRED` if `tx.locktime >= voting_end_timestamp` and status is still `PENDING`.
+
+**Validation**
+- Status must be `PENDING`.
+- `voting_end_timestamp > 0`.
+- `tx.locktime >= voting_end_timestamp`.
+
+**State update**
+- Status is set to `EXPIRED`.
+- `tx.outputs[0]` must preserve locking bytecode/token category with updated commitment.

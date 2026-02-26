@@ -4,11 +4,12 @@ description: "Full parameter, function, and state reference for the BountyCovena
 icon: "trophy"
 ---
 
-`BountyCovenant` enforces a competition-style payout where the authority co-signs each winning claim.
+`BountyCovenant` enforces fixed-prize competition payouts where authority co-signs every winning claim.
 
 **Contract path:** `contracts/core/distribution/BountyCovenant.cash`
+**CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
@@ -30,14 +31,50 @@ icon: "trophy"
 [19-39]: reserved
 ```
 
+## Transaction Structure
+
+All entrypoints spend covenant state from `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `claim` | `tx.outputs[0]` winner payout, `tx.outputs[1]` updated covenant UTXO | Uses `tx.locktime` for time-window checks and `last_claim_timestamp`. |
+| `pause` | `tx.outputs[0]` updated covenant UTXO | Status `ACTIVE -> PAUSED`. |
+| `resume` | `tx.outputs[0]` updated covenant UTXO | Status `PAUSED -> ACTIVE`. |
+| `cancel` | `tx.outputs[0]` authority payout | Consumes campaign UTXO. |
+
 ## Functions
 
 ### `claim(sig authSig, pubkey authPubkey, bytes20 winnerHash, bytes32 proofHash)`
 
-Authority co-signs and identifies the winner with `winnerHash`. `proofHash` is a non-zero hash of the submission proof. Prize is released to `winnerHash`.
+Authority-signed winner payout.
 
-Auto-completes at `maxWinners`.
+**Validation**
+- Authority identity/signature check.
+- Status must be `ACTIVE`.
+- Start/end window checks via `tx.locktime` if configured.
+- `winnersCount < maxWinners`.
+- `proofHash != 0x00...00` (proof commitment is required).
+
+**Output rules**
+- `tx.outputs[0]` pays `winnerHash` with `rewardPerWinner` (BCH or FT mode by flag bit2).
+- `tx.outputs[1]` must keep same covenant locking bytecode/token category.
+- `tx.outputs[1].nftCommitment` must encode updated:
+  - `total_paid`
+  - `winners_count`
+  - `last_claim_timestamp = tx.locktime`
+  - `status = COMPLETED` when `newWinnersCount >= maxWinners`
 
 ### `pause()` / `resume()` / `cancel()`
 
-Authority-only. Cancel returns remaining prizes to authority.
+Authority-only admin paths.
+
+**Pause / Resume**
+- `pause` requires `ACTIVE` plus cancelable flag bit0.
+- `resume` requires `PAUSED`.
+- Both require output `0` to preserve covenant bytecode/token category with updated status commitment.
+
+**Cancel**
+- Requires status `ACTIVE` or `PAUSED` and cancelable flag bit0.
+- Computes `remainingPrizes = maxWinners - winnersCount`.
+- Computes `remainingPool = remainingPrizes * rewardPerWinner`.
+- `tx.outputs[0]` must pay authority in BCH or FT mode (flag bit2).

@@ -7,8 +7,9 @@ icon: "arrows-rotate"
 `RecurringPaymentCovenant` enforces fixed-interval payments to a fixed recipient. The `pay()` function is permissionless.
 
 **Contract path:** `contracts/core/streaming/RecurringPaymentCovenant.cash`
+**CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
@@ -33,6 +34,17 @@ icon: "arrows-rotate"
 [28-39]: reserved
 ```
 
+## Transaction Structure
+
+All entrypoints spend stream state from `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `pay` | `tx.outputs[0]` recipient payout, `tx.outputs[1]` updated stream UTXO | Permissionless; `locktime` gates interval execution. |
+| `pause` | `tx.outputs[0]` updated stream UTXO | Stores `pause_start = tx.locktime`. |
+| `resume` | `tx.outputs[0]` updated stream UTXO | Sets `next_payment_timestamp = tx.locktime + intervalSeconds`. |
+| `cancel` | For capped streams (`totalAmount > 0`): `tx.outputs[0]` sender payout | For uncapped (`totalAmount == 0`), contract does not enforce a specific payout output. |
+
 ## Functions
 
 ### `pay()`
@@ -42,6 +54,15 @@ Permissionless. Releases `amountPerInterval` to `recipientHash`. Advances `next_
 **Validates:** `status == ACTIVE`, `tx.locktime >= next_payment_timestamp`, time window constraints, `newTotalPaid <= totalAmount` (if capped)
 
 **Auto-completes** when `newTotalPaid >= totalAmount`
+
+**Output rules**
+- `tx.outputs[0]` must pay `recipientHash` with `amountPerInterval` (BCH or FT mode by flag bit2).
+- `tx.outputs[1]` must preserve covenant bytecode/token category and encode:
+  - updated `total_paid`
+  - updated `payment_count`
+  - updated `next_payment_timestamp`
+  - `pause_start = 0`
+  - status `COMPLETED` only when capped stream reaches `totalAmount`
 
 ### `pause(sig senderSig, pubkey senderPubkey)`
 
@@ -55,4 +76,4 @@ Sender-only. Resets `next_payment_timestamp = tx.locktime + intervalSeconds`. No
 
 Sender-only. Requires `FLAG_CANCELABLE`. Returns entire remaining pool to sender.
 
-For unlimited streams (`totalAmount == 0`), all remaining BCH in the UTXO is returned.
+For unlimited streams (`totalAmount == 0`), this contract path authorizes cancellation but does not enforce a specific sender-refund output shape.

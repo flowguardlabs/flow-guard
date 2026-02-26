@@ -7,8 +7,9 @@ icon: "square-check"
 `VoteLockCovenant` locks governance FTs with an immutable vote choice. The UTXO model eliminates double-voting cryptographically.
 
 **Contract path:** `contracts/core/governance/VoteLockCovenant.cash`
+**CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
@@ -29,6 +30,15 @@ icon: "square-check"
 [18-31]: reserved
 ```
 
+## Transaction Structure
+
+Both entrypoints spend vote-lock state from `tx.inputs[0]` and require token return at `tx.outputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `reclaim` | `tx.outputs[0]` voter P2PKH with full token amount/category | Requires `tx.locktime >= unlockTimestamp`. |
+| `earlyReclaim` | `tx.outputs[0]` voter P2PKH with full token amount/category | Unlock bypassed when caller provides terminal proposal status enum. |
+
 ## Functions
 
 ### `reclaim(sig voterSig, pubkey voterPubkey)`
@@ -40,5 +50,9 @@ Returns all locked governance FTs to voter after `unlockTimestamp`.
 Returns tokens before `unlockTimestamp` if the proposal is done. Caller must pass a valid terminal status: `2` (EXECUTED), `3` (CANCELLED), or `4` (EXPIRED).
 
 <Note>
-BCH has no cross-UTXO reads. The voter supplies `proposalFinalStatus` as a parameter — the covenant only validates that the value is one of the valid terminal statuses. Off-chain verification of the proposal status is the caller's responsibility.
+BCH has no cross-UTXO reads. The voter supplies `proposalFinalStatus` as a parameter — the covenant only validates enum membership (`2|3|4`). Off-chain verification of actual proposal status is required.
+</Note>
+
+<Note>
+`earlyReclaim()` also does not re-check `proposalId` from NFT commitment. The function trusts that the locked UTXO already belongs to the intended proposal context established at lock time.
 </Note>

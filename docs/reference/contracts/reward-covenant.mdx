@@ -7,8 +7,9 @@ icon: "star"
 `RewardCovenant` distributes variable-amount rewards per event. The authority controls the exact amount per reward, bounded by `maxRewardAmount`.
 
 **Contract path:** `contracts/core/distribution/RewardCovenant.cash`
+**CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
@@ -31,12 +32,48 @@ icon: "star"
 [24-39]: reserved
 ```
 
+## Transaction Structure
+
+All entrypoints spend reward state from `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `reward` | `tx.outputs[0]` recipient payout, `tx.outputs[1]` updated covenant UTXO | Variable payout amount chosen per call, bounded on-chain. |
+| `pause` | `tx.outputs[0]` updated covenant UTXO | Status `ACTIVE -> PAUSED`. |
+| `resume` | `tx.outputs[0]` updated covenant UTXO | Status `PAUSED -> ACTIVE`. |
+| `cancel` | `tx.outputs[0]` authority payout | Consumes reward UTXO. |
+
 ## Functions
 
 ### `reward(sig authSig, pubkey authPubkey, bytes20 recipientHash, int rewardAmount)`
 
-Authority-only. Issues `rewardAmount` (must satisfy `0 < rewardAmount <= maxRewardAmount`) to `recipientHash`. Auto-completes when `totalDistributed >= totalPool`.
+Authority-only reward issuance.
+
+**Validation**
+- Authority identity/signature check.
+- Status must be `ACTIVE`.
+- Optional time-window checks (`startTimestamp`, `endTimestamp`) via `tx.locktime`.
+- `0 < rewardAmount <= maxRewardAmount`.
+- `newTotalDistributed = totalDistributed + rewardAmount` must be `<= totalPool`.
+
+**Output rules**
+- `tx.outputs[0]` pays `recipientHash` with `rewardAmount` (BCH or FT mode by flag bit2).
+- `tx.outputs[1]` must preserve covenant bytecode/token category and commit:
+  - updated `total_distributed`
+  - updated `rewards_count`
+  - `last_reward_timestamp = tx.locktime`
+  - `status = COMPLETED` when pool is exhausted
 
 ### `pause()` / `resume()` / `cancel()`
 
-Authority-only.
+Authority-only admin paths.
+
+**Pause / Resume**
+- `pause` requires `ACTIVE` plus cancelable flag bit0.
+- `resume` requires `PAUSED`.
+- Both require output `0` as covenant continuation output with updated status.
+
+**Cancel**
+- Requires status `ACTIVE` or `PAUSED`, plus cancelable flag bit0.
+- Computes `remainingPool = totalPool - totalDistributed`, requires `remainingPool > 0`.
+- `tx.outputs[0]` must pay authority with remaining BCH/FT.

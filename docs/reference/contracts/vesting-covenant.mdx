@@ -9,7 +9,7 @@ icon: "lock-keyhole"
 **Contract path:** `contracts/core/streaming/VestingCovenant.cash`
 **CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
@@ -33,6 +33,19 @@ icon: "lock-keyhole"
 [15-19]: pause_start   (5 bytes, 0 if not paused)
 [20-39]: recipient_hash (bytes20)
 ```
+
+## Transaction Structure
+
+All entrypoints spend vesting state from `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `claim` | `tx.outputs[0]` recipient payout, `tx.outputs[1]` updated vesting UTXO | Claimable amount is computed on-chain. |
+| `complete` | No continuation output required | Optional `tx.outputs[0]` payout of remaining amount to recipient. |
+| `pause` | `tx.outputs[0]` updated vesting UTXO | Stores pause start timestamp. |
+| `resume` | `tx.outputs[0]` updated vesting UTXO | Shifts vesting cursor forward by pause duration. |
+| `cancel` | If `claimableNow > 0`: `tx.outputs[0]` recipient payout. If `unvested > 0`: `tx.outputs[1]` sender payout | Cancellation consumes covenant UTXO. |
+| `transfer` | `tx.outputs[0]` updated vesting UTXO | Rewrites mutable recipient hash. |
 
 ## Functions
 
@@ -68,6 +81,10 @@ Sender-only. Advances `cursor` by pause duration: `newCursor = cursor + (tx.lock
 Sender-only. Requires `FLAG_CANCELABLE`. Splits at cancellation time:
 - Vested (unclaimed) → recipient
 - Unvested → sender
+
+Output indexing in this version is strict:
+- If `claimableNow > 0`, recipient payout is enforced at `tx.outputs[0]`.
+- If `unvested > 0`, sender payout is enforced at `tx.outputs[1]`.
 
 ### `transfer(sig recipientSig, pubkey recipientPubkey, bytes20 newRecipientHash)`
 

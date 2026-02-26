@@ -7,8 +7,9 @@ icon: "handshake"
 `GrantCovenant` releases funds tranche-by-tranche as milestones are approved by the authority.
 
 **Contract path:** `contracts/core/distribution/GrantCovenant.cash`
+**CashScript version:** `^0.13.0`
 
-## Parameters
+## Constructor Parameters (Bytecode-Embedded)
 
 | Parameter | Type | Description |
 |-|-|-|
@@ -30,16 +31,59 @@ icon: "handshake"
 [36-39]: reserved
 ```
 
+## Transaction Structure
+
+All functions spend covenant state from `tx.inputs[0]`.
+
+| Function | Required outputs | Notes |
+|-|-|-|
+| `releaseMilestone` | `tx.outputs[0]` recipient payout, `tx.outputs[1]` updated covenant UTXO | Updates milestone counters and last release timestamp. |
+| `pause` | `tx.outputs[0]` updated covenant UTXO | Status `ACTIVE -> PAUSED`. |
+| `resume` | `tx.outputs[0]` updated covenant UTXO | Status `PAUSED -> ACTIVE`. |
+| `cancel` | `tx.outputs[0]` authority payout | Consumes campaign UTXO. |
+| `transfer` | `tx.outputs[0]` updated covenant UTXO | Rewrites mutable `recipient_hash`. |
+
 ## Functions
 
 ### `releaseMilestone(sig authSig, pubkey authPubkey)`
 
-Authority releases the next tranche to `recipient_hash`. Increments `milestones_completed`. Auto-completes at final milestone.
+Authority-only tranche release.
+
+**Validation**
+- Authority identity/signature check.
+- Status must be `ACTIVE`.
+- `milestonesCompleted < milestonesTotal`.
+
+**Output rules**
+- `tx.outputs[0]` pays current `recipient_hash` with `amountPerMilestone` (BCH or FT mode by flag bit2).
+- `tx.outputs[1]` must preserve covenant bytecode/token category and commit:
+  - `milestones_completed + 1`
+  - `total_released + amountPerMilestone`
+  - `last_release_timestamp = tx.locktime`
+  - `status = COMPLETED` after final milestone, otherwise `ACTIVE`
 
 ### `pause()` / `resume()` / `cancel()`
 
-Authority-only. Cancel returns `totalAmount - totalReleased` to `authorityHash`.
+Authority-only admin paths.
+
+**Pause / Resume**
+- `pause` requires `ACTIVE` plus cancelable flag bit0.
+- `resume` requires `PAUSED`.
+- Both require output `0` as covenant continuation output.
+
+**Cancel**
+- Requires status `ACTIVE` or `PAUSED`, and cancelable flag bit0.
+- Computes `remainingAmount = totalAmount - totalReleased`, requires `remainingAmount > 0`.
+- `tx.outputs[0]` must pay authority with remaining BCH/FT.
 
 ### `transfer(sig recipientSig, pubkey recipientPubkey, bytes20 newRecipientHash)`
 
-Recipient-only. Requires `FLAG_TRANSFERABLE`. Updates `recipient_hash` in NFT state.
+Recipient-only reassignment of future milestone payouts.
+
+**Validation**
+- Current `recipient_hash` must match signer.
+- Transferable flag bit1 must be set.
+- Status must be `ACTIVE`.
+
+**Output rule**
+- `tx.outputs[0]` must preserve covenant bytecode/token category and keep same state except new `recipient_hash`.
