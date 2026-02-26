@@ -1,6 +1,6 @@
 ---
 title: "Manage an Airdrop"
-description: "Pause, resume, or cancel an active airdrop campaign and monitor claims."
+description: "Pause or cancel an active airdrop campaign and monitor claims."
 icon: "sliders"
 ---
 
@@ -21,9 +21,9 @@ Click **Pause** on the campaign detail page. The app calls `POST /api/airdrops/:
 
 While paused, the `/claim` endpoint returns a `400` and the claim button is disabled in the UI.
 
-## Resuming
+## Resume Availability
 
-Click **Resume**. Signs and confirms `POST /api/airdrops/:id/resume` → `POST /api/airdrops/:id/confirm-resume`. Claims are re-enabled instantly on-chain.
+`resume` is implemented at the covenant level, but the current backend release does not expose `/api/airdrops/:id/resume` and `/confirm-resume`. Plan pause/cancel flows accordingly.
 
 ## Cancelling
 

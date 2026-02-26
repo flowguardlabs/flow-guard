@@ -1,6 +1,6 @@
 ---
 title: "Execute a Payment"
-description: "How the pay() function works and who can call it."
+description: "How recurring payment collection works in the current app and API."
 icon: "play"
 ---
 
@@ -15,14 +15,14 @@ require(status == ACTIVE)
 
 The executor service monitors `next_payment_timestamp` for all active payments and submits `pay()` transactions automatically. You can also trigger payment manually from the app.
 
-## Triggering Manually
+## Triggering Manually (Current API)
 
 <Steps>
   <Step title="Open the payment">
     Navigate to **Payments** and select the payment. The detail page shows **Next Payment Due** and whether it is currently claimable.
   </Step>
-  <Step title="Click Execute Payment">
-    If the interval has elapsed, the **Execute Payment** button is active. Click it. No wallet signature is required — the transaction is signed by the app on your behalf using a relay key (permissionless, no funds at risk).
+  <Step title="Click Claim Payment">
+    If an interval is due, the **Claim Payment** button is active. The recipient wallet signs the transaction.
   </Step>
 </Steps>
 
@@ -39,16 +39,27 @@ A valid `pay()` transaction:
 
 The FlowGuard executor service polls all active payments and triggers `pay()` as each interval elapses. No action is needed from the sender or recipient. See [Executor Network](/concepts/executor-network) for details.
 
-## API
+## API (Current)
 
 ```bash
-POST /api/payments/:id/execute
+POST /api/payments/:id/claim
+Content-Type: application/json
+
+{
+  "recipientAddress": "bchtest:q..."
+}
 
 # Response
 {
-  "txid": "hex_transaction_id",
-  "amountPaid": 500000,
-  "totalPaid": 1500000,
-  "nextPaymentTimestamp": 1710604800
+  "success": true,
+  "claimableAmount": 0.1,
+  "intervalsClaimable": 1,
+  "wcTransaction": { ... }
 }
+```
+
+After wallet broadcast:
+
+```bash
+POST /api/payments/:id/confirm-claim
 ```

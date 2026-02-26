@@ -1,7 +1,7 @@
 ---
 title: "Create an Airdrop"
 description: "Deploy an open or whitelist-gated airdrop campaign and fund it on-chain."
-icon: "parachute-box"
+icon: "gift"
 ---
 
 <Steps>
@@ -19,7 +19,7 @@ icon: "parachute-box"
     - **KYC restricted**: enable to require a recipient whitelist
   </Step>
   <Step title="Generate merkle tree (KYC only)">
-    If KYC is enabled, upload a CSV with `address,amount` rows. The app POSTs to `POST /api/airdrops/:id/generate-merkle` and stores the merkle root in the contract.
+    If KYC is enabled, upload a CSV with `address,amount` rows. The app calls `POST /api/airdrops/:id/generate-merkle` and stores merkle data in backend campaign state for eligibility checks during claim build.
   </Step>
   <Step title="Fund the contract">
     Click **Fund**. The app calls `GET /api/airdrops/:id/funding-info` to build the funding `wcTransaction`. Sign in your wallet.
@@ -39,3 +39,7 @@ PENDING → ACTIVE → PAUSED → ACTIVE → COMPLETED / CANCELLED
 ```
 
 The campaign becomes `COMPLETED` when all tokens are claimed. It moves to `CANCELLED` when the creator cancels and withdraws remaining funds.
+
+<Note>
+Current KYC enforcement is handled by backend claim validation (merkle proof checks before tx build), not by a merkle root field enforced inside `AirdropCovenant` bytecode.
+</Note>
