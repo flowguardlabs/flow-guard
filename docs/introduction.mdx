@@ -1,58 +1,58 @@
 ---
 title: "Introduction"
-description: "FlowGuard is a BCH-native programmable finance protocol. Covenant-enforced, non-custodial, and permissionless."
+description: "FlowGuard is a token backed financial state machine protocol built with CashTokens."
 icon: "shield-halved"
 ---
 
-FlowGuard brings programmable token flows to Bitcoin Cash using CashScript covenants and the CashTokens standard. Every schedule, distribution, and treasury is enforced directly by on-chain covenant bytecode — no backend server holds keys, no admin can rug funds mid-flight.
+FlowGuard is a token backed payment protocol that turns BCH into programmable financial flows. It encodes streaming, vesting, and recurring payment logic directly into covenant enforced UTXOs, enabling programmable treasury systems and token native economic flows without requiring account based smart contracts.
 
 <CardGroup cols={2}>
   <Card title="Vesting" icon="lock-keyhole" href="/concepts/vesting">
     Linear and step vesting with cliff, pause/resume, and transferable recipient
   </Card>
   <Card title="Recurring Payments" icon="arrows-rotate" href="/concepts/recurring-payments">
-    Permissionless payroll and subscriptions with fixed-interval enforcement
+    Permissionless payroll and subscriptions with fixed interval enforcement
   </Card>
   <Card title="Airdrops" icon="parachute-box" href="/concepts/airdrops">
-    Time-gated, self-service token distributions with authority controls
+    Time gated, self service token distributions with authority controls
   </Card>
   <Card title="Grants" icon="handshake" href="/concepts/grants">
-    Multi-milestone grant disbursement with on-chain tranche release
+    Multi milestone grant disbursement with onchain tranche release
   </Card>
   <Card title="Bounties" icon="trophy" href="/concepts/bounties">
-    Proof-based competition payouts with authority co-signing
+    Proof based competition payouts with authority co signing
   </Card>
   <Card title="Rewards" icon="star" href="/concepts/rewards">
-    Variable achievement-based distributions with a configurable pool
+    Variable achievement based distributions with a configurable pool
   </Card>
   <Card title="Vaults" icon="vault" href="/concepts/vaults">
-    M-of-N treasury with period spending caps, allowlists, and emergency lock
+    M of N treasury with period spending caps, allowlists, and emergency lock
   </Card>
   <Card title="Governance" icon="landmark" href="/concepts/governance">
-    On-chain proposal lifecycle and token-weighted vote locking
+    Onchain proposal lifecycle and token weighted vote locking
   </Card>
 </CardGroup>
 
 ## How It Works
 
-FlowGuard covenants are CashScript contracts compiled to P2SH32 addresses on BCH. State is stored inside a CashTokens NFT commitment (up to 40 bytes) attached to the covenant UTXO. Each function call consumes the input UTXO and produces a new output UTXO with updated state — making every state transition an auditable on-chain transaction.
+FlowGuard designs economic logic, coordination logic, and incentive mechanics on BCH. Each deployed contract is a covenant UTXO controlled by a CashToken NFT that encodes state, transitioned via defined function calls, and enforced entirely at the consensus level. 
 
 <Note>
-FlowGuard never custodies your keys or funds. All spending paths are enforced cryptographically by the covenant bytecode itself.
+FlowGuard is not just a treasury dashboard or a multisig tool. CashTokens act as state commitments, ensuring all transitions are verified onchain without custody risk.
 </Note>
 
 ## Products
 
 | Product | Contract | Use Case |
-|-|-|-|
+|*|*|*|
 | Vesting | `VestingCovenant` | Token grants, employee equity, investor vesting |
 | Recurring Payments | `RecurringPaymentCovenant` | Payroll, subscriptions, DAO contributor payments |
 | Airdrops | `AirdropCovenant` | Token launches, community distributions |
-| Grants | `GrantCovenant` | Milestone-gated project funding |
-| Bounties | `BountyCovenant` | Open competitions with proof-verified prizes |
+| Grants | `GrantCovenant` | Milestone gated project funding |
+| Bounties | `BountyCovenant` | Open competitions with proof verified prizes |
 | Rewards | `RewardCovenant` | Achievement, referral, and loyalty programs |
-| Vaults | `VaultCovenant` | DAO treasury with M-of-N multisig |
-| Governance | `VoteLockCovenant`, `ProposalCovenant` | On-chain proposal voting |
+| Vaults | `VaultCovenant` | DAO treasury with M of N multisig |
+| Governance | `VoteLockCovenant`, `ProposalCovenant` | Onchain proposal voting |
 
 ## Quick Links
 
@@ -64,6 +64,6 @@ FlowGuard never custodies your keys or funds. All spending paths are enforced cr
     How all contracts interconnect
   </Card>
   <Card title="Explorer" icon="magnifying-glass" href="https://app.flowguard.cash/explorer">
-    Browse all live covenants on-chain
+    Browse all live covenants onchain
   </Card>
 </CardGroup>
