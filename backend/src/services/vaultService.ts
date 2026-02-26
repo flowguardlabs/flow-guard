@@ -14,6 +14,9 @@ export class VaultService {
     if (!dto.signerPubkeys || dto.signerPubkeys.length !== 3) {
       throw new Error('Exactly 3 signer public keys are required for contract deployment');
     }
+    if (!Number.isInteger(dto.approvalThreshold) || dto.approvalThreshold < 1 || dto.approvalThreshold > 2) {
+      throw new Error('approvalThreshold must be 1 or 2 (current vault spend path supports up to 2-of-3)');
+    }
 
     let contractAddress: string | undefined;
     let contractBytecode: string | undefined;

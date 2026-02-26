@@ -518,6 +518,10 @@ export class ProposalService {
     if (!signerPubkey) {
       throw new Error('Approver pubkey is missing from vault signer configuration');
     }
+    if (signerIndex > 2) {
+      throw new Error('ProposalCovenant currently supports only the first 3 configured signers');
+    }
+    const signerBit = 1 << signerIndex;
 
     const constructorParams = this.parseConstructorParams(proposal.constructorParams);
     const network = (process.env.BCH_NETWORK as 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet') || 'chipnet';
@@ -543,12 +547,17 @@ export class ProposalService {
     }
 
     const requiredApprovals = Math.max(1, commitment[3] || vault.approvalThreshold || 1);
-    const newApprovalCount = commitment[2] + 1;
+    const currentApprovalMask = commitment[2] ?? 0;
+    if ((currentApprovalMask & signerBit) === signerBit) {
+      throw new Error('This signer already approved the proposal on-chain');
+    }
+    const newApprovalMask = currentApprovalMask | signerBit;
+    const newApprovalCount = this.countSetBits(newApprovalMask);
     const isApproved = newApprovalCount >= requiredApprovals;
     const nextCommitment = new Uint8Array(40);
     nextCommitment.set(commitment.slice(0, 40));
     nextCommitment[1] = isApproved ? 1 : 0;
-    nextCommitment[2] = newApprovalCount;
+    nextCommitment[2] = newApprovalMask;
     nextCommitment.fill(0, 34, 40);
 
     const feeReserve = 700n;
@@ -905,7 +914,7 @@ export class ProposalService {
     commitment[0] = 1;
     // [1] status (0 = pending)
     commitment[1] = 0;
-    // [2] approval_count
+    // [2] approval_bitmask
     commitment[2] = 0;
     // [3] required_approvals
     commitment[3] = Math.max(1, Math.min(255, Math.trunc(args.requiredApprovals)));
@@ -919,6 +928,16 @@ export class ProposalService {
     // [34..39] reserved = 0
     commitment.fill(0, 34, 40);
     return binToHex(commitment);
+  }
+
+  private static countSetBits(mask: number): number {
+    let value = mask & 0xff;
+    let count = 0;
+    while (value > 0) {
+      count += value & 1;
+      value >>= 1;
+    }
+    return count;
   }
 
   private static ensurePayoutHash(proposalDbId: string): string {

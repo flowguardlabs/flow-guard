@@ -138,7 +138,7 @@ export class AirdropControlService {
     }
 
     const totalClaimed = this.readUint64LE(commitment, 2);
-    const totalPool = this.toBigIntParam(params.constructorParams[3], 'totalPool');
+    const totalPool = this.toBigIntParam(params.constructorParams[4], 'totalPool');
     const remainingPool = this.clampToZero(totalPool - totalClaimed);
     if (remainingPool <= 0n) {
       throw new Error('No remaining pool available to cancel');

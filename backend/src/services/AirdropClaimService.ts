@@ -1,13 +1,14 @@
 import {
   Contract,
   ElectrumNetworkProvider,
+  SignatureTemplate,
   TransactionBuilder,
   placeholderP2PKHUnlocker,
   placeholderPublicKey,
   placeholderSignature,
   type WcTransactionObject,
 } from 'cashscript';
-import { hexToBin, binToHex } from '@bitauth/libauth';
+import { hexToBin, binToHex, hash160, secp256k1 } from '@bitauth/libauth';
 import { ContractFactory } from './ContractFactory.js';
 
 export interface ClaimTransactionParams {
@@ -21,6 +22,7 @@ export interface ClaimTransactionParams {
   constructorParams: any[];
   currentCommitment: string;
   currentTime: number;
+  claimAuthorityPrivKey: string; // hex-encoded 32-byte private key for server-side authority co-signing
 }
 
 export interface ClaimTransaction {
@@ -47,7 +49,30 @@ export class AirdropClaimService {
       constructorParams,
       currentCommitment,
       currentTime,
+      claimAuthorityPrivKey,
     } = params;
+
+    if (!claimAuthorityPrivKey) {
+      throw new Error('claimAuthorityPrivKey is required for claim transactions');
+    }
+    const authPrivKey = hexToBin(claimAuthorityPrivKey);
+    const authPubKey = secp256k1.derivePublicKeyCompressed(authPrivKey);
+    if (!authPubKey) {
+      throw new Error('Invalid claim authority private key');
+    }
+    if (typeof authPubKey === 'string') {
+      throw new Error(`Invalid claim authority private key: ${authPubKey}`);
+    }
+    const expectedClaimAuthorityHash = this.readBytes20(constructorParams[2], 'claimAuthorityHash');
+    const derivedClaimAuthorityHash = hash160(authPubKey);
+    if (typeof derivedClaimAuthorityHash === 'string') {
+      throw new Error(`Failed to derive claim authority hash: ${derivedClaimAuthorityHash}`);
+    }
+    if (binToHex(derivedClaimAuthorityHash) !== binToHex(expectedClaimAuthorityHash)) {
+      throw new Error(
+        'Claim authority key mismatch: campaign constructor claimAuthorityHash does not match stored claim authority private key',
+      );
+    }
 
     if (claimAmount <= 0) {
       throw new Error('Claim amount must be greater than 0');
@@ -99,7 +124,9 @@ export class AirdropClaimService {
       }
     }
     const claimAmountBig = BigInt(claimAmount);
-    const expectedAmountPerClaim = this.toBigIntParam(constructorParams[2], 'amountPerClaim');
+    // Constructor param indices (AirdropCovenant v2):
+    // [0]=vaultId [1]=authorityHash [2]=claimAuthorityHash [3]=amountPerClaim [4]=totalPool [5]=startTimestamp [6]=endTimestamp
+    const expectedAmountPerClaim = this.toBigIntParam(constructorParams[3], 'amountPerClaim');
     if (claimAmountBig !== expectedAmountPerClaim) {
       throw new Error(
         `Claim amount mismatch with covenant constructor `
@@ -113,7 +140,7 @@ export class AirdropClaimService {
     const newCommitment = new Uint8Array(commitment);
     const totalClaimedOnChain = this.readUint64LE(commitment, 2);
     const newTotalClaimed = totalClaimedOnChain + claimAmountBig;
-    const totalPool = this.toBigIntParam(constructorParams[3], 'totalPool');
+    const totalPool = this.toBigIntParam(constructorParams[4], 'totalPool');
     if (newTotalClaimed > totalPool) {
       throw new Error('Claim exceeds remaining campaign pool');
     }
@@ -161,15 +188,18 @@ export class AirdropClaimService {
     txBuilder.addInput(
       contractUtxo,
       contract.unlock.claim(
-        placeholderSignature(),
-        placeholderPublicKey(),
-        claimerHash,
+        placeholderSignature(),           // claimer sig — wallet fills in
+        placeholderPublicKey(),           // claimer pubkey — wallet fills in
+        claimerHash,                      // bytes20
+        new SignatureTemplate(authPrivKey), // authority co-sig — server signs now
+        authPubKey,                       // authority pubkey
       ),
+      { sequence: 0xffffffff },
     );
     if (feePayer) {
       const unlocker = placeholderP2PKHUnlocker(claimer);
       for (const utxo of feePayer.utxos) {
-        txBuilder.addInput(utxo, unlocker);
+        txBuilder.addInput(utxo, unlocker, { sequence: 0xffffffff });
       }
     }
 
@@ -216,10 +246,10 @@ export class AirdropClaimService {
       }
     }
 
-    const wcTransaction = this.forceFinalSequences(txBuilder.generateWcTransactionObject({
+    const wcTransaction = txBuilder.generateWcTransactionObject({
       broadcast: true,
       userPrompt: 'Claim airdrop allocation',
-    }));
+    });
 
     console.log('[AirdropClaimService] Built claim transaction', {
       contractAddress,
@@ -289,8 +319,8 @@ export class AirdropClaimService {
   }
 
   private resolveClaimLocktime(constructorParams: any[], now: bigint): bigint {
-    const startTimestamp = this.toBigIntParam(constructorParams?.[4] ?? 0, 'startTimestamp');
-    const endTimestamp = this.toBigIntParam(constructorParams?.[5] ?? 0, 'endTimestamp');
+    const startTimestamp = this.toBigIntParam(constructorParams?.[5] ?? 0, 'startTimestamp');
+    const endTimestamp = this.toBigIntParam(constructorParams?.[6] ?? 0, 'endTimestamp');
 
     if (startTimestamp > 0n && endTimestamp > 0n && startTimestamp > endTimestamp) {
       throw new Error('Campaign has invalid claim schedule');
@@ -332,18 +362,16 @@ export class AirdropClaimService {
     throw new Error(`Invalid constructor parameter for ${name}`);
   }
 
-  /**
-   * Avoid mempool "non-final transaction" rejections when tx.locktime uses wall-clock time.
-   * We still keep tx.locktime for covenant introspection checks, but make all inputs final.
-   */
-  private forceFinalSequences(wcTransaction: WcTransactionObject): WcTransactionObject {
-    const finalSequence = 0xffffffff;
-    for (const input of wcTransaction.transaction.inputs as Array<{ sequenceNumber?: number }>) {
-      input.sequenceNumber = finalSequence;
+  private readBytes20(value: unknown, name: string): Uint8Array {
+    if (value instanceof Uint8Array) {
+      if (value.length !== 20) throw new Error(`${name} must be 20 bytes`);
+      return value;
     }
-    for (const sourceOutput of wcTransaction.sourceOutputs as Array<{ sequenceNumber?: number }>) {
-      sourceOutput.sequenceNumber = finalSequence;
+    if (typeof value === 'string') {
+      const parsed = hexToBin(value);
+      if (parsed.length !== 20) throw new Error(`${name} must be 20 bytes`);
+      return parsed;
     }
-    return wcTransaction;
+    throw new Error(`Invalid constructor parameter for ${name}`);
   }
 }

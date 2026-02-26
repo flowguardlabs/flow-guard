@@ -4,13 +4,14 @@
  */
 
 import { Contract, ElectrumNetworkProvider } from 'cashscript';
-import { hash160, hexToBin, binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
+import { hash160, hexToBin, binToHex, cashAddressToLockingBytecode, secp256k1 } from '@bitauth/libauth';
 import { ContractFactory, type ConstructorParam } from './ContractFactory.js';
 import { displayAmountToOnChain } from '../utils/amounts.js';
+import crypto from 'crypto';
 
 export interface AirdropDeploymentParams {
   vaultId: string; // hex-encoded 32-byte vault ID
-  authorityAddress: string; // BCH address of vault/authority
+  authorityAddress: string; // BCH address of vault/authority (admin: pause/resume/cancel)
   amountPerClaim: number; // Amount per claim (BCH or tokens)
   totalAmount: number; // Total pool amount
   startTime: number; // Unix timestamp (0 = immediate)
@@ -37,6 +38,7 @@ export interface AirdropDeployment {
   campaignId: string;
   constructorParams: ConstructorParam[];
   initialCommitment: string; // hex-encoded NFT commitment
+  claimAuthorityPrivKey: string; // hex-encoded 32-byte private key — store securely in DB
   fundingTxRequired: {
     toAddress: string;
     amount: number; // satoshis (BCH dust when using tokens)
@@ -57,6 +59,22 @@ export class AirdropDeploymentService {
   constructor(network: 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet' = 'chipnet') {
     this.network = network;
     this.provider = new ElectrumNetworkProvider(network);
+  }
+
+  /**
+   * Generate a fresh secp256k1 keypair for the claim authority.
+   * The private key is stored per-airdrop in the DB and used by
+   * AirdropClaimService to co-sign every claim transaction.
+   */
+  private generateClaimAuthorityKeypair(): { privKey: Uint8Array; hash: Uint8Array } {
+    let privKey: Uint8Array;
+    // Retry until we have a valid key (extremely rare to need >1 attempt)
+    do {
+      privKey = new Uint8Array(crypto.randomBytes(32));
+    } while (secp256k1.derivePublicKeyCompressed(privKey) === null);
+
+    const pubKey = secp256k1.derivePublicKeyCompressed(privKey) as Uint8Array;
+    return { privKey, hash: hash160(pubKey) };
   }
 
   /**
@@ -92,7 +110,6 @@ export class AirdropDeploymentService {
     combined.set(authorityHash, 32);
     combined.set(timestampBuf, 52);
 
-    // Hash and pad to 32 bytes
     const h = hash160(combined);
     const id = new Uint8Array(32);
     id.set(h, 12);
@@ -117,7 +134,7 @@ export class AirdropDeploymentService {
    * [18-22]: last_claim_timestamp (0 initially)
    * [23-39]: reserved (17 bytes, zeros)
    */
-  private createAirdropCommitment(params: AirdropDeploymentParams): Uint8Array {
+  private createAirdropCommitment(params: AirdropDeploymentParams | AirdropDeploymentParamsWithHash): Uint8Array {
     const commitment = new Uint8Array(40);
 
     commitment[0] = 0; // ACTIVE status
@@ -127,39 +144,29 @@ export class AirdropDeploymentService {
     if (params.tokenType === 'FUNGIBLE_TOKEN') flags |= 4; // bit 2 (usesTokens)
     commitment[1] = flags;
 
-    // total_claimed = 0 (bytes 2-9)
-    // claims_count = 0 (bytes 10-17)
-    // last_claim_timestamp = 0 (bytes 18-22)
-    // reserved = zeros (bytes 23-39)
-    // All zeros already
-
     return commitment;
   }
 
   /**
-   * Deploy an AirdropCovenant
+   * Build constructor args + params for the updated AirdropCovenant.
+   * Constructor order: vaultId, authorityHash, claimAuthorityHash,
+   *                    amountPerClaim, totalPool, startTimestamp, endTimestamp
    */
-  async deployAirdrop(params: AirdropDeploymentParams): Promise<AirdropDeployment> {
+  private buildContract(
+    vaultId: Uint8Array,
+    authorityHash: Uint8Array,
+    claimAuthorityHash: Uint8Array,
+    amountPerClaimSat: bigint,
+    totalPoolSat: bigint,
+    startTimestamp: bigint,
+    endTimestamp: bigint,
+  ) {
     const artifact = ContractFactory.getArtifact('AirdropCovenant');
-    if (params.tokenType === 'FUNGIBLE_TOKEN' && !params.tokenCategory) {
-      throw new Error('tokenCategory is required for FUNGIBLE_TOKEN airdrops');
-    }
 
-    const vaultId = hexToBin(params.vaultId);
-    const authorityHash = this.addressToHash160(params.authorityAddress);
-    const campaignId = this.generateCampaignId(params);
-
-    const amountPerClaimOnChain = this.toOnChainAmount(params.amountPerClaim, params.tokenType);
-    const totalPoolOnChain = this.toOnChainAmount(params.totalAmount, params.tokenType);
-    const amountPerClaimSat = BigInt(amountPerClaimOnChain);
-    const totalPoolSat = BigInt(totalPoolOnChain);
-    const startTimestamp = BigInt(params.startTime || 0);
-    const endTimestamp = BigInt(params.endTime || 0);
-
-    // Constructor params for AirdropCovenant
     const constructorArgs = [
       vaultId,
       authorityHash,
+      claimAuthorityHash,
       amountPerClaimSat,
       totalPoolSat,
       startTimestamp,
@@ -168,90 +175,44 @@ export class AirdropDeploymentService {
 
     const contract = new Contract(artifact, constructorArgs, { provider: this.provider });
 
-    // Create initial NFT commitment
-    const initialCommitment = this.createAirdropCommitment(params);
-
-    // Serialize constructor params for storage
     const constructorParams: ConstructorParam[] = [
       { type: 'bytes', value: binToHex(vaultId) },
       { type: 'bytes', value: binToHex(authorityHash) },
+      { type: 'bytes', value: binToHex(claimAuthorityHash) },
       { type: 'bigint', value: amountPerClaimSat.toString() },
       { type: 'bigint', value: totalPoolSat.toString() },
       { type: 'bigint', value: startTimestamp.toString() },
       { type: 'bigint', value: endTimestamp.toString() },
     ];
 
-    const fundingTx: AirdropDeployment['fundingTxRequired'] = {
-      toAddress: contract.address,
-      amount: params.tokenType === 'FUNGIBLE_TOKEN'
-        ? 1000 // Dust amount for token contracts
-        : totalPoolOnChain,
-      withNFT: {
-        commitment: binToHex(initialCommitment),
-        capability: 'mutable',
-      },
-    };
-
-    // Add token-specific fields if using CashTokens
-    if (params.tokenType === 'FUNGIBLE_TOKEN') {
-      fundingTx.tokenType = 'FUNGIBLE_TOKEN';
-      fundingTx.tokenCategory = params.tokenCategory;
-      fundingTx.tokenAmount = totalPoolOnChain;
-    }
-
-    return {
-      contractAddress: contract.address,
-      campaignId: binToHex(campaignId),
-      constructorParams,
-      initialCommitment: binToHex(initialCommitment),
-      fundingTxRequired: fundingTx,
-    };
+    return { contract, constructorParams };
   }
 
-  async deployAirdropWithHash(params: AirdropDeploymentParamsWithHash): Promise<AirdropDeployment> {
-    const artifact = ContractFactory.getArtifact('AirdropCovenant');
+  /**
+   * Deploy an AirdropCovenant
+   */
+  async deployAirdrop(params: AirdropDeploymentParams): Promise<AirdropDeployment> {
     if (params.tokenType === 'FUNGIBLE_TOKEN' && !params.tokenCategory) {
       throw new Error('tokenCategory is required for FUNGIBLE_TOKEN airdrops');
     }
 
     const vaultId = hexToBin(params.vaultId);
-    const authorityHash = hexToBin(params.authorityHash);
+    const authorityHash = this.addressToHash160(params.authorityAddress);
+    const { privKey: claimAuthPrivKey, hash: claimAuthorityHash } = this.generateClaimAuthorityKeypair();
+    const campaignId = this.generateCampaignId(params);
 
-    const timestampBuf = new Uint8Array(8);
-    new DataView(timestampBuf.buffer).setBigUint64(0, BigInt(params.startTime || Date.now()), true);
-    const combined = new Uint8Array(32 + 20 + 8);
-    combined.set(vaultId, 0);
-    combined.set(authorityHash, 32);
-    combined.set(timestampBuf, 52);
-    const h = hash160(combined);
-    const campaignId = new Uint8Array(32);
-    campaignId.set(h, 12);
-
-    const amountPerClaimOnChain = this.toOnChainAmount(params.amountPerClaim, params.tokenType);
-    const totalPoolOnChain = this.toOnChainAmount(params.totalAmount, params.tokenType);
-    const amountPerClaimSat = BigInt(amountPerClaimOnChain);
-    const totalPoolSat = BigInt(totalPoolOnChain);
+    const amountPerClaimSat = BigInt(this.toOnChainAmount(params.amountPerClaim, params.tokenType));
+    const totalPoolSat = BigInt(this.toOnChainAmount(params.totalAmount, params.tokenType));
     const startTimestamp = BigInt(params.startTime || 0);
     const endTimestamp = BigInt(params.endTime || 0);
 
-    const constructorArgs = [vaultId, authorityHash, amountPerClaimSat, totalPoolSat, startTimestamp, endTimestamp];
-    const contract = new Contract(artifact, constructorArgs, { provider: this.provider });
+    const { contract, constructorParams } = this.buildContract(
+      vaultId, authorityHash, claimAuthorityHash,
+      amountPerClaimSat, totalPoolSat, startTimestamp, endTimestamp,
+    );
 
-    let flags = 0;
-    if (params.cancelable !== false) flags |= 1;
-    if (params.tokenType === 'FUNGIBLE_TOKEN') flags |= 4;
-    const initialCommitment = new Uint8Array(40);
-    initialCommitment[0] = 0;
-    initialCommitment[1] = flags;
-
-    const constructorParams: ConstructorParam[] = [
-      { type: 'bytes', value: binToHex(vaultId) },
-      { type: 'bytes', value: binToHex(authorityHash) },
-      { type: 'bigint', value: amountPerClaimSat.toString() },
-      { type: 'bigint', value: totalPoolSat.toString() },
-      { type: 'bigint', value: startTimestamp.toString() },
-      { type: 'bigint', value: endTimestamp.toString() },
-    ];
+    const initialCommitment = this.createAirdropCommitment(params);
+    const totalPoolOnChain = Number(totalPoolSat);
 
     const fundingTx: AirdropDeployment['fundingTxRequired'] = {
       toAddress: contract.address,
@@ -270,6 +231,61 @@ export class AirdropDeploymentService {
       campaignId: binToHex(campaignId),
       constructorParams,
       initialCommitment: binToHex(initialCommitment),
+      claimAuthorityPrivKey: binToHex(claimAuthPrivKey),
+      fundingTxRequired: fundingTx,
+    };
+  }
+
+  async deployAirdropWithHash(params: AirdropDeploymentParamsWithHash): Promise<AirdropDeployment> {
+    if (params.tokenType === 'FUNGIBLE_TOKEN' && !params.tokenCategory) {
+      throw new Error('tokenCategory is required for FUNGIBLE_TOKEN airdrops');
+    }
+
+    const vaultId = hexToBin(params.vaultId);
+    const authorityHash = hexToBin(params.authorityHash);
+    const { privKey: claimAuthPrivKey, hash: claimAuthorityHash } = this.generateClaimAuthorityKeypair();
+
+    const timestampBuf = new Uint8Array(8);
+    new DataView(timestampBuf.buffer).setBigUint64(0, BigInt(params.startTime || Date.now()), true);
+    const combined = new Uint8Array(32 + 20 + 8);
+    combined.set(vaultId, 0);
+    combined.set(authorityHash, 32);
+    combined.set(timestampBuf, 52);
+    const h = hash160(combined);
+    const campaignId = new Uint8Array(32);
+    campaignId.set(h, 12);
+
+    const amountPerClaimSat = BigInt(this.toOnChainAmount(params.amountPerClaim, params.tokenType));
+    const totalPoolSat = BigInt(this.toOnChainAmount(params.totalAmount, params.tokenType));
+    const startTimestamp = BigInt(params.startTime || 0);
+    const endTimestamp = BigInt(params.endTime || 0);
+
+    const { contract, constructorParams } = this.buildContract(
+      vaultId, authorityHash, claimAuthorityHash,
+      amountPerClaimSat, totalPoolSat, startTimestamp, endTimestamp,
+    );
+
+    const initialCommitment = this.createAirdropCommitment(params);
+    const totalPoolOnChain = Number(totalPoolSat);
+
+    const fundingTx: AirdropDeployment['fundingTxRequired'] = {
+      toAddress: contract.address,
+      amount: params.tokenType === 'FUNGIBLE_TOKEN' ? 1000 : totalPoolOnChain,
+      withNFT: { commitment: binToHex(initialCommitment), capability: 'mutable' },
+    };
+
+    if (params.tokenType === 'FUNGIBLE_TOKEN') {
+      fundingTx.tokenType = 'FUNGIBLE_TOKEN';
+      fundingTx.tokenCategory = params.tokenCategory;
+      fundingTx.tokenAmount = totalPoolOnChain;
+    }
+
+    return {
+      contractAddress: contract.address,
+      campaignId: binToHex(campaignId),
+      constructorParams,
+      initialCommitment: binToHex(initialCommitment),
+      claimAuthorityPrivKey: binToHex(claimAuthPrivKey),
       fundingTxRequired: fundingTx,
     };
   }
