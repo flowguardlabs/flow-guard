@@ -185,7 +185,7 @@ export function DataTable<T extends Record<string, any>>({
             <div
               key={index}
               onClick={() => onRowClick?.(row)}
-              className={`bg-white border border-border rounded-lg p-4 space-y-2 ${
+              className={`bg-surface border border-border rounded-lg p-4 space-y-2 ${
                 onRowClick ? 'cursor-pointer hover:border-accent active:bg-surfaceAlt' : ''
               }`}
             >
@@ -194,9 +194,9 @@ export function DataTable<T extends Record<string, any>>({
                   <span className="text-xs font-mono text-textMuted uppercase tracking-wider flex-shrink-0">
                     {column.label}
                   </span>
-                  <span className="text-sm text-textPrimary text-right flex-1 truncate">
+                  <div className="text-sm text-textPrimary text-right flex-1 min-w-0">
                     {column.render ? column.render(row) : row[column.key]}
-                  </span>
+                  </div>
                 </div>
               ))}
             </div>

@@ -5,15 +5,12 @@ import {
   FileText,
   Vote,
   DollarSign,
-  BookOpen,
   ChevronLeft,
   ChevronRight,
   Inbox,
-  Globe,
   Repeat,
   Gift,
   X,
-  Server,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -50,7 +47,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { path: '/proposals', icon: FileText, label: 'Proposals' },
     { path: '/budgets', icon: DollarSign, label: 'Budget Plans' },
     { path: '/governance', icon: Vote, label: 'Governance' },
-    { path: '/docs', icon: BookOpen, label: 'Documentation' },
   ];
 
   const isActive = (path: string) => {

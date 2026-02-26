@@ -58,6 +58,16 @@ interface Claim {
   tx_hash?: string;
 }
 
+interface ActivityEvent {
+  id: string;
+  event_type: string;
+  actor: string | null;
+  amount: number | null;
+  status: string | null;
+  tx_hash: string | null;
+  created_at: number;
+}
+
 /**
  * StreamDetailPage - Single Stream View
  * Like Sablier's stream detail page with circular progress ring
@@ -75,6 +85,7 @@ export default function StreamDetailPage() {
   const [funding, setFunding] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
 
   // Fetch stream details
   useEffect(() => {
@@ -89,11 +100,13 @@ export default function StreamDetailPage() {
         const data = await response.json();
         setStream(data.stream);
         setClaims(data.claims || []);
+        setEvents(data.events || []);
       } catch (error) {
         console.error('Failed to fetch stream:', error);
         setLoadError(error instanceof Error ? error.message : 'Failed to load stream');
         setStream(null);
         setClaims([]);
+        setEvents([]);
       } finally {
         setLoading(false);
       }
@@ -156,6 +169,7 @@ export default function StreamDetailPage() {
       const streamData = await streamResponse.json();
       setStream(streamData.stream);
       setClaims(streamData.claims || []);
+      setEvents(streamData.events || []);
 
       emitTransactionNotice({
         txHash: signResult.signedTransactionHash,
@@ -365,7 +379,7 @@ export default function StreamDetailPage() {
   const displayStreamId = formatLogicalId(stream.stream_id);
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 md:px-8 md:py-8">
       {/* Header */}
       <div className="mb-8">
         <Link
@@ -541,6 +555,53 @@ export default function StreamDetailPage() {
             </div>
           </Card>
 
+          {/* Activity Timeline */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold text-textPrimary mb-4">Activity Timeline</h3>
+
+            {events.length === 0 ? (
+              <p className="text-sm font-mono text-textMuted">No activity events recorded yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-[18rem] overflow-y-auto pr-1">
+                {events.map((event) => (
+                  <div key={event.id} className="rounded-lg border border-border bg-surfaceAlt p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-textPrimary">
+                          {formatStreamEventLabel(event.event_type)}
+                        </p>
+                        <p className="text-xs text-textMuted">
+                          {formatDate(event.created_at)}
+                        </p>
+                        {event.actor && (
+                          <p className="text-xs font-mono text-textMuted mt-1 break-all">
+                            actor: {event.actor}
+                          </p>
+                        )}
+                        {typeof event.amount === 'number' && (
+                          <p className="text-xs font-mono text-textMuted mt-1">
+                            amount: {event.amount.toFixed(4)} BCH
+                          </p>
+                        )}
+                      </div>
+                      {event.tx_hash && (
+                        <a
+                          href={getExplorerUrl(event.tx_hash)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primaryHover"
+                        >
+                          tx
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {/* Claim History */}
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-textPrimary mb-4">Claim History</h3>
@@ -707,4 +768,22 @@ export default function StreamDetailPage() {
       </div>
     </div>
   );
+}
+
+function formatStreamEventLabel(eventType: string): string {
+  switch (eventType) {
+    case 'created':
+      return 'Stream Created';
+    case 'funded':
+      return 'Stream Funded';
+    case 'claim':
+      return 'Stream Claimed';
+    case 'cancelled':
+      return 'Stream Cancelled';
+    default:
+      return eventType
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+  }
 }
