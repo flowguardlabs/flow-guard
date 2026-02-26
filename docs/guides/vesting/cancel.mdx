@@ -56,12 +56,25 @@ sender_gets    = totalAmount - vestedTotal
 
 ```bash
 POST /api/streams/:id/cancel
+x-user-address: bchtest:q...
+Content-Type: application/json
+
+{
+  "sender": "bchtest:q..."
+}
 
 # Response
 {
-  "txid": "hex_transaction_id",
-  "recipientAmount": 250000000,
-  "senderAmount": 750000000,
-  "status": "CANCELLED"
+  "success": true,
+  "vestedAmount": 2.5,
+  "unvestedAmount": 7.5,
+  "wcTransaction": { "...": "..." }
+}
+
+POST /api/streams/:id/confirm-cancel
+Content-Type: application/json
+
+{
+  "txHash": "hex64"
 }
 ```

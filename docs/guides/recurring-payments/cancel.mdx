@@ -32,11 +32,25 @@ For streams deployed with `totalAmount = 0`, the remaining pool is the entire cu
 
 ```bash
 POST /api/payments/:id/cancel
+x-user-address: bchtest:q...
+Content-Type: application/json
+
+{
+  "signerAddress": "bchtest:q..."
+}
 
 # Response
 {
-  "txid": "hex_transaction_id",
-  "returnedToSender": 24500000,
-  "status": "CANCELLED"
+  "success": true,
+  "remainingPool": "24500000",
+  "senderReturnAddress": "bchtest:q...",
+  "wcTransaction": { "...": "..." }
+}
+
+POST /api/payments/:id/confirm-cancel
+Content-Type: application/json
+
+{
+  "txHash": "hex64"
 }
 ```
