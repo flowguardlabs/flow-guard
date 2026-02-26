@@ -42,5 +42,16 @@ This matches the expected behavior for employment payroll: paused periods are un
 
 ```bash
 POST /api/payments/:id/pause
+x-user-address: bchtest:q...
+{ "signerAddress": "bchtest:q..." }
+
+POST /api/payments/:id/confirm-pause
+{ "txHash": "hex64" }
+
 POST /api/payments/:id/resume
+x-user-address: bchtest:q...
+{ "signerAddress": "bchtest:q..." }
+
+POST /api/payments/:id/confirm-resume
+{ "txHash": "hex64" }
 ```

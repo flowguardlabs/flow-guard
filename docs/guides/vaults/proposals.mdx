@@ -1,22 +1,26 @@
 ---
 title: "Spending Proposals"
 description: "Create, approve, and execute vault spending proposals using M-of-N signer coordination."
-icon: "file-signature"
+icon: "file-lines"
 ---
 
-A spending proposal routes a payout through an on-chain approval process before execution. The `ProposalCovenant` tracks approvals and enforces an execution timelock.
+A spending proposal routes a payout through an approval and execution flow. In the current backend, proposal lifecycle is split into:
+
+- Off-chain metadata + signer tracking in SQLite
+- On-chain proposal covenant deployment and execution
 
 ## Full Lifecycle
 
 ```mermaid
 flowchart LR
-    A([Create Proposal\nlink to vault]) > B[PENDING\napproval_count = 0]
-    B >|approve - any signer| C{approval_count\n>= required?}
-    C >|No| B
-    C >|Yes| D[APPROVED]
-    D >|execute - permissionless\nafter executionTimelock| E([EXECUTED\nNFT burned])
-    B >|expire - permissionless\nafter votingEnd| F([EXPIRED])
-    B & D >|cancel - M-of-N| G([CANCELLED])
+    A([Create proposal record]) --> B[Draft/Pending]
+    B --> C[Create on-chain proposal covenant]
+    C --> D[Signer approvals]
+    D --> E{>= required approvals}
+    E -->|No| D
+    E -->|Yes| F[Approved]
+    F --> G[Execute signing session]
+    G --> H([Executed and broadcast])
 ```
 
 ## Create a Proposal
@@ -27,42 +31,48 @@ flowchart LR
   </Step>
   <Step title="Define payout details">
     - **Recipient**: BCH P2PKH address that will receive funds
-    - **Payout Amount**: satoshis to transfer
-    - **Voting Deadline**: timestamp after which the proposal expires if quorum is not reached
-    - **Execution Timelock**: minimum wait after approval before execution
+    - **Payout Amount**: BCH amount to transfer
+    - **Reason**: short payout rationale stored with the proposal record
   </Step>
   <Step title="Submit">
-    Sign and broadcast. The proposal NFT UTXO is created on-chain. Signers can now visit the proposal to approve.
+    This creates the proposal record (`POST /api/vaults/:vaultId/proposals`).
+    Then fund the on-chain proposal covenant using:
+    `POST /api/:id/create-onchain` and
+    `POST /api/:id/confirm-create`.
   </Step>
 </Steps>
 
 ## Approve a Proposal
 
-Each signer navigates to the proposal detail page and clicks **Approve**. Each approval is an individual on-chain transaction that increments `approval_count` in the NFT state.
+Each signer clicks **Approve** in the proposal UI.
 
-Once `approval_count >= requiredApprovals`, status transitions to `APPROVED` automatically.
+- Build approval tx: `POST /api/:id/approve-onchain`
+- Confirm approval: `POST /api/:id/confirm-approval`
+
+Once approvals reach the required threshold, status transitions to `approved`.
 
 ## Execute a Proposal
 
-After the `executionTimelock` timestamp passes, anyone can call `execute()`. In the FlowGuard app, this button appears on the proposal detail page. The executor service also monitors approved proposals and submits execution transactions automatically.
+Execution uses a 2-signer session:
 
-## Cancel a Proposal
+- Start session: `POST /api/:id/execute`
+- Submit first/second signed tx: `POST /api/:id/execute-signature`
 
-M-of-N signers can cancel at any point while status is PENDING or APPROVED. Cancel is an on-chain transaction that sets status to `CANCELLED`.
+When enough signatures are collected, backend broadcasts the final transaction and marks proposal executed.
+
+## Current API Scope
+
+Proposal covenant functions like `cancel()` and `expire()` exist at contract level, but the current public HTTP API focuses on create/approve/execute flow.
+
 
 ## API
 
 ```bash
-POST /api/proposals
-{
-  "vaultId": "hex_32_bytes",
-  "recipientAddress": "bchtest:q...",
-  "payoutAmount": 100000000,
-  "votingEndTimestamp": 1710000000,
-  "executionTimelock": 1710086400
-}
-
-POST /api/proposals/:id/approve
-POST /api/proposals/:id/execute
-POST /api/proposals/:id/cancel
+POST /api/vaults/:vaultId/proposals
+POST /api/:id/create-onchain
+POST /api/:id/confirm-create
+POST /api/:id/approve-onchain
+POST /api/:id/confirm-approval
+POST /api/:id/execute
+POST /api/:id/execute-signature
 ```

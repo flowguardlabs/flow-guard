@@ -26,13 +26,13 @@ icon: "circle-plus"
 ## API
 
 ```bash
-POST /api/vaults/:id/fund
-Content-Type: application/json
+GET /api/vaults/:id/deposit
+```
 
-{
-  "amount": 500000000,
-  "assetType": "BCH"
-}
+Use the returned deposit address in your wallet, then call:
+
+```bash
+POST /api/vaults/:id/update-balance
 ```
 
 <Info>

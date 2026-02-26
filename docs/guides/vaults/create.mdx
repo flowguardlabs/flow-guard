@@ -9,13 +9,12 @@ icon: "vault"
     Connect your wallet and go to **Vaults → Create Vault** in the dashboard.
   </Step>
   <Step title="Configure signers">
-    Enter the `hash160` (P2PKH) addresses of up to 3 signers. Set `Required Approvals` to the M value (1, 2, or 3).
+    Enter exactly 3 signer addresses and exactly 3 signer compressed public keys. Set `Approval Threshold` to `1` or `2`.
 
     | Setup | Required Approvals | Signers |
     |-|-|-|
-    | Solo treasury | 1 | 1 address |
+    | Solo-managed treasury | 1 | 3 addresses (one signer can execute) |
     | 2-of-3 DAO | 2 | 3 addresses |
-    | 3-of-3 strict | 3 | 3 addresses |
   </Step>
   <Step title="Set spending controls (optional)">
     - **Period Duration**: seconds per rolling spending window (e.g. `2592000` = 30 days). Set `0` to disable.
@@ -41,13 +40,15 @@ POST /api/vaults
 Content-Type: application/json
 
 {
-  "requiredApprovals": 2,
-  "signer1": "hash160_hex",
-  "signer2": "hash160_hex",
-  "signer3": "hash160_hex",
-  "periodDuration": 2592000,
-  "periodCap": 500000000,
-  "recipientCap": 100000000,
-  "allowlistEnabled": false
+  "name": "Ops Treasury",
+  "description": "Main vault",
+  "totalDeposit": 10,
+  "spendingCap": 5,
+  "approvalThreshold": 2,
+  "signers": ["bchtest:q...", "bchtest:q...", "bchtest:q..."],
+  "signerPubkeys": ["03...", "02...", "03..."],
+  "cycleDuration": 2592000,
+  "unlockAmount": 5,
+  "isPublic": false
 }
 ```

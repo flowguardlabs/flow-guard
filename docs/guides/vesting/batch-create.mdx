@@ -49,22 +49,24 @@ Post-Loops CHIP, a single transaction will be able to deploy multiple covenant U
 ## API
 
 ```bash
-POST /api/streams/batch
+POST /api/treasuries/:vaultId/batch-create
 Content-Type: application/json
 
 {
-  "vaultId": "hex_32_bytes",
-  "streams": [
+  "recipients": [
     {
-      "recipientAddress": "bchtest:q...",
-      "scheduleType": 1,
-      "totalAmount": 500000000,
-      "startTimestamp": 1700000000,
-      "endTimestamp": 1731536000,
-      "cliffTimestamp": 1706745600,
-      "cancelable": true
+      "address": "bchtest:q...",
+      "amount": 0.5,
+      "duration": 2592000,
+      "type": "LINEAR",
+      "cancelable": true,
+      "transferable": false
     },
     { ... }
   ]
 }
 ```
+
+<Note>
+Current backend implementation creates BCH streams directly in one request. It does not yet deploy each stream covenant in a single on-chain atomic transaction.
+</Note>
