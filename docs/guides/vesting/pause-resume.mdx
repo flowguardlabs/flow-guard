@@ -6,6 +6,10 @@ icon: "circle-pause"
 
 The sender can pause a vesting stream at any time to temporarily freeze vesting. Paused time is excluded from all future vesting calculations.
 
+<Warning>
+The current public backend does not expose `/api/streams/:id/pause` and `/api/streams/:id/resume` endpoints yet. This guide documents contract behavior and planned API support.
+</Warning>
+
 ## Pause
 
 <Steps>
@@ -66,9 +70,6 @@ The recipient receives the same total amount — only the duration shifts forwar
 
 The total vesting duration is 12 months of active time, as originally configured.
 
-## API
+## API Status
 
-```bash
-POST /api/streams/:id/pause
-POST /api/streams/:id/resume
-```
+Pause/resume is available in `VestingCovenant` and related services, but the HTTP routes are not wired in the current API build.

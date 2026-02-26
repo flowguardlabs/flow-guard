@@ -10,7 +10,11 @@ If a vesting stream was created with `FLAG_TRANSFERABLE`, the current recipient 
 Transfer requires `FLAG_TRANSFERABLE` (`0x02`) to be set. If this flag is not present, the recipient is immutable for the lifetime of the stream.
 </Note>
 
-## transferring
+<Warning>
+`transfer()` is implemented in `VestingCovenant`, but the current backend release does not expose `/api/streams/:id/transfer` yet.
+</Warning>
+
+## Transferring
 
 <Steps>
   <Step title="Open the stream">
@@ -38,13 +42,6 @@ Transfer requires `FLAG_TRANSFERABLE` (`0x02`) to be set. If this flag is not pr
 
 - **Already-claimed tokens**: those were already paid to the original recipient and are settled.
 
-## API
+## API Status
 
-```bash
-POST /api/streams/:id/transfer
-Content-Type: application/json
-
-{
-  "newRecipientAddress": "bchtest:q..."
-}
-```
+Recipient transfer is contract-supported and planned for API wiring in a future backend release.

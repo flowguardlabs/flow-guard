@@ -1,7 +1,7 @@
 ---
 title: "Create a Vesting Stream"
 description: "Deploy a linear or step vesting stream with optional cliff, cancelability, and transferability."
-icon: "lock-keyhole"
+icon: "lock"
 ---
 
 <Steps>
@@ -59,7 +59,7 @@ Where `elapsed = tx.locktime - cursor` and `cursor` starts at `startTimestamp` b
 ## API
 
 ```bash
-POST /api/streams
+POST /api/streams/create
 Content-Type: application/json
 
 {

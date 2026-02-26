@@ -25,23 +25,22 @@ interface WalletOption {
 
 const walletOptions: WalletOption[] = [
   {
+    type: WalletType.WALLETCONNECT,
+    name: 'WalletConnect',
+    description: 'Paytaca, Selene',
+    Icon: Smartphone,
+    recommended: true,
+  },
+  {
     type: WalletType.PAYTACA,
     name: 'Paytaca',
     description: 'Browser extension or mobile app',
     Icon: Wallet,
-    recommended: true,
   },
   {
     type: WalletType.CASHONIZE,
     name: 'Cashonize',
     description: 'CashScript-aware mobile wallet (Covenant support)',
-    Icon: Smartphone,
-    recommended: true,
-  },
-  {
-    type: WalletType.WALLETCONNECT,
-    name: 'Zapit',
-    description: 'Other WalletConnect v2 wallets',
     Icon: Smartphone,
   },
   {
@@ -142,9 +141,8 @@ export function WalletModal({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-textPrimary/50 backdrop-blur-sm p-4 overflow-y-auto transition-opacity duration-200 ${
-        shouldHide ? 'opacity-0 pointer-events-none' : 'opacity-100'
-      }`}
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-textPrimary/50 backdrop-blur-sm p-4 overflow-y-auto transition-opacity duration-200 ${shouldHide ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
     >
       <div className="bg-surface rounded-2xl shadow-lg max-w-md w-full my-auto border border-border">
         {/* Header */}
