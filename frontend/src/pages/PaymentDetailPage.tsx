@@ -26,7 +26,19 @@ import {
   ExternalLink,
   Wallet,
   Download,
+  History,
 } from 'lucide-react';
+
+interface ActivityEvent {
+  id: string;
+  event_type: string;
+  actor: string | null;
+  amount: number | null;
+  status: string | null;
+  tx_hash: string | null;
+  created_at: number;
+  details?: Record<string, unknown> | null;
+}
 
 export default function PaymentDetailPage() {
   const { id } = useParams();
@@ -39,6 +51,7 @@ export default function PaymentDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [claimableIntervals, setClaimableIntervals] = useState(0);
   const [claimableAmount, setClaimableAmount] = useState(0);
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
 
   useEffect(() => {
     const fetchPayment = async () => {
@@ -48,6 +61,7 @@ export default function PaymentDetailPage() {
         const data = await response.json();
         setPayment(data.payment);
         setHistory(data.history || []);
+        setEvents(data.events || []);
       } catch (error) {
         console.error('Failed to fetch payment:', error);
       } finally {
@@ -94,6 +108,7 @@ export default function PaymentDetailPage() {
       const response = await fetch(`/api/payments/${id}`);
       const data = await response.json();
       setPayment(data.payment);
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Failed to pause payment:', error);
       alert(`Failed to pause payment: ${error.message}`);
@@ -114,6 +129,7 @@ export default function PaymentDetailPage() {
       const response = await fetch(`/api/payments/${id}`);
       const data = await response.json();
       setPayment(data.payment);
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Failed to resume payment:', error);
       alert(`Failed to resume payment: ${error.message}`);
@@ -158,6 +174,7 @@ export default function PaymentDetailPage() {
       const response = await fetch(`/api/payments/${id}`);
       const data = await response.json();
       setPayment(data.payment);
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Failed to fund payment:', error);
       alert(`Failed to fund payment: ${error.message}`);
@@ -187,6 +204,7 @@ export default function PaymentDetailPage() {
       const data = await response.json();
       setPayment(data.payment);
       setHistory(data.history || []);
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Failed to claim payment:', error);
       alert(`Failed to claim payment: ${error.message}`);
@@ -223,7 +241,7 @@ export default function PaymentDetailPage() {
   const daysUntilNext = Math.ceil((payment.next_payment_date - Math.floor(Date.now() / 1000)) / 86400);
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -440,6 +458,82 @@ export default function PaymentDetailPage() {
           </Card>
         </div>
 
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+          <Card padding="lg">
+            <h3 className="text-xl font-display font-bold text-textPrimary mb-4">On-Chain Links</h3>
+            <div className="space-y-3">
+              <div>
+                <span className="block text-xs font-mono text-textMuted uppercase mb-1">Contract</span>
+                <p className="text-sm font-mono text-textPrimary break-all">{payment.contract_address || '-'}</p>
+              </div>
+              <div>
+                <span className="block text-xs font-mono text-textMuted uppercase mb-1">Funding Transaction</span>
+                {payment.tx_hash ? (
+                  <a
+                    href={getExplorerTxUrl(payment.tx_hash, network)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:text-primaryHover font-mono text-sm transition-colors"
+                  >
+                    {payment.tx_hash.slice(0, 12)}...{payment.tx_hash.slice(-10)}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <p className="text-sm font-mono text-textMuted">Not funded yet</p>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card padding="lg">
+            <h3 className="text-xl font-display font-bold text-textPrimary mb-4 flex items-center gap-2">
+              <History className="w-5 h-5" />
+              Activity Timeline
+            </h3>
+            {events.length === 0 ? (
+              <p className="text-sm font-mono text-textMuted">No activity events recorded yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-[18rem] overflow-y-auto pr-1">
+                {events.map((event) => (
+                  <div key={event.id} className="rounded-lg border border-border bg-surfaceAlt p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-display font-bold text-textPrimary">
+                          {formatPaymentEventLabel(event.event_type)}
+                        </p>
+                        <p className="text-xs font-mono text-textMuted">
+                          {new Date(event.created_at * 1000).toLocaleString()}
+                        </p>
+                        {event.actor && (
+                          <p className="text-xs font-mono text-textMuted mt-1 break-all">
+                            actor: {event.actor}
+                          </p>
+                        )}
+                        {typeof event.amount === 'number' && (
+                          <p className="text-xs font-mono text-textMuted mt-1">
+                            amount: {event.amount.toFixed(4)} BCH
+                          </p>
+                        )}
+                      </div>
+                      {event.tx_hash && (
+                        <a
+                          href={getExplorerTxUrl(event.tx_hash, network)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:text-primaryHover font-mono text-xs transition-colors"
+                        >
+                          tx
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
         {/* Payment History */}
         <Card padding="lg">
           <h3 className="text-xl font-display font-bold text-textPrimary mb-4">Payment History</h3>
@@ -489,4 +583,26 @@ export default function PaymentDetailPage() {
       </div>
     </div>
   );
+}
+
+function formatPaymentEventLabel(eventType: string): string {
+  switch (eventType) {
+    case 'created':
+      return 'Payment Created';
+    case 'funded':
+      return 'Payment Funded';
+    case 'claim':
+      return 'Payment Claimed';
+    case 'paused':
+      return 'Payment Paused';
+    case 'resumed':
+      return 'Payment Resumed';
+    case 'cancelled':
+      return 'Payment Cancelled';
+    default:
+      return eventType
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+  }
 }

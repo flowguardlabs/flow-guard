@@ -252,7 +252,7 @@ export default function ProposalsPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6 mb-8">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 md:gap-6 mb-6 md:mb-8">
             <div>
               <h1 className="font-display font-medium text-3xl md:text-5xl lg:text-6xl text-textPrimary mb-4">
                 Proposals
@@ -264,7 +264,7 @@ export default function ProposalsPage() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
             <StatsCard
               label="Total Proposals"
               value={proposals.length}
@@ -300,7 +300,7 @@ export default function ProposalsPage() {
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-textMuted font-sans">Status:</span>
             {(['all', 'pending', 'approved', 'executed', 'rejected'] as const).map((status) => (
               <button

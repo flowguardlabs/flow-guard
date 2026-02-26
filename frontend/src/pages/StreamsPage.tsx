@@ -5,11 +5,12 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Plus, Inbox, Send, Clock, Zap } from 'lucide-react';
+import { TrendingUp, Plus, Inbox, Send, Clock, Zap, ExternalLink } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { Button } from '../components/ui/Button';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatsCard } from '../components/shared/StatsCard';
+import { getExplorerTxUrl } from '../utils/blockchain';
 import { formatLogicalId } from '../utils/display';
 
 type RoleView = 'recipient' | 'sender' | 'all';
@@ -30,6 +31,13 @@ interface Stream {
   end_time?: number;
   status: string;
   created_at: number;
+  tx_hash?: string | null;
+  latest_event?: {
+    event_type: string;
+    status?: string | null;
+    tx_hash?: string | null;
+    created_at: number;
+  } | null;
 }
 
 export default function StreamsPage() {
@@ -39,6 +47,29 @@ export default function StreamsPage() {
   const [loading, setLoading] = useState(true);
   const [roleView, setRoleView] = useState<RoleView>('recipient');
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const network = import.meta.env.VITE_BCH_NETWORK === 'mainnet' ? 'mainnet' : 'chipnet';
+
+  const formatEventLabel = (eventType: string) => {
+    switch (eventType) {
+      case 'created':
+        return 'Stream Created';
+      case 'funded':
+        return 'Stream Funded';
+      case 'claim':
+        return 'Claim Processed';
+      case 'paused':
+        return 'Stream Paused';
+      case 'resumed':
+        return 'Stream Resumed';
+      case 'cancelled':
+        return 'Stream Cancelled';
+      default:
+        return eventType
+          .split('_')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+    }
+  };
 
   useEffect(() => {
     if (!wallet.address) {
@@ -183,6 +214,39 @@ export default function StreamsPage() {
           >
             {row.status}
           </span>
+        );
+      },
+    },
+    {
+      key: 'latest_event',
+      label: 'Latest Activity',
+      render: (row) => {
+        if (!row.latest_event) {
+          return <span className="text-xs text-textMuted font-sans">No events</span>;
+        }
+
+        const latestTxHash = row.latest_event.tx_hash || row.tx_hash;
+        return (
+          <div className="space-y-1">
+            <p className="text-sm font-sans text-textPrimary">
+              {formatEventLabel(row.latest_event.event_type)}
+            </p>
+            <p className="text-xs text-textMuted font-mono">
+              {new Date(row.latest_event.created_at * 1000).toLocaleString()}
+            </p>
+            {latestTxHash && (
+              <a
+                href={getExplorerTxUrl(latestTxHash, network)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primaryHover font-medium"
+              >
+                View Tx
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
         );
       },
     },

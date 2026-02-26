@@ -5,11 +5,12 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Repeat, Plus, DollarSign, Clock, Zap, TrendingUp, Calendar } from 'lucide-react';
+import { Repeat, Plus, DollarSign, Clock, Zap, TrendingUp, Calendar, ExternalLink } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
 import { Button } from '../components/ui/Button';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatsCard } from '../components/shared/StatsCard';
+import { getExplorerTxUrl } from '../utils/blockchain';
 import { formatLogicalId } from '../utils/display';
 
 type PaymentStatus = 'ACTIVE' | 'PAUSED' | 'CANCELLED' | 'COMPLETED';
@@ -32,6 +33,13 @@ interface RecurringPayment {
   status: PaymentStatus;
   pausable: boolean;
   created_at: number;
+  tx_hash?: string | null;
+  latest_event?: {
+    event_type: string;
+    status?: string | null;
+    tx_hash?: string | null;
+    created_at: number;
+  } | null;
 }
 
 export default function PaymentsPage() {
@@ -41,6 +49,29 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'sent' | 'received'>('sent');
   const [statusFilter, setStatusFilter] = useState<'all' | PaymentStatus>('all');
+  const network = import.meta.env.VITE_BCH_NETWORK === 'mainnet' ? 'mainnet' : 'chipnet';
+
+  const formatEventLabel = (eventType: string) => {
+    switch (eventType) {
+      case 'created':
+        return 'Payment Created';
+      case 'funded':
+        return 'Payment Funded';
+      case 'claim':
+        return 'Payment Claimed';
+      case 'paused':
+        return 'Payment Paused';
+      case 'resumed':
+        return 'Payment Resumed';
+      case 'cancelled':
+        return 'Payment Cancelled';
+      default:
+        return eventType
+          .split('_')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+    }
+  };
 
   useEffect(() => {
     if (!wallet.address) {
@@ -198,6 +229,39 @@ export default function PaymentsPage() {
         );
       },
     },
+    {
+      key: 'latest_event',
+      label: 'Latest Activity',
+      render: (row) => {
+        if (!row.latest_event) {
+          return <span className="text-xs text-textMuted font-sans">No events</span>;
+        }
+
+        const latestTxHash = row.latest_event.tx_hash || row.tx_hash;
+        return (
+          <div className="space-y-1">
+            <p className="text-sm font-sans text-textPrimary">
+              {formatEventLabel(row.latest_event.event_type)}
+            </p>
+            <p className="text-xs text-textMuted font-mono">
+              {new Date(row.latest_event.created_at * 1000).toLocaleString()}
+            </p>
+            {latestTxHash && (
+              <a
+                href={getExplorerTxUrl(latestTxHash, network)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primaryHover font-medium"
+              >
+                View Tx
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        );
+      },
+    },
   ];
 
   const handleImport = (data: any[]) => {
@@ -283,7 +347,7 @@ export default function PaymentsPage() {
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             <Button
               variant={viewMode === 'sent' ? 'primary' : 'outline'}
               onClick={() => setViewMode('sent')}
@@ -303,7 +367,7 @@ export default function PaymentsPage() {
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-textMuted font-sans">Status:</span>
             {(['all', 'ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED'] as const).map((status) => (
               <button

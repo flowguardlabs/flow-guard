@@ -26,7 +26,19 @@ import {
   TrendingUp,
   Wallet,
   Download,
+  History,
 } from 'lucide-react';
+
+interface ActivityEvent {
+  id: string;
+  event_type: string;
+  actor: string | null;
+  amount: number | null;
+  status: string | null;
+  tx_hash: string | null;
+  created_at: number;
+  details?: Record<string, unknown> | null;
+}
 
 export default function AirdropDetailPage() {
   const { id } = useParams();
@@ -39,6 +51,7 @@ export default function AirdropDetailPage() {
   const [copied, setCopied] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [userEligibility, setUserEligibility] = useState<{ eligible: boolean; amount: number; alreadyClaimed: boolean } | null>(null);
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
 
   useEffect(() => {
     const fetchCampaign = async () => {
@@ -48,6 +61,7 @@ export default function AirdropDetailPage() {
         const data = await response.json();
         setCampaign(data.campaign);
         setClaims(data.claims || []);
+        setEvents(data.events || []);
       } catch (error) {
         console.error('Failed to fetch campaign:', error);
       } finally {
@@ -113,6 +127,7 @@ export default function AirdropDetailPage() {
       const response = await fetch(`/api/airdrops/${id}`);
       const data = await response.json();
       setCampaign(data.campaign);
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Failed to pause campaign:', error);
       alert(`Failed to pause campaign: ${error.message}`);
@@ -156,6 +171,7 @@ export default function AirdropDetailPage() {
       const response = await fetch(`/api/airdrops/${id}`);
       const data = await response.json();
       setCampaign(data.campaign);
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Failed to fund airdrop:', error);
       alert(`Failed to fund airdrop: ${error.message}`);
@@ -185,6 +201,7 @@ export default function AirdropDetailPage() {
       const data = await response.json();
       setCampaign(data.campaign);
       setClaims(data.claims || []);
+      setEvents(data.events || []);
     } catch (error: any) {
       console.error('Failed to claim airdrop:', error);
       alert(`Failed to claim airdrop: ${error.message}`);
@@ -220,7 +237,7 @@ export default function AirdropDetailPage() {
   const claimProgress = (campaign.claimed_count / campaign.total_recipients) * 100;
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -501,6 +518,82 @@ export default function AirdropDetailPage() {
           </Card>
         </div>
 
+        <div className="grid md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+          <Card padding="lg">
+            <h3 className="text-xl font-display font-bold text-textPrimary mb-4">On-Chain Links</h3>
+            <div className="space-y-3">
+              <div>
+                <span className="block text-xs font-mono text-textMuted uppercase mb-1">Contract</span>
+                <p className="text-sm font-mono text-textPrimary break-all">{campaign.contract_address || '-'}</p>
+              </div>
+              <div>
+                <span className="block text-xs font-mono text-textMuted uppercase mb-1">Funding Transaction</span>
+                {campaign.tx_hash ? (
+                  <a
+                    href={getExplorerTxUrl(campaign.tx_hash, network)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:text-primaryHover font-mono text-sm transition-colors"
+                  >
+                    {campaign.tx_hash.slice(0, 12)}...{campaign.tx_hash.slice(-10)}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <p className="text-sm font-mono text-textMuted">Not funded yet</p>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card padding="lg">
+            <h3 className="text-xl font-display font-bold text-textPrimary mb-4 flex items-center gap-2">
+              <History className="w-5 h-5" />
+              Activity Timeline
+            </h3>
+            {events.length === 0 ? (
+              <p className="text-sm font-mono text-textMuted">No activity events recorded yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-[18rem] overflow-y-auto pr-1">
+                {events.map((event) => (
+                  <div key={event.id} className="rounded-lg border border-border bg-surfaceAlt p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-display font-bold text-textPrimary">
+                          {formatAirdropEventLabel(event.event_type)}
+                        </p>
+                        <p className="text-xs font-mono text-textMuted">
+                          {new Date(event.created_at * 1000).toLocaleString()}
+                        </p>
+                        {event.actor && (
+                          <p className="text-xs font-mono text-textMuted mt-1 break-all">
+                            actor: {event.actor}
+                          </p>
+                        )}
+                        {typeof event.amount === 'number' && (
+                          <p className="text-xs font-mono text-textMuted mt-1">
+                            amount: {event.amount.toFixed(4)} BCH
+                          </p>
+                        )}
+                      </div>
+                      {event.tx_hash && (
+                        <a
+                          href={getExplorerTxUrl(event.tx_hash, network)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:text-primaryHover font-mono text-xs transition-colors"
+                        >
+                          tx
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
         {/* Claim History */}
         <Card padding="lg">
           <h3 className="text-xl font-display font-bold text-textPrimary mb-4">Claim History</h3>
@@ -554,4 +647,24 @@ export default function AirdropDetailPage() {
       </div>
     </div>
   );
+}
+
+function formatAirdropEventLabel(eventType: string): string {
+  switch (eventType) {
+    case 'created':
+      return 'Campaign Created';
+    case 'funded':
+      return 'Campaign Funded';
+    case 'claim':
+      return 'Claim Executed';
+    case 'paused':
+      return 'Campaign Paused';
+    case 'cancelled':
+      return 'Campaign Cancelled';
+    default:
+      return eventType
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+  }
 }
