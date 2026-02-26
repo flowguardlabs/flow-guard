@@ -6,6 +6,7 @@
 import { Contract, ElectrumNetworkProvider } from 'cashscript';
 import { hash160, hexToBin, binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
 import { ContractFactory, type ConstructorParam } from './ContractFactory.js';
+import { displayAmountToOnChain } from '../utils/amounts.js';
 
 export interface PaymentDeploymentParams {
   vaultId: string; // hex-encoded 32-byte vault ID
@@ -154,8 +155,8 @@ export class PaymentDeploymentService {
       throw new Error('tokenCategory is required for FUNGIBLE_TOKEN payments');
     }
     const amountPerIntervalOnChain = isTokenPayment
-      ? Math.max(0, Math.trunc(params.amountPerInterval))
-      : Math.max(0, Math.floor(params.amountPerInterval * 100000000));
+      ? displayAmountToOnChain(params.amountPerInterval, 'FUNGIBLE_TOKEN')
+      : displayAmountToOnChain(params.amountPerInterval, 'BCH');
     const totalAmountOnChain = amountPerIntervalOnChain * Math.max(0, estimatedPayments);
 
     const amountPerIntervalSat = BigInt(amountPerIntervalOnChain);

@@ -6,6 +6,7 @@
 import { Contract, ElectrumNetworkProvider } from 'cashscript';
 import { hash160, hexToBin, binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
 import { ContractFactory, type ConstructorParam } from './ContractFactory.js';
+import { displayAmountToOnChain } from '../utils/amounts.js';
 
 export interface AirdropDeploymentParams {
   vaultId: string; // hex-encoded 32-byte vault ID
@@ -99,10 +100,10 @@ export class AirdropDeploymentService {
   }
 
   private toOnChainAmount(amount: number, tokenType?: 'BCH' | 'FUNGIBLE_TOKEN'): number {
-    if (tokenType === 'FUNGIBLE_TOKEN') {
-      return Math.max(0, Math.trunc(amount));
-    }
-    return Math.max(0, Math.floor(amount * 100000000));
+    return displayAmountToOnChain(
+      amount,
+      tokenType === 'FUNGIBLE_TOKEN' ? 'FUNGIBLE_TOKEN' : 'BCH',
+    );
   }
 
   /**

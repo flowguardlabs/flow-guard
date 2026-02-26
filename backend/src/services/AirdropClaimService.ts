@@ -75,6 +75,18 @@ export class AirdropClaimService {
     if (commitment.length !== 40) {
       throw new Error(`Invalid airdrop state commitment length: expected 40, got ${commitment.length}`);
     }
+    const status = commitment[0] ?? 0;
+    if (status !== 0) {
+      throw new Error(`Campaign is not ACTIVE on-chain (status=${status})`);
+    }
+    const onChainUsesTokens = ((commitment[1] ?? 0) & 0x04) === 0x04;
+    const requestedUsesTokens = tokenType === 'FUNGIBLE_TOKEN';
+    if (onChainUsesTokens !== requestedUsesTokens) {
+      throw new Error(
+        `Token type mismatch: campaign on-chain uses ${onChainUsesTokens ? 'FUNGIBLE_TOKEN' : 'BCH'}, `
+        + `but claim request used ${requestedUsesTokens ? 'FUNGIBLE_TOKEN' : 'BCH'}`,
+      );
+    }
     if (currentCommitment) {
       const cached = hexToBin(currentCommitment);
       const onChainHex = binToHex(commitment);
@@ -86,9 +98,16 @@ export class AirdropClaimService {
         });
       }
     }
+    const claimAmountBig = BigInt(claimAmount);
+    const expectedAmountPerClaim = this.toBigIntParam(constructorParams[2], 'amountPerClaim');
+    if (claimAmountBig !== expectedAmountPerClaim) {
+      throw new Error(
+        `Claim amount mismatch with covenant constructor `
+        + `(requested=${claimAmountBig.toString()}, expected=${expectedAmountPerClaim.toString()})`,
+      );
+    }
     const newCommitment = new Uint8Array(commitment);
     const totalClaimedOnChain = this.readUint64LE(commitment, 2);
-    const claimAmountBig = BigInt(claimAmount);
     const newTotalClaimed = totalClaimedOnChain + claimAmountBig;
     const totalPool = this.toBigIntParam(constructorParams[3], 'totalPool');
     if (newTotalClaimed > totalPool) {

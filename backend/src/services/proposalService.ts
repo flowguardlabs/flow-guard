@@ -17,6 +17,7 @@ import {
 } from '@bitauth/libauth';
 import { ContractFactory } from './ContractFactory.js';
 import { buildFundingWcTransaction } from '../utils/wcFundingBuilder.js';
+import { displayAmountToOnChain } from '../utils/amounts.js';
 
 export interface ExecutePayoutWcBuildResult {
   wcTransaction: WcTransactionObject;
@@ -67,8 +68,9 @@ export class ProposalService {
     }
 
     // Verify amount doesn't exceed spending cap
-    const amountSatoshis = Math.floor(dto.amount * 100000000); // Convert BCH to satoshis
-    if (vault.spendingCap > 0 && amountSatoshis > vault.spendingCap * 100000000) {
+    const amountSatoshis = displayAmountToOnChain(dto.amount, 'BCH');
+    const spendingCapSatoshis = displayAmountToOnChain(vault.spendingCap || 0, 'BCH');
+    if (spendingCapSatoshis > 0 && amountSatoshis > spendingCapSatoshis) {
       throw new Error(`Amount exceeds spending cap of ${vault.spendingCap} BCH`);
     }
     
@@ -134,7 +136,7 @@ export class ProposalService {
     }
 
     const currentState = vault.state || 0;
-    const amountSatoshis = Math.floor(proposal.amount * 100000000);
+    const amountSatoshis = displayAmountToOnChain(proposal.amount, 'BCH');
     const vaultStartTime = vault.startTime ? Math.floor(vault.startTime.getTime() / 1000) : Math.floor(Date.now() / 1000);
 
     // Build proposal transaction descriptor using ProposalCovenant
@@ -730,7 +732,7 @@ export class ProposalService {
       );
     }
 
-    const payoutSatoshis = BigInt(Math.floor(proposal.amount * 100000000));
+    const payoutSatoshis = BigInt(displayAmountToOnChain(proposal.amount, 'BCH'));
     if (payoutSatoshis <= 0n) {
       throw new Error('Proposal payout amount must be greater than zero');
     }

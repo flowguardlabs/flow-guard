@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import db from '../database/schema.js';
 import { Vault, CreateVaultDto } from '../models/Vault.js';
 import { ContractService } from './contract-service.js';
+import { displayAmountToOnChain } from '../utils/amounts.js';
 
 export class VaultService {
   static async createVault(dto: CreateVaultDto, creator: string): Promise<Vault> {
@@ -21,7 +22,7 @@ export class VaultService {
     // Non-custodial instantiation
     try {
       const contractService = new ContractService('chipnet');
-      const spendingCapSatoshis = Math.floor((dto.spendingCap || 0) * 100000000);
+      const spendingCapSatoshis = displayAmountToOnChain(dto.spendingCap || 0, 'BCH');
 
       const deployment = await contractService.deployVault({
         signerPubkeys: dto.signerPubkeys,
