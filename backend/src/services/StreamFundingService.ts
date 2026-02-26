@@ -196,9 +196,10 @@ export class StreamFundingService {
       }
 
       if (totalInputValue < requiredAmount) {
+        const requiredBch = (Number(requiredAmount) / 1e8).toFixed(8);
+        const availableBch = (Number(totalInputValue) / 1e8).toFixed(8);
         throw new Error(
-          `Insufficient BCH balance. Required: ${requiredAmount.toString()} sats, ` +
-          `Available: ${totalInputValue.toString()} sats`
+          `Insufficient BCH balance: need ${requiredBch} BCH, wallet has ${availableBch} BCH`
         );
       }
     }
@@ -293,6 +294,7 @@ export class StreamFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund stream contract ${contractAddress}`,
+      broadcast: true,
     });
 
     return {

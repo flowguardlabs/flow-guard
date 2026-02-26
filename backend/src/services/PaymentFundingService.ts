@@ -159,9 +159,10 @@ export class PaymentFundingService {
       }
 
       if (totalInputValue < requiredAmount) {
+        const requiredBch = (Number(requiredAmount) / 1e8).toFixed(8);
+        const availableBch = (Number(totalInputValue) / 1e8).toFixed(8);
         throw new Error(
-          `Insufficient BCH balance. Required: ${requiredAmount.toString()} sats, ` +
-          `Available: ${totalInputValue.toString()} sats`
+          `Insufficient BCH balance: need ${requiredBch} BCH, wallet has ${availableBch} BCH`
         );
       }
     }
@@ -231,8 +232,10 @@ export class PaymentFundingService {
       tokenChangeAmount > 0n ? bchBudgetAfterContractAndFee - dustAmount : bchBudgetAfterContractAndFee;
 
     if (bchBudgetAfterTokenChange < 0n) {
+      const neededBch = (Number(contractOutput + estimatedFee + (tokenChangeAmount > 0n ? dustAmount : 0n)) / 1e8).toFixed(8);
+      const haveBch = (Number(totalInputValue) / 1e8).toFixed(8);
       throw new Error(
-        'Insufficient BCH balance to cover outputs and fees for token funding transaction'
+        `Insufficient BCH balance: need ${neededBch} BCH, wallet has ${haveBch} BCH`
       );
     }
 
@@ -255,6 +258,7 @@ export class PaymentFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund recurring payment contract ${contractAddress}`,
+      broadcast: true,
     });
 
     return {

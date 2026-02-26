@@ -106,6 +106,10 @@ export class AirdropClaimService {
         + `(requested=${claimAmountBig.toString()}, expected=${expectedAmountPerClaim.toString()})`,
       );
     }
+    // Resolve locktime before building commitment — the contract encodes tx.locktime into the
+    // new NFT commitment (toPaddedBytes(tx.locktime, 5)), so bytes [18-22] must match exactly.
+    const locktime = this.resolveClaimLocktime(constructorParams, BigInt(currentTime));
+
     const newCommitment = new Uint8Array(commitment);
     const totalClaimedOnChain = this.readUint64LE(commitment, 2);
     const newTotalClaimed = totalClaimedOnChain + claimAmountBig;
@@ -123,7 +127,7 @@ export class AirdropClaimService {
       .getBigUint64(0, true);
     new DataView(newCommitment.buffer, newCommitment.byteOffset + 10, 8)
       .setBigUint64(0, currentCount + 1n, true);
-    this.setUint40LE(newCommitment, 18, currentTime);
+    this.setUint40LE(newCommitment, 18, Number(locktime));
     newCommitment.fill(0, 23, 40);
 
     // Compute claimerHash from claimer P2PKH address
@@ -153,7 +157,6 @@ export class AirdropClaimService {
     }
 
     const txBuilder = new TransactionBuilder({ provider: this.provider });
-    const locktime = this.resolveClaimLocktime(constructorParams, BigInt(currentTime));
     txBuilder.setLocktime(Number(locktime));
     txBuilder.addInput(
       contractUtxo,

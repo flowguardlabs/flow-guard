@@ -160,9 +160,10 @@ export class AirdropFundingService {
       }
 
       if (totalInputValue < requiredAmount) {
+        const requiredBch = (Number(requiredAmount) / 1e8).toFixed(8);
+        const availableBch = (Number(totalInputValue) / 1e8).toFixed(8);
         throw new Error(
-          `Insufficient BCH balance. Required: ${requiredAmount.toString()} sats, ` +
-          `Available: ${totalInputValue.toString()} sats`
+          `Insufficient BCH balance: need ${requiredBch} BCH, wallet has ${availableBch} BCH`
         );
       }
     }
@@ -253,6 +254,7 @@ export class AirdropFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund airdrop contract ${contractAddress}`,
+      broadcast: true,
     });
 
     return {

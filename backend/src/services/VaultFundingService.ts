@@ -104,6 +104,7 @@ export class VaultFundingService {
       })),
       outputs,
       userPrompt: 'Fund vault and initialize state NFT',
+      broadcast: true,
     });
 
     console.log('[VaultFundingService] Built initial vault funding transaction', {
