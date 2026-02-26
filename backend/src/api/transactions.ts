@@ -10,6 +10,7 @@ import { ContractFactory } from '../services/ContractFactory.js';
 import { ContractService } from '../services/contract-service.js';
 import { binToHex, decodeTransaction, hash160, hexToBin } from '@bitauth/libauth';
 import db from '../database/schema.js';
+import { displayAmountToOnChain } from '../utils/amounts.js';
 
 const router = Router();
 
@@ -308,7 +309,7 @@ async function buildStreamClaimTransaction(
   }
 
   // Select UTXO with sufficient balance
-  const claimAmountSat = BigInt(Math.floor(descriptor.claimAmount * 100000000));
+  const claimAmountSat = BigInt(displayAmountToOnChain(descriptor.claimAmount, 'BCH'));
   const utxo = utxos.find(u => u.satoshis >= claimAmountSat + 1000n);
   if (!utxo) {
     throw new Error('Insufficient contract balance');
@@ -391,8 +392,8 @@ async function buildStreamCancelTransaction(
     throw new Error('No UTXOs available in contract');
   }
 
-  const vestedAmountSat = BigInt(Math.floor(descriptor.vestedAmount * 100000000));
-  const unvestedAmountSat = BigInt(Math.floor(descriptor.unvestedAmount * 100000000));
+  const vestedAmountSat = BigInt(displayAmountToOnChain(descriptor.vestedAmount, 'BCH'));
+  const unvestedAmountSat = BigInt(displayAmountToOnChain(descriptor.unvestedAmount, 'BCH'));
 
   const txBuilder = new TransactionBuilder({ provider });
   txBuilder.addInput(utxos[0], contract.unlock.cancel());

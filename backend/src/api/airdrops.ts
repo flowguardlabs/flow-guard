@@ -178,10 +178,25 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
     if (!amountPerClaim || amountPerClaim <= 0) {
       return res.status(400).json({ error: 'Amount per claim must be greater than 0' });
     }
+    const totalAmountOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType);
+    const amountPerClaimOnChain = displayAmountToOnChain(Number(amountPerClaim), normalizedTokenType);
+    if (amountPerClaimOnChain <= 0 || totalAmountOnChain <= 0) {
+      return res.status(400).json({
+        error: 'Amounts are below on-chain minimum precision',
+        message: normalizedTokenType === 'BCH'
+          ? 'Use at least 1 satoshi per claim and total pool'
+          : 'Use at least 1 token base unit per claim and total pool',
+      });
+    }
+    if (amountPerClaimOnChain > totalAmountOnChain) {
+      return res.status(400).json({ error: 'Amount per claim cannot exceed total amount' });
+    }
+    const normalizedTotalAmount = onChainAmountToDisplay(totalAmountOnChain, normalizedTokenType);
+    const normalizedAmountPerClaim = onChainAmountToDisplay(amountPerClaimOnChain, normalizedTokenType);
 
     const totalRecipients = Array.isArray(recipients)
       ? recipients.length
-      : Math.floor(totalAmount / amountPerClaim);
+      : Math.floor(normalizedTotalAmount / normalizedAmountPerClaim);
 
     const id = randomUUID();
     const countRow = db!.prepare('SELECT COUNT(*) as cnt FROM airdrops').get() as any;
@@ -210,8 +225,8 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
     const deployment = await deploymentService.deployAirdrop({
       vaultId: actualVaultId,
       authorityAddress: creator,
-      amountPerClaim,
-      totalAmount,
+      amountPerClaim: normalizedAmountPerClaim,
+      totalAmount: normalizedTotalAmount,
       startTime: startDate || 0,
       endTime: endDate || 0,
       tokenType: normalizedTokenType,
@@ -229,7 +244,7 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
     `).run(
       id, campaignId, vaultId || null, creator, title, description || null,
       campaignType || 'AIRDROP', normalizedTokenType, tokenCategory || null,
-      totalAmount, amountPerClaim, totalRecipients, claimLink,
+      normalizedTotalAmount, normalizedAmountPerClaim, totalRecipients, claimLink,
       startDate || now, endDate || null,
       requireKyc === true ? 1 : 0, maxClaimsPerAddress || 1,
       now, now,
@@ -554,7 +569,18 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Claim limit reached for this address' });
     }
 
-    let claimAmountDisplay = Number(campaign.amount_per_claim);
+    const constructorParams = deserializeConstructorParams(campaign.constructor_params || '[]');
+    const constructorAmountPerClaim = readBigIntParam(
+      constructorParams[2],
+      'amountPerClaim',
+    );
+    if (constructorAmountPerClaim <= 0n) {
+      return res.status(500).json({
+        error: 'Invalid campaign constructor parameters',
+        message: 'amountPerClaim must be greater than zero',
+      });
+    }
+
     if (campaign.merkle_data) {
       const merkleData = JSON.parse(campaign.merkle_data);
       const proofsMap = new Map(merkleData.proofs);
@@ -567,7 +593,17 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
         return res.status(403).json({ error: 'Address not eligible for this airdrop' });
       }
       if (recipient.amount !== undefined && Number(recipient.amount) > 0) {
-        claimAmountDisplay = Number(recipient.amount);
+        const recipientAmountOnChain = BigInt(
+          displayAmountToOnChain(Number(recipient.amount), campaign.token_type),
+        );
+        if (recipientAmountOnChain !== constructorAmountPerClaim) {
+          return res.status(422).json({
+            error: 'Recipient amount does not match fixed covenant amount',
+            message:
+              `Campaign covenant enforces a fixed amount per claim (${constructorAmountPerClaim.toString()} on-chain units), `
+              + `but recipient entry resolves to ${recipientAmountOnChain.toString()}.`,
+          });
+        }
       }
     } else if (campaign.require_kyc) {
       return res.status(400).json({
@@ -575,7 +611,6 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
       });
     }
 
-    const constructorParams = JSON.parse(campaign.constructor_params || '[]');
     const now = Math.floor(Date.now() / 1000);
 
     const contractService = new ContractService('chipnet');
@@ -584,7 +619,10 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
       || '00'.repeat(40);
 
     const claimService = new AirdropClaimService('chipnet');
-    const claimAmountOnChain = displayAmountToOnChain(claimAmountDisplay, campaign.token_type);
+    const claimAmountOnChain = bigIntToSafeNumber(
+      constructorAmountPerClaim,
+      'amountPerClaim',
+    );
     const claimTx = await claimService.buildClaimTransaction({
       airdropId: campaign.campaign_id,
       contractAddress: campaign.contract_address,
@@ -592,11 +630,7 @@ router.post('/airdrops/:id/claim', async (req: Request, res: Response) => {
       claimAmount: claimAmountOnChain,
       tokenType: normalizeAirdropTokenType(campaign.token_type),
       tokenCategory: campaign.token_category,
-      constructorParams: constructorParams.map((p: any) => {
-        if (p.type === 'bytes') return Buffer.from(p.value, 'hex');
-        if (p.type === 'bigint') return BigInt(p.value);
-        return p.value;
-      }),
+      constructorParams,
       currentCommitment,
       currentTime: now,
     });
@@ -975,6 +1009,31 @@ function hashToP2pkhAddress(hash20: Uint8Array): string {
     throw new Error(`Failed to encode authority P2PKH address: ${encoded}`);
   }
   return encoded.address;
+}
+
+function readBigIntParam(value: unknown, name: string): bigint {
+  if (typeof value === 'bigint') return value;
+  if (typeof value === 'number') return BigInt(Math.trunc(value));
+  if (typeof value === 'string' && value.length > 0) return BigInt(value);
+  if (value instanceof Uint8Array) {
+    if (value.length > 8) {
+      throw new Error(`Invalid ${name}: byte length exceeds 8`);
+    }
+    let result = 0n;
+    for (let i = value.length - 1; i >= 0; i--) {
+      result = (result << 8n) + BigInt(value[i]);
+    }
+    return result;
+  }
+  throw new Error(`Invalid constructor parameter for ${name}`);
+}
+
+function bigIntToSafeNumber(value: bigint, name: string): number {
+  const max = BigInt(Number.MAX_SAFE_INTEGER);
+  if (value > max || value < -max) {
+    throw new Error(`${name} exceeds JavaScript safe integer range`);
+  }
+  return Number(value);
 }
 
 function deriveStandaloneVaultId(seed: string): string {

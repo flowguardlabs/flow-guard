@@ -6,6 +6,7 @@ import { transactionHasExpectedOutput } from '../utils/txVerification.js';
 import { VaultFundingService } from '../services/VaultFundingService.js';
 import { serializeWcTransaction } from '../utils/wcSerializer.js';
 import db from '../database/schema.js';
+import { displayAmountToOnChain } from '../utils/amounts.js';
 
 const router = Router();
 
@@ -178,7 +179,7 @@ router.get('/:id/deposit', async (req, res) => {
     }
 
     const amountToDepositBch = Math.max(0, (vault.totalDeposit || 0) - (vault.balance || 0));
-    const amountToDepositSats = BigInt(Math.max(0, Math.floor(amountToDepositBch * 100000000)));
+    const amountToDepositSats = BigInt(displayAmountToOnChain(amountToDepositBch, 'BCH'));
 
     let fundingPayload: any = undefined;
     let warning: string | undefined;
@@ -273,7 +274,7 @@ router.post('/:id/update-balance', async (req, res) => {
         });
       }
 
-      const minSatoshis = BigInt(Math.max(546, Math.floor(amount * 100000000)));
+      const minSatoshis = BigInt(Math.max(546, displayAmountToOnChain(amount, 'BCH')));
       const isInitialFunding = (vault.balance || 0) <= 0;
       const hasExpectedOutput = await transactionHasExpectedOutput(
         txid,

@@ -284,9 +284,7 @@ router.get('/streams/:id/funding-info', async (req: Request, res: Response) => {
     }
 
     const tokenType = row.token_type === 'CASHTOKENS' ? 'FUNGIBLE_TOKEN' : 'BCH';
-    const fundingAmount = row.token_type === 'CASHTOKENS'
-      ? Number(row.total_amount)
-      : Math.floor(Number(row.total_amount) * 100000000);
+    const fundingAmount = displayAmountToOnChain(Number(row.total_amount), row.token_type);
     const nftCommitment = row.nft_commitment;
     if (!nftCommitment) {
       return res.status(400).json({ error: 'Missing stream NFT commitment for funding' });
@@ -933,7 +931,7 @@ router.post('/treasuries/:vaultId/batch-create', async (req: Request, res: Respo
         const constructorParams = [
           r.address, // recipient
           'vault_address', // sender
-          { type: 'bigint', value: Math.floor(r.amount * 100000000).toString() },
+          { type: 'bigint', value: displayAmountToOnChain(Number(r.amount), 'BCH').toString() },
           { type: 'bigint', value: now.toString() },
           { type: 'bigint', value: (now + r.duration).toString() },
           r.type || 'LINEAR',
