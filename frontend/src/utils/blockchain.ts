@@ -6,6 +6,7 @@
 import { binToHex, decodeTransaction, hash160, hexToBin } from '@bitauth/libauth';
 import { broadcastTransaction, getDepositInfo } from './api';
 import type { Transaction, SignedTransaction, CashScriptSignOptions, CashScriptSignResponse, SourceOutput } from '../types/wallet';
+import { emitTransactionNotice, normalizeWalletNetwork } from './txNotice';
 
 export interface SignTransactionRequest {
   txHex: string;
@@ -25,6 +26,7 @@ export interface WalletInterface {
   isConnected: boolean;
   address: string | null;
   walletType?: string | null;
+  network?: 'mainnet' | 'testnet' | 'chipnet';
 }
 
 export interface SerializedSourceOutput {
@@ -186,6 +188,34 @@ function getApiErrorMessage(error: any, fallback: string): string {
     return `${generic}: ${detail}`;
   }
   return detail || generic || fallback;
+}
+
+function publishTransactionNotice(txHash: string, wallet: WalletInterface, label: string): string {
+  emitTransactionNotice({
+    txHash,
+    network: normalizeWalletNetwork(wallet.network),
+    label,
+  });
+  return txHash;
+}
+
+function getNoticeLabelFromTxType(
+  txType?: 'create' | 'unlock' | 'proposal' | 'approve' | 'payout'
+): string {
+  switch (txType) {
+    case 'create':
+      return 'Transaction created';
+    case 'unlock':
+      return 'Cycle unlocked';
+    case 'proposal':
+      return 'Proposal transaction';
+    case 'approve':
+      return 'Proposal approval';
+    case 'payout':
+      return 'Payout executed';
+    default:
+      return 'Transaction broadcast';
+  }
 }
 
 async function resolveWalletAddress(wallet: WalletInterface): Promise<string> {
@@ -381,7 +411,7 @@ export async function signAndBroadcast(
 
     // Broadcast the (potentially signed) transaction with metadata
     const result = await broadcastTransaction(signedTxHex, metadata);
-    return result.txid;
+    return publishTransactionNotice(result.txid, wallet, 'Transaction broadcast');
   } catch (error: any) {
     console.error('Failed to sign and broadcast transaction:', error);
     throw new Error(`Transaction failed: ${error.message || 'Unknown error'}`);
@@ -419,7 +449,8 @@ async function signFromBackendPayload(
     const signResult = await wallet.signCashScriptTransaction(
       signOptions
     );
-    return resolveTxHashFromSignResult(signResult, signOptions, 'WalletConnect signing failed', metadata);
+    const txHash = await resolveTxHashFromSignResult(signResult, signOptions, 'WalletConnect signing failed', metadata);
+    return publishTransactionNotice(txHash, wallet, getNoticeLabelFromTxType(metadata?.txType));
   }
 
   if (payload?.transaction?.txHex) {
@@ -501,7 +532,7 @@ export async function createProposalOnChain(
     throw new Error(error.error || 'Failed to confirm proposal creation');
   }
 
-  return signResult.signedTransactionHash;
+  return publishTransactionNotice(signResult.signedTransactionHash, wallet, 'Proposal created');
 }
 
 /**
@@ -565,7 +596,7 @@ export async function approveProposalOnChain(
     throw new Error(error.error || 'Failed to confirm proposal approval');
   }
 
-  return signResult.signedTransactionHash;
+  return publishTransactionNotice(signResult.signedTransactionHash, wallet, 'Proposal approved');
 }
 
 /**
@@ -650,7 +681,11 @@ export async function executePayoutOnChain(
     sessionId: payload.sessionId,
     signaturesCollected: submitResult.signaturesCollected ?? 2,
     requiredSignatures: submitResult.requiredSignatures ?? 2,
-    txid: submitResult.txid || signResult.signedTransactionHash,
+    txid: publishTransactionNotice(
+      submitResult.txid || signResult.signedTransactionHash,
+      wallet,
+      'Payout executed',
+    ),
   };
 }
 
@@ -729,7 +764,7 @@ export async function depositToVault(
     }
 
     // Convert BCH to satoshis
-    const amountSatoshis = Math.floor(amountBCH * 100000000);
+    const amountSatoshis = Math.round(amountBCH * 100000000);
 
     // Preferred path: backend-built WC transaction that initializes vault state NFT.
     if (vaultId) {
@@ -739,7 +774,7 @@ export async function depositToVault(
           const signResult = await wallet.signCashScriptTransaction(
             deserializeWcSignOptions(depositInfo.wcTransaction as SerializedWcTransaction),
           );
-          return signResult.signedTransactionHash;
+          return publishTransactionNotice(signResult.signedTransactionHash, wallet, 'Vault funded');
         }
 
         const isInitialFunding = Number(depositInfo?.currentBalance || 0) <= 0 && Number(depositInfo?.amountToDeposit || 0) > 0;
@@ -789,7 +824,7 @@ export async function depositToVault(
       throw new Error('Transaction ID not returned from wallet');
     }
 
-    return signedTx.txId;
+    return publishTransactionNotice(signedTx.txId, wallet, 'Vault funded');
   } catch (error: any) {
     console.error('Failed to deposit to vault:', error);
 
@@ -890,7 +925,7 @@ export async function fundStreamContract(
       // Still return txId even if confirmation fails
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Stream funded');
   } catch (error: any) {
     console.error('Failed to fund stream:', error);
 
@@ -969,7 +1004,7 @@ export async function claimStreamFunds(
       console.error('Failed to confirm claim, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Stream claim');
   } catch (error: any) {
     console.error('Failed to claim stream:', error);
 
@@ -1052,7 +1087,7 @@ export async function fundPaymentContract(
       console.error('Failed to confirm funding, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Payment funded');
   } catch (error: any) {
     console.error('Failed to fund payment:', error);
 
@@ -1130,7 +1165,7 @@ export async function claimPaymentFunds(
       console.error('Failed to confirm payment claim, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Payment claim');
   } catch (error: any) {
     console.error('Failed to claim payment:', error);
 
@@ -1192,7 +1227,7 @@ export async function pausePaymentOnChain(
     throw new Error(getApiErrorMessage(error, 'Failed to confirm pause transaction'));
   }
 
-  return txHash;
+  return publishTransactionNotice(txHash, wallet, 'Payment paused');
 }
 
 /**
@@ -1240,7 +1275,7 @@ export async function resumePaymentOnChain(
     throw new Error(error.error || error.message || 'Failed to confirm resume transaction');
   }
 
-  return txHash;
+  return publishTransactionNotice(txHash, wallet, 'Payment resumed');
 }
 
 /**
@@ -1289,7 +1324,7 @@ export async function cancelPaymentOnChain(
     throw new Error(getApiErrorMessage(error, 'Failed to confirm cancel transaction'));
   }
 
-  return txHash;
+  return publishTransactionNotice(txHash, wallet, 'Payment cancelled');
 }
 
 /**
@@ -1343,7 +1378,7 @@ export async function pauseAirdropOnChain(
     throw new Error(getApiErrorMessage(error, 'Failed to confirm pause transaction'));
   }
 
-  return txHash;
+  return publishTransactionNotice(txHash, wallet, 'Airdrop paused');
 }
 
 /**
@@ -1401,7 +1436,7 @@ export async function cancelAirdropOnChain(
     throw new Error(getApiErrorMessage(error, 'Failed to confirm cancel transaction'));
   }
 
-  return txHash;
+  return publishTransactionNotice(txHash, wallet, 'Airdrop cancelled');
 }
 
 /**
@@ -1471,7 +1506,7 @@ export async function fundAirdropContract(
       console.error('Failed to confirm funding, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Airdrop funded');
   } catch (error: any) {
     console.error('Failed to fund airdrop:', error);
 
@@ -1552,7 +1587,7 @@ export async function claimAirdropFunds(
       console.error('Failed to confirm airdrop claim, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Airdrop claim');
   } catch (error: any) {
     console.error('Failed to claim airdrop:', error);
 
@@ -1646,7 +1681,7 @@ export async function lockTokensToVote(
       console.error('Failed to confirm lock, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Vote locked');
   } catch (error: any) {
     console.error('Failed to lock tokens:', error);
 
@@ -1732,7 +1767,7 @@ export async function unlockVotingTokens(
       console.error('Failed to confirm unlock, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Vote unlocked');
   } catch (error: any) {
     console.error('Failed to unlock tokens:', error);
 
@@ -1804,7 +1839,7 @@ export async function fundBudgetPlan(
       console.error('Failed to confirm funding, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Budget funded');
   } catch (error: any) {
     console.error('Failed to fund budget plan:', error);
 
@@ -1886,7 +1921,7 @@ export async function releaseMilestone(
       console.error('Failed to confirm release, but transaction was broadcast:', error);
     }
 
-    return txId;
+    return publishTransactionNotice(txId, wallet, 'Milestone released');
   } catch (error: any) {
     console.error('Failed to release milestone:', error);
 
@@ -1950,7 +1985,7 @@ export async function pauseBudgetPlanOnChain(
     throw new Error(error.error || error.message || 'Failed to confirm pause transaction');
   }
 
-  return txHash;
+  return publishTransactionNotice(txHash, wallet, 'Budget paused');
 }
 
 /**
@@ -2005,5 +2040,5 @@ export async function cancelBudgetPlanOnChain(
     throw new Error(error.error || error.message || 'Failed to confirm cancel transaction');
   }
 
-  return txHash;
+  return publishTransactionNotice(txHash, wallet, 'Budget cancelled');
 }
