@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { WalletModal } from './components/ui/WalletModal';
+import { TransactionNoticeToast } from './components/ui/TransactionNoticeToast';
 import { useWallet } from './hooks/useWallet';
 import { useWalletModal } from './hooks/useWalletModal';
 import Home from './pages/Home';
@@ -186,7 +187,7 @@ function App() {
                 </DashboardLayout>
               </ProtectedRoute>
             }
-          />o
+          />
           <Route
             path="/airdrops/:id"
             element={
@@ -330,6 +331,7 @@ function App() {
         isConnecting={wallet.isConnecting}
         error={wallet.error}
       />
+      <TransactionNoticeToast />
     </div >
   );
 }

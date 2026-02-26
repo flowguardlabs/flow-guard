@@ -24,7 +24,7 @@ const VotingWidget: React.FC<VotingWidgetProps> = ({ proposalId, onVote }) => {
   const handleVote = () => {
     if (!selectedChoice) return;
 
-    const amountBigInt = amount ? BigInt(parseFloat(amount) * 100000000) : undefined;
+    const amountBigInt = amount ? BigInt(Math.round(parseFloat(amount) * 100000000)) : undefined;
     onVote(selectedChoice, amountBigInt);
   };
 
