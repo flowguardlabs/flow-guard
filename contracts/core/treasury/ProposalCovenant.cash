@@ -12,7 +12,7 @@
  * NFT COMMITMENT (40 bytes — within CashTokens 40-byte limit):
  *   [0]:     version (uint8)
  *   [1]:     status (uint8: 0=PENDING, 1=APPROVED, 2=EXECUTED, 3=CANCELLED, 4=EXPIRED)
- *   [2]:     approval_count (uint8)
+ *   [2]:     approval_bitmask (uint8: bit0=signer1, bit1=signer2, bit2=signer3)
  *   [3]:     required_approvals (uint8)
  *   [4-8]:   voting_end_timestamp (5 bytes)
  *   [9-13]:  execution_timelock (5 bytes)
@@ -38,26 +38,47 @@ contract ProposalCovenant(
 ) {
     /**
      * approve() — Vault signer adds their approval
+     *
+     * Uses a per-signer bitmask to prevent the same signer from
+     * voting twice and self-approving a proposal alone.
      */
     function approve(sig approverSig, pubkey approverPubkey) {
         bytes c = tx.inputs[0].nftCommitment;
-        int status        = int(c.split(1)[1].split(1)[0]);
-        int approvalCount = int(c.split(2)[1].split(1)[0]);
+        int status          = int(c.split(1)[1].split(1)[0]);
+        bytes1 approvalMask = c.split(2)[1].split(1)[0];
 
         bytes20 pkHash = hash160(approverPubkey);
         require(pkHash == signer1Hash || pkHash == signer2Hash || pkHash == signer3Hash);
         require(checkSig(approverSig, approverPubkey));
         require(status == 0); // PENDING
 
-        int newCount = approvalCount + 1;
+        // Map signer to their bit in the approval mask
+        bytes1 signerBit = 0x00;
+        if (pkHash == signer1Hash) { signerBit = 0x01; }
+        if (pkHash == signer2Hash) { signerBit = 0x02; }
+        if (pkHash == signer3Hash) { signerBit = 0x04; }
+
+        // Reject if this signer has already approved
+        require((approvalMask & signerBit) == 0x00);
+
+        // Set signer's bit (safe: addition == OR when the bit was 0)
+        int newMask = int(approvalMask) + int(signerBit);
+
+        // Count total approvers after this vote
+        int approvalCount = 0;
+        if ((approvalMask & 0x01) == 0x01) { approvalCount = approvalCount + 1; }
+        if ((approvalMask & 0x02) == 0x02) { approvalCount = approvalCount + 1; }
+        if ((approvalMask & 0x04) == 0x04) { approvalCount = approvalCount + 1; }
+        approvalCount = approvalCount + 1; // include this vote
+
         int newStatus = 0;
-        if (newCount >= requiredApprovals) { newStatus = 1; } // APPROVED
+        if (approvalCount >= requiredApprovals) { newStatus = 1; } // APPROVED
 
         bytes newCommitment =
             c.split(1)[0] +
             toPaddedBytes(newStatus, 1) +
-            toPaddedBytes(newCount, 1) +
-            c.split(3)[1].split(37)[0] +
+            toPaddedBytes(newMask, 1) +
+            c.split(3)[1].split(31)[0] +
             0x000000000000;
 
         require(tx.outputs[0].nftCommitment == newCommitment);
@@ -102,7 +123,7 @@ contract ProposalCovenant(
         bytes newCommitment =
             c.split(1)[0] +
             0x03 +
-            c.split(2)[1].split(38)[0] +
+            c.split(2)[1].split(32)[0] +
             0x000000000000;
 
         require(tx.outputs[0].nftCommitment == newCommitment);
@@ -125,7 +146,7 @@ contract ProposalCovenant(
         bytes newCommitment =
             c.split(1)[0] +
             0x04 +
-            c.split(2)[1].split(38)[0] +
+            c.split(2)[1].split(32)[0] +
             0x000000000000;
 
         require(tx.outputs[0].nftCommitment == newCommitment);

@@ -81,7 +81,7 @@ contract RewardCovenant(
         require(tx.outputs[1].nftCommitment == newCommitment);
         require(tx.outputs[1].tokenCategory == tx.inputs[0].tokenCategory);
         require(tx.outputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
-        require(vaultId == vaultId);
+        require(vaultId != 0x0000000000000000000000000000000000000000000000000000000000000000);
     }
 
     function pause(sig authSig, pubkey authPubkey) {

@@ -4,8 +4,10 @@
  * ENFORCEABILITY: [ENFORCEABLE-NOW]
  *
  * PURPOSE: Enforce mass token/BCH distribution campaigns.
- *          Claims are permissionless (claimer-signed).
- *          Authority only controls administrative paths (pause/resume/cancel).
+ *          Claims require both claimer signature AND claim-authority co-signature.
+ *          The claim-authority is a backend-held key that enforces eligibility and
+ *          per-address limits off-chain before co-signing.
+ *          Authority (admin key) controls administrative paths (pause/resume/cancel).
  *
  * NFT COMMITMENT (40 bytes — within CashTokens 40-byte limit):
  *   [0]:     status (uint8: 0=ACTIVE, 1=PAUSED, 2=CANCELLED, 3=COMPLETED)
@@ -16,12 +18,14 @@
  *   [23-39]: reserved (17 bytes)
  *
  * CONTRACT PARAMETERS (compiled into bytecode, immutable):
- *   vaultId        — links campaign to source vault
- *   authorityHash  — hash160(authority pubkey) used for pause/resume/cancel
- *   amountPerClaim — satoshis or FT per claim (fixed)
- *   totalPool      — total amount available
- *   startTimestamp — when claims open (0 = immediate)
- *   endTimestamp   — when claims close (0 = no expiry)
+ *   vaultId            — links campaign to source vault
+ *   authorityHash      — hash160(authority pubkey) used for pause/resume/cancel
+ *   claimAuthorityHash — hash160(claimAuthority pubkey); backend co-signs each claim
+ *                        to enforce eligibility and per-address limits
+ *   amountPerClaim     — satoshis or FT per claim (fixed)
+ *   totalPool          — total amount available
+ *   startTimestamp     — when claims open (0 = immediate)
+ *   endTimestamp       — when claims close (0 = no expiry)
  */
 
 pragma cashscript ^0.13.0;
@@ -29,12 +33,16 @@ pragma cashscript ^0.13.0;
 contract AirdropCovenant(
     bytes32 vaultId,
     bytes20 authorityHash,
+    bytes20 claimAuthorityHash,
     int amountPerClaim,
     int totalPool,
     int startTimestamp,
     int endTimestamp
 ) {
-    function claim(sig claimerSig, pubkey claimerPubkey, bytes20 claimerHash) {
+    function claim(
+        sig claimerSig, pubkey claimerPubkey, bytes20 claimerHash,
+        sig claimAuthSig, pubkey claimAuthPubkey
+    ) {
         bytes c = tx.inputs[0].nftCommitment;
         int status       = int(c.split(1)[0]);
         bytes1 flagsByte = c.split(1)[1].split(1)[0];
@@ -43,6 +51,9 @@ contract AirdropCovenant(
 
         require(hash160(claimerPubkey) == claimerHash);
         require(checkSig(claimerSig, claimerPubkey));
+        // Claim-authority co-signature: backend validates eligibility + per-address limit
+        require(hash160(claimAuthPubkey) == claimAuthorityHash);
+        require(checkSig(claimAuthSig, claimAuthPubkey));
         require(status == 0); // ACTIVE
 
         if (startTimestamp > 0) { require(tx.locktime >= startTimestamp); }
@@ -75,7 +86,7 @@ contract AirdropCovenant(
         require(tx.outputs[1].nftCommitment == newCommitment);
         require(tx.outputs[1].tokenCategory == tx.inputs[0].tokenCategory);
         require(tx.outputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
-        require(vaultId == vaultId);
+        require(vaultId != 0x0000000000000000000000000000000000000000000000000000000000000000);
     }
 
     function pause(sig authSig, pubkey authPubkey) {
