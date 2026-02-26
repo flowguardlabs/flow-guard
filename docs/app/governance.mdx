@@ -1,7 +1,7 @@
 ---
 title: "Governance"
 description: "Token-weighted voting on vault proposals with on-chain lock and unlock."
-icon: "vote-yea"
+icon: "landmark"
 ---
 
 FlowGuard governance lets vault members vote on proposals using their CashTokens as stake. Tokens are locked in a voting covenant for the duration of the voting period and returned automatically after it ends.
@@ -40,7 +40,7 @@ When the voting period ends, return to the proposal and click **Unlock Tokens**.
 
 ## Off-chain Voting
 
-For lightweight internal decisions, proposals also support off-chain voting (no token lock). Call `POST /api/governance/:id/vote` directly or use the simple vote button in the proposal UI. Off-chain votes count toward tallies but do not require token locking.
+For lightweight internal decisions, proposals also support off-chain voting (no token lock). Call `POST /api/governance/:proposalId/vote` directly or use the simple vote button in the proposal UI. Off-chain votes count toward tallies but do not require token locking.
 
 ## Proposal Outcome
 

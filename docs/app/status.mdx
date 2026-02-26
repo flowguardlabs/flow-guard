@@ -19,10 +19,14 @@ FlowGuard currently operates on **Chipnet** (BCH testnet). Mainnet deployment is
 ## Checking API Health
 
 ```http
-GET /api/health
+GET /health
 ```
 
-Returns `{ "status": "ok", "network": "chipnet" }` when the backend is running and the database is connected.
+Returns:
+
+```json
+{ "status": "ok", "service": "flowguard-backend", "blockchain": "connected" }
+```
 
 ## Chipnet Faucet
 

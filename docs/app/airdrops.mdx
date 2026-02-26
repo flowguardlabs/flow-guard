@@ -1,7 +1,7 @@
 ---
 title: "Airdrops"
 description: "Launch BCH or token distribution campaigns with optional recipient whitelisting."
-icon: "parachute-box"
+icon: "gift"
 ---
 
 Airdrops let you distribute BCH or CashTokens to many wallets at once. Two campaign modes are available:
@@ -34,7 +34,10 @@ Every campaign generates a unique claim link like `https://yourapp.com/claim/{to
 As the creator you can:
 
 - **Pause**: halt new claims while keeping the contract funded
-- **Resume**: reopen claims
 - **Cancel**: withdraw remaining unclaimed funds
 
-All three actions are on-chain and require a wallet signature.
+All actions above are on-chain and require a wallet signature.
+
+<Note>
+The contract includes a `resume()` function, but the current backend release does not expose a public resume route yet.
+</Note>
