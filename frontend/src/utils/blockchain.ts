@@ -905,8 +905,13 @@ export async function fundStreamContract(
       );
     }
 
-    const signResult = await wallet.signCashScriptTransaction(deserializeWcSignOptions(wcTransaction));
-    const txId = signResult.signedTransactionHash;
+    const signOptions = {
+      ...deserializeWcSignOptions(wcTransaction),
+      // Wallet-side broadcast can fail/hang on some BCH WC wallets.
+      broadcast: false,
+    };
+    const signResult = await wallet.signCashScriptTransaction(signOptions);
+    const txId = await resolveTxHashFromSignResult(signResult, signOptions, 'Stream funding signing failed');
 
     // Confirm funding with backend
     const confirmResponse = await fetch(`${apiUrl}/streams/${streamId}/confirm-funding`, {
@@ -1026,6 +1031,7 @@ export async function fundPaymentContract(
   wallet: WalletInterface,
   paymentId: string
 ): Promise<string> {
+  let preparationTxId: string | null = null;
   try {
     if (!wallet.address) {
       throw new Error('Wallet not connected');
@@ -1051,10 +1057,15 @@ export async function fundPaymentContract(
 
     if (data.requiresPreparation && data.preparationTransaction) {
       console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
-      const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
+      const prepOptions = {
+        ...deserializeWcSignOptions(data.preparationTransaction),
+        // Wallet-side broadcast can fail/hang on some BCH WC wallets.
+        broadcast: false,
+      };
       const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
-      console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
-      await resolveTxHashFromSignResult(prepResult, prepOptions, 'Preparation signing failed');
+      preparationTxId = await resolveTxHashFromSignResult(prepResult, prepOptions, 'Preparation signing failed');
+      console.log('[FlowGuard] Consolidation tx broadcast:', preparationTxId);
+      publishTransactionNotice(preparationTxId, wallet, 'Token preparation');
 
       await new Promise(resolve => setTimeout(resolve, 3000));
       data = await fetchFundingInfo();
@@ -1067,20 +1078,38 @@ export async function fundPaymentContract(
       );
     }
 
-    const signOptions = deserializeWcSignOptions(wcTransaction);
+    const signOptions = {
+      ...deserializeWcSignOptions(wcTransaction),
+      // Wallet-side broadcast can fail/hang on some BCH WC wallets.
+      broadcast: false,
+    };
     const signResult = await wallet.signCashScriptTransaction(signOptions);
     const txId = await resolveTxHashFromSignResult(signResult, signOptions, 'Payment funding signing failed');
     console.log('[FlowGuard] Payment signed successfully, tx hash:', txId);
+    let confirmError: string | null = null;
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      const confirmResponse = await fetch(`${apiUrl}/payments/${paymentId}/confirm-funding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txHash: txId }),
+      });
 
-    const confirmResponse = await fetch(`${apiUrl}/payments/${paymentId}/confirm-funding`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ txHash: txId }),
-    });
+      if (confirmResponse.ok) {
+        confirmError = null;
+        break;
+      }
 
-    if (!confirmResponse.ok) {
-      const error = await confirmResponse.json();
-      console.error('Failed to confirm funding, but transaction was broadcast:', error);
+      const error = await confirmResponse.json().catch(() => ({ error: 'Failed to confirm funding transaction' }));
+      confirmError = getApiErrorMessage(error, 'Failed to confirm funding transaction');
+
+      if (attempt < 6) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+    }
+
+    if (confirmError) {
+      publishTransactionNotice(txId, wallet, 'Payment funding broadcast');
+      throw new Error(`Transaction broadcast (${txId}) but confirmation failed: ${confirmError}`);
     }
 
     return publishTransactionNotice(txId, wallet, 'Payment funded');
@@ -1091,6 +1120,10 @@ export async function fundPaymentContract(
       throw new Error('Transaction cancelled by user');
     }
 
+    const details = error?.message || 'Unknown error';
+    if (preparationTxId) {
+      throw new Error(`${details}. Preparation tx broadcast: ${preparationTxId}`);
+    }
     throw error;
   }
 }
@@ -1441,6 +1474,7 @@ export async function fundAirdropContract(
   wallet: WalletInterface,
   airdropId: string
 ): Promise<string> {
+  let preparationTxId: string | null = null;
   try {
     if (!wallet.address) {
       throw new Error('Wallet not connected');
@@ -1466,10 +1500,15 @@ export async function fundAirdropContract(
 
     if (data.requiresPreparation && data.preparationTransaction) {
       console.log('[FlowGuard] Wallet needs consolidation for token creation, signing prep tx...');
-      const prepOptions = deserializeWcSignOptions(data.preparationTransaction);
+      const prepOptions = {
+        ...deserializeWcSignOptions(data.preparationTransaction),
+        // Wallet-side broadcast can fail/hang on some BCH WC wallets.
+        broadcast: false,
+      };
       const prepResult = await wallet.signCashScriptTransaction!(prepOptions);
-      console.log('[FlowGuard] Consolidation tx broadcast:', prepResult.signedTransactionHash);
-      await resolveTxHashFromSignResult(prepResult, prepOptions, 'Preparation signing failed');
+      preparationTxId = await resolveTxHashFromSignResult(prepResult, prepOptions, 'Preparation signing failed');
+      console.log('[FlowGuard] Consolidation tx broadcast:', preparationTxId);
+      publishTransactionNotice(preparationTxId, wallet, 'Token preparation');
 
       await new Promise(resolve => setTimeout(resolve, 3000));
       data = await fetchFundingInfo();
@@ -1482,20 +1521,38 @@ export async function fundAirdropContract(
       );
     }
 
-    const signOptions = deserializeWcSignOptions(wcTransaction);
+    const signOptions = {
+      ...deserializeWcSignOptions(wcTransaction),
+      // Wallet-side broadcast can fail/hang on some BCH WC wallets.
+      broadcast: false,
+    };
     const signResult = await wallet.signCashScriptTransaction(signOptions);
     const txId = await resolveTxHashFromSignResult(signResult, signOptions, 'Airdrop funding signing failed');
     console.log('[FlowGuard] Airdrop funding tx hash:', txId);
+    let confirmError: string | null = null;
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      const confirmResponse = await fetch(`${apiUrl}/airdrops/${airdropId}/confirm-funding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txHash: txId }),
+      });
 
-    const confirmResponse = await fetch(`${apiUrl}/airdrops/${airdropId}/confirm-funding`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ txHash: txId }),
-    });
+      if (confirmResponse.ok) {
+        confirmError = null;
+        break;
+      }
 
-    if (!confirmResponse.ok) {
-      const error = await confirmResponse.json();
-      console.error('Failed to confirm funding, but transaction was broadcast:', error);
+      const error = await confirmResponse.json().catch(() => ({ error: 'Failed to confirm funding transaction' }));
+      confirmError = getApiErrorMessage(error, 'Failed to confirm funding transaction');
+
+      if (attempt < 6) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+    }
+
+    if (confirmError) {
+      publishTransactionNotice(txId, wallet, 'Airdrop funding broadcast');
+      throw new Error(`Transaction broadcast (${txId}) but confirmation failed: ${confirmError}`);
     }
 
     return publishTransactionNotice(txId, wallet, 'Airdrop funded');
@@ -1510,7 +1567,11 @@ export async function fundAirdropContract(
       throw new Error('Transaction cancelled by user');
     }
 
-    throw new Error(`Funding failed: ${error.message || 'Unknown error'}`);
+    const details = error.message || 'Unknown error';
+    if (preparationTxId) {
+      throw new Error(`Funding failed: ${details}. Preparation tx broadcast: ${preparationTxId}`);
+    }
+    throw new Error(`Funding failed: ${details}`);
   }
 }
 
@@ -1812,8 +1873,13 @@ export async function fundBudgetPlan(
       );
     }
 
-    const signResult = await wallet.signCashScriptTransaction(deserializeWcSignOptions(wcTransaction));
-    const txId = signResult.signedTransactionHash;
+    const signOptions = {
+      ...deserializeWcSignOptions(wcTransaction),
+      // Wallet-side broadcast can fail/hang on some BCH WC wallets.
+      broadcast: false,
+    };
+    const signResult = await wallet.signCashScriptTransaction(signOptions);
+    const txId = await resolveTxHashFromSignResult(signResult, signOptions, 'Budget funding signing failed');
 
     // Confirm funding with backend
     const confirmResponse = await fetch(`${apiUrl}/budget-plans/${budgetId}/confirm-funding`, {

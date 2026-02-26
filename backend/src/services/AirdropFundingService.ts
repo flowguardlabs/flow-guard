@@ -254,7 +254,7 @@ export class AirdropFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund airdrop contract ${contractAddress}`,
-      broadcast: true,
+      broadcast: false,
     });
 
     return {

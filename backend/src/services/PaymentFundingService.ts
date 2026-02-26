@@ -258,7 +258,7 @@ export class PaymentFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund recurring payment contract ${contractAddress}`,
-      broadcast: true,
+      broadcast: false,
     });
 
     return {

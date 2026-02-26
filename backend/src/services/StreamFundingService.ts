@@ -294,7 +294,7 @@ export class StreamFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund stream contract ${contractAddress}`,
-      broadcast: true,
+      broadcast: false,
     });
 
     return {

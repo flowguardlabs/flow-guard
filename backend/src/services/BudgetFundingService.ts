@@ -281,7 +281,7 @@ export class BudgetFundingService {
       inputs: sourceOutputs,
       outputs,
       userPrompt: `Fund budget contract ${contractAddress}`,
-      broadcast: true,
+      broadcast: false,
     });
 
     return {
