@@ -18,6 +18,26 @@ interface BlogPost {
 
 const BLOG_POSTS: BlogPost[] = [
     {
+        slug: 'a-technical-breakdown-of-how-flowguard-works',
+        title: 'A Technical Breakdown of How FlowGuard Works on Bitcoin Cash',
+        date: '2026-02-26',
+        summary: 'This post explains the mechanics behind FlowGuard. Not the features. The enforcement model. FlowGuard operates entirely within the UTXO framework of Bitcoin Cash.',
+        tags: ['Technical', 'Architecture', 'CashTokens', 'Covenants'],
+        readingTime: 7,
+        status: 'published',
+        author: 'FlowGuard Team'
+    },
+    {
+        slug: 'how-a-5-person-bch-team-could-use-flowguard',
+        title: 'How a 5-Person BCH Team Could Use FlowGuard in Practice',
+        date: '2026-02-26',
+        summary: 'Let\'s walk through a practical example using Bitcoin Cash. This isn\'t theory. This is how a BCH-native team could manage real capital using enforceable treasury rules.',
+        tags: ['Use Case', 'BCH', 'Treasury', 'Education'],
+        readingTime: 6,
+        status: 'published',
+        author: 'FlowGuard Team'
+    },
+    {
         slug: 'whats-left-before-flowguard-goes-to-mainnet',
         title: "What's Left Before FlowGuard Goes to Mainnet",
         date: '2026-02-25',

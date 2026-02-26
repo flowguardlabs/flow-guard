@@ -1,0 +1,184 @@
+---
+title: "How a 5-Person BCH Team Could Use FlowGuard in Practice"
+date: "2026-02-26"
+summary: "Let's walk through a practical example using Bitcoin Cash. This isn't theory. This is how a BCH-native team could manage real capital using enforceable treasury rules."
+tags: ["Use Case", "BCH", "Treasury", "Education"]
+status: "published"
+author: "FlowGuard Team"
+readingTime: 6
+---
+
+# How a 5-Person BCH Team Could Use FlowGuard in Practice
+
+## Introduction
+
+It's easy to describe features in isolation:
+
+- Vaults.
+- Streams.
+- Budgets.
+- Governance.
+
+But what does this look like in a real scenario?
+
+Let's walk through a practical example using Bitcoin Cash.
+
+## The Scenario
+
+A 5-person BCH development team:
+
+- Treasury: 50 BCH
+- 3 core maintainers
+- 2 part-time contributors
+- Monthly payroll
+- 1 external grant recipient
+
+Goals:
+
+- No single person controls funds
+- Monthly spending discipline
+- Structured salary distribution
+- Milestone-based grant release
+- Transparent governance
+
+## Step 1: Deploy the Vault
+
+The team creates a vault with:
+
+- 3-of-5 approval threshold
+- 30-day cycle duration
+- 10 BCH unlock per cycle
+- 3 BCH per-transaction cap
+
+What this enforces:
+
+- At least 3 signers must approve
+- Only 10 BCH can be spent per month
+- No single payout exceeds 3 BCH
+
+Even if all signers agree to spend 20 BCH in one month, the contract rejects it.
+
+Spending discipline is enforced.
+
+## Step 2: Set Up Salary Streams
+
+Each contributor receives a vesting stream:
+
+Example:
+
+- Contributor A → 2 BCH/month
+- Contributor B → 1 BCH/month
+- Contributor C → 0.5 BCH/month
+
+Each stream:
+
+- Uses NFT commitment state
+- Tracks total released
+- Updates on each claim
+- Prevents over-withdrawal
+
+Contributors claim their vested amounts directly from the contract.
+
+No one manually sends payroll each month.
+
+## Step 3: Add a Milestone-Based Grant
+
+The team funds an external developer:
+
+- Total: 6 BCH
+- Duration: 3 months
+- 2 BCH unlocked per milestone
+
+The budget contract enforces:
+
+- Month 1 unlock → 2 BCH
+- Month 2 unlock → 2 BCH
+- Month 3 unlock → 2 BCH
+
+Funds cannot be released early.
+
+No admin decides release timing.
+
+Time and rules enforce it.
+
+## Step 4: Governance for Large Changes
+
+Suppose the team wants to:
+
+- Increase spending cap
+- Add a new signer
+- Approve a large strategic payout
+
+This requires:
+
+- Token locking
+- Vote threshold
+- Tally validation
+
+If quorum and majority are not met, the proposal cannot execute.
+
+Treasury movement becomes conditional on governance outcome.
+
+## What This Prevents
+
+This structure prevents:
+
+- One signer draining treasury
+- Overspending in a single month
+- Manual salary errors
+- Grant over-release
+- Governance bypass
+
+It removes ambiguity from treasury management.
+
+## Transparency
+
+Because this runs on Bitcoin Cash:
+
+- Vault address is public
+- Stream contracts are public
+- Unlock schedules are visible
+- Claims are verifiable
+
+Anyone can inspect treasury behavior.
+
+This builds ecosystem trust.
+
+## What This Changes
+
+Without structure:
+
+Treasury management depends on coordination.
+
+With FlowGuard:
+
+Treasury management becomes enforceable infrastructure.
+
+The team still debates decisions.
+
+But once rules are set, execution follows logic.
+
+## Scaling Beyond 5 People
+
+This model scales to:
+
+- Larger DAOs
+- Grant programs
+- Hackathon prize pools
+- Public ecosystem funds
+
+The same primitives apply:
+
+Vault → Streams → Budgets → Governance.
+
+## Closing
+
+This isn't theory.
+
+This is how a BCH-native team could manage real capital using enforceable treasury rules.
+
+FlowGuard doesn't replace discussion.
+
+It replaces ambiguity at execution time.
+
+Next, we'll close the series with the post-sprint roadmap and long-term direction.

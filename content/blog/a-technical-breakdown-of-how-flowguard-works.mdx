@@ -1,0 +1,176 @@
+---
+title: "A Technical Breakdown of How FlowGuard Works on Bitcoin Cash"
+date: "2026-02-26"
+summary: "This post explains the mechanics behind FlowGuard. Not the features. The enforcement model. FlowGuard operates entirely within the UTXO framework of Bitcoin Cash."
+tags: ["Technical", "Architecture", "CashTokens", "Covenants"]
+status: "published"
+author: "FlowGuard Team"
+readingTime: 7
+---
+
+# A Technical Breakdown of How FlowGuard Works on Bitcoin Cash
+
+## Introduction
+
+This post explains the mechanics behind FlowGuard.
+
+Not the features.
+
+The enforcement model.
+
+FlowGuard operates entirely within the UTXO framework of Bitcoin Cash.
+
+## UTXO-Based Enforcement
+
+Unlike account-based systems, Bitcoin Cash contracts operate through UTXOs.
+
+Each covenant:
+
+- Locks funds under specific spending conditions
+- Validates constraints when spent
+- Produces new UTXOs with updated state
+
+FlowGuard leverages this model for:
+
+- Vault enforcement
+- Vesting schedules
+- Budget releases
+- Governance execution
+
+## Constructor Parameter Encoding
+
+Vault contracts encode:
+
+- Threshold (M-of-N)
+- Signer hashes
+- Cycle duration
+- Spending cap
+- Unlock allocation
+
+These values are serialized into the contract's bytecode.
+
+Changing them requires deploying a new contract.
+
+This ensures immutability of treasury rules.
+
+## NFT Commitment State Model
+
+Streams and certain governance flows rely on NFT commitments.
+
+The 40-byte structure tracks:
+
+- Current state
+- Total released
+- Timing cursor
+- Recipient identity
+
+Each claim produces:
+
+Old UTXO → New UTXO with updated commitment.
+
+This creates deterministic state progression.
+
+## Validation Logic
+
+During transaction validation, the contract verifies:
+
+- Signature correctness
+- Threshold count
+- Timestamp conditions
+- Cap constraints
+- Allocation limits
+- State transition validity
+
+If any condition is false, the transaction is invalid.
+
+There is no fallback branch.
+
+## Deterministic Enforcement
+
+The critical design principle:
+
+Rules are validated at consensus level.
+
+This means:
+
+- No backend can override them
+- No UI can bypass them
+- No signer can violate them
+
+Only valid covenant transitions are accepted.
+
+## State Transition Example
+
+Stream claim:
+
+Input:
+
+- Contract UTXO with 12 BCH
+- NFT commitment (released: 2 BCH)
+
+Block time indicates:
+
+- 4 BCH should be vested
+
+Contract computes:
+
+- Claimable = 4 − 2 = 2 BCH
+
+Output:
+
+- 2 BCH to recipient
+- New contract UTXO with updated commitment (released: 4 BCH)
+
+Any mismatch invalidates the transaction.
+
+## Integration Model
+
+FlowGuard separates responsibilities:
+
+Backend:
+
+- Indexing
+- Transaction construction
+- Parameter serialization
+
+Wallet:
+
+- Signature authorization
+
+Blockchain:
+
+- Final validation
+
+This keeps custody fully user-controlled.
+
+## Why This Is BCH-Specific
+
+Because Bitcoin Cash supports:
+
+- Covenant scripting
+- CashTokens NFT commitments
+- Efficient UTXO mutation
+
+FlowGuard can implement structured treasury logic without:
+
+- External execution layers
+- Off-chain voting systems
+- Bridge infrastructure
+
+All enforcement remains on BCH.
+
+## Closing
+
+FlowGuard is not a governance UI.
+
+It is a set of covenant contracts enforcing treasury logic through deterministic UTXO state transitions.
+
+Vault rules are immutable once deployed.
+
+Streams track state inside NFT commitments.
+
+Governance conditions gate treasury execution.
+
+Everything is validated by consensus.
+
+In the final post, we'll outline the post-sprint roadmap and long-term direction.

@@ -16,6 +16,368 @@ interface BlogPost {
 }
 
 const BLOG_POSTS: Record<string, BlogPost> = {
+    'a-technical-breakdown-of-how-flowguard-works': {
+        slug: 'a-technical-breakdown-of-how-flowguard-works',
+        title: 'A Technical Breakdown of How FlowGuard Works on Bitcoin Cash',
+        date: '2026-02-26',
+        summary: 'This post explains the mechanics behind FlowGuard. Not the features. The enforcement model. FlowGuard operates entirely within the UTXO framework of Bitcoin Cash.',
+        tags: ['Technical', 'Architecture', 'CashTokens', 'Covenants'],
+        readingTime: 7,
+        author: 'FlowGuard Team',
+        content: `
+# A Technical Breakdown of How FlowGuard Works on Bitcoin Cash
+
+## Introduction
+
+This post explains the mechanics behind FlowGuard.
+
+Not the features.
+
+The enforcement model.
+
+FlowGuard operates entirely within the UTXO framework of Bitcoin Cash.
+
+## UTXO-Based Enforcement
+
+Unlike account-based systems, Bitcoin Cash contracts operate through UTXOs.
+
+Each covenant:
+
+- Locks funds under specific spending conditions
+- Validates constraints when spent
+- Produces new UTXOs with updated state
+
+FlowGuard leverages this model for:
+
+- Vault enforcement
+- Vesting schedules
+- Budget releases
+- Governance execution
+
+## Constructor Parameter Encoding
+
+Vault contracts encode:
+
+- Threshold (M-of-N)
+- Signer hashes
+- Cycle duration
+- Spending cap
+- Unlock allocation
+
+These values are serialized into the contract's bytecode.
+
+Changing them requires deploying a new contract.
+
+This ensures immutability of treasury rules.
+
+## NFT Commitment State Model
+
+Streams and certain governance flows rely on NFT commitments.
+
+The 40-byte structure tracks:
+
+- Current state
+- Total released
+- Timing cursor
+- Recipient identity
+
+Each claim produces:
+
+Old UTXO → New UTXO with updated commitment.
+
+This creates deterministic state progression.
+
+## Validation Logic
+
+During transaction validation, the contract verifies:
+
+- Signature correctness
+- Threshold count
+- Timestamp conditions
+- Cap constraints
+- Allocation limits
+- State transition validity
+
+If any condition is false, the transaction is invalid.
+
+There is no fallback branch.
+
+## Deterministic Enforcement
+
+The critical design principle:
+
+Rules are validated at consensus level.
+
+This means:
+
+- No backend can override them
+- No UI can bypass them
+- No signer can violate them
+
+Only valid covenant transitions are accepted.
+
+## State Transition Example
+
+Stream claim:
+
+Input:
+
+- Contract UTXO with 12 BCH
+- NFT commitment (released: 2 BCH)
+
+Block time indicates:
+
+- 4 BCH should be vested
+
+Contract computes:
+
+- Claimable = 4 − 2 = 2 BCH
+
+Output:
+
+- 2 BCH to recipient
+- New contract UTXO with updated commitment (released: 4 BCH)
+
+Any mismatch invalidates the transaction.
+
+## Integration Model
+
+FlowGuard separates responsibilities:
+
+Backend:
+
+- Indexing
+- Transaction construction
+- Parameter serialization
+
+Wallet:
+
+- Signature authorization
+
+Blockchain:
+
+- Final validation
+
+This keeps custody fully user-controlled.
+
+## Why This Is BCH-Specific
+
+Because Bitcoin Cash supports:
+
+- Covenant scripting
+- CashTokens NFT commitments
+- Efficient UTXO mutation
+
+FlowGuard can implement structured treasury logic without:
+
+- External execution layers
+- Off-chain voting systems
+- Bridge infrastructure
+
+All enforcement remains on BCH.
+
+## Closing
+
+FlowGuard is not a governance UI.
+
+It is a set of covenant contracts enforcing treasury logic through deterministic UTXO state transitions.
+
+Vault rules are immutable once deployed.
+
+Streams track state inside NFT commitments.
+
+Governance conditions gate treasury execution.
+
+Everything is validated by consensus.
+
+In the final post, we'll outline the post-sprint roadmap and long-term direction.
+`
+    },
+    'how-a-5-person-bch-team-could-use-flowguard': {
+        slug: 'how-a-5-person-bch-team-could-use-flowguard',
+        title: 'How a 5-Person BCH Team Could Use FlowGuard in Practice',
+        date: '2026-02-26',
+        summary: "Let's walk through a practical example using Bitcoin Cash. This isn't theory. This is how a BCH-native team could manage real capital using enforceable treasury rules.",
+        tags: ['Use Case', 'BCH', 'Treasury', 'Education'],
+        readingTime: 6,
+        author: 'FlowGuard Team',
+        content: `
+# How a 5-Person BCH Team Could Use FlowGuard in Practice
+
+## Introduction
+
+It's easy to describe features in isolation:
+
+- Vaults.
+- Streams.
+- Budgets.
+- Governance.
+
+But what does this look like in a real scenario?
+
+Let's walk through a practical example using Bitcoin Cash.
+
+## The Scenario
+
+A 5-person BCH development team:
+
+- Treasury: 50 BCH
+- 3 core maintainers
+- 2 part-time contributors
+- Monthly payroll
+- 1 external grant recipient
+
+Goals:
+
+- No single person controls funds
+- Monthly spending discipline
+- Structured salary distribution
+- Milestone-based grant release
+- Transparent governance
+
+## Step 1: Deploy the Vault
+
+The team creates a vault with:
+
+- 3-of-5 approval threshold
+- 30-day cycle duration
+- 10 BCH unlock per cycle
+- 3 BCH per-transaction cap
+
+What this enforces:
+
+- At least 3 signers must approve
+- Only 10 BCH can be spent per month
+- No single payout exceeds 3 BCH
+
+Even if all signers agree to spend 20 BCH in one month, the contract rejects it.
+
+Spending discipline is enforced.
+
+## Step 2: Set Up Salary Streams
+
+Each contributor receives a vesting stream:
+
+Example:
+
+- Contributor A → 2 BCH/month
+- Contributor B → 1 BCH/month
+- Contributor C → 0.5 BCH/month
+
+Each stream:
+
+- Uses NFT commitment state
+- Tracks total released
+- Updates on each claim
+- Prevents over-withdrawal
+
+Contributors claim their vested amounts directly from the contract.
+
+No one manually sends payroll each month.
+
+## Step 3: Add a Milestone-Based Grant
+
+The team funds an external developer:
+
+- Total: 6 BCH
+- Duration: 3 months
+- 2 BCH unlocked per milestone
+
+The budget contract enforces:
+
+- Month 1 unlock → 2 BCH
+- Month 2 unlock → 2 BCH
+- Month 3 unlock → 2 BCH
+
+Funds cannot be released early.
+
+No admin decides release timing.
+
+Time and rules enforce it.
+
+## Step 4: Governance for Large Changes
+
+Suppose the team wants to:
+
+- Increase spending cap
+- Add a new signer
+- Approve a large strategic payout
+
+This requires:
+
+- Token locking
+- Vote threshold
+- Tally validation
+
+If quorum and majority are not met, the proposal cannot execute.
+
+Treasury movement becomes conditional on governance outcome.
+
+## What This Prevents
+
+This structure prevents:
+
+- One signer draining treasury
+- Overspending in a single month
+- Manual salary errors
+- Grant over-release
+- Governance bypass
+
+It removes ambiguity from treasury management.
+
+## Transparency
+
+Because this runs on Bitcoin Cash:
+
+- Vault address is public
+- Stream contracts are public
+- Unlock schedules are visible
+- Claims are verifiable
+
+Anyone can inspect treasury behavior.
+
+This builds ecosystem trust.
+
+## What This Changes
+
+Without structure:
+
+Treasury management depends on coordination.
+
+With FlowGuard:
+
+Treasury management becomes enforceable infrastructure.
+
+The team still debates decisions.
+
+But once rules are set, execution follows logic.
+
+## Scaling Beyond 5 People
+
+This model scales to:
+
+- Larger DAOs
+- Grant programs
+- Hackathon prize pools
+- Public ecosystem funds
+
+The same primitives apply:
+
+Vault → Streams → Budgets → Governance.
+
+## Closing
+
+This isn't theory.
+
+This is how a BCH-native team could manage real capital using enforceable treasury rules.
+
+FlowGuard doesn't replace discussion.
+
+It replaces ambiguity at execution time.
+
+Next, we'll close the series with the post-sprint roadmap and long-term direction.
+`
+    },
     'whats-left-before-flowguard-goes-to-mainnet': {
         slug: 'whats-left-before-flowguard-goes-to-mainnet',
         title: "What's Left Before FlowGuard Goes to Mainnet",
