@@ -105,6 +105,9 @@ export default function CreateVaultPage() {
       if (vaultData.unlockAmount <= 0) {
         throw new Error('Unlock amount must be greater than 0');
       }
+      if (!Number.isInteger(vaultData.approvalThreshold) || vaultData.approvalThreshold < 1 || vaultData.approvalThreshold > 2) {
+        throw new Error('Approval threshold must be 1 or 2 (current on-chain vault spend path is 2-of-3 maximum)');
+      }
 
       // Validate deposit amount is reasonable
       // For chipnet, max 100 BCH is reasonable; for mainnet, max 1000 BCH
@@ -455,10 +458,10 @@ export default function CreateVaultPage() {
                     onChange={(e) => handleInputChange('approvalThreshold', e.target.value)}
                     className="w-full px-4 py-3 bg-white border border-border rounded-lg focus:outline-none focus:border-primary transition-colors font-mono text-sm"
                     min="1"
-                    max="3"
+                    max="2"
                   />
                   <p className="mt-2 text-xs text-textMuted font-mono">
-                    M-of-N required to approve proposals.
+                    Current on-chain vault spend path supports up to 2-of-3. Set threshold to 1 or 2.
                   </p>
                 </div>
 

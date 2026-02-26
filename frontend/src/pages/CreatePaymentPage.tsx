@@ -137,6 +137,30 @@ export default function CreatePaymentPage() {
     }
   };
 
+  const INTERVAL_SECONDS: Record<PaymentInterval, number> = {
+    DAILY: 86400,
+    WEEKLY: 604800,
+    BIWEEKLY: 1209600,
+    MONTHLY: 2592000,
+    YEARLY: 31536000,
+  };
+
+  const getEstimatedPeriods = (): number => {
+    if (formData.endDate && formData.startDate) {
+      const start = new Date(formData.startDate).getTime() / 1000;
+      const end = new Date(formData.endDate).getTime() / 1000;
+      const intervalSec = INTERVAL_SECONDS[formData.interval];
+      if (end > start && intervalSec > 0) {
+        return Math.max(1, Math.ceil((end - start) / intervalSec));
+      }
+    }
+    return 12;
+  };
+
+  const estimatedPeriods = getEstimatedPeriods();
+  const amountNum = parseFloat(formData.amountPerPeriod) || 0;
+  const totalDeposit = amountNum * estimatedPeriods;
+
   return (
     <div className="p-8">
       <div className="max-w-3xl mx-auto">
@@ -353,8 +377,8 @@ export default function CreatePaymentPage() {
                 <h4 className="font-display font-bold text-textPrimary mb-2">Payment Summary</h4>
                 <div className="space-y-1 text-sm font-mono text-textMuted">
                   <p>
-                    <span className="text-textPrimary font-bold">{formData.amountPerPeriod || '0'} {formData.tokenType === 'BCH' ? 'BCH' : 'Tokens'}</span> will be paid{' '}
-                    <span className="text-textPrimary font-bold">{formData.interval.toLowerCase()}</span>
+                    <span className="text-textPrimary font-bold">{formData.amountPerPeriod || '0'} {formData.tokenType === 'BCH' ? 'BCH' : 'Tokens'}</span> will be paid per{' '}
+                    <span className="text-textPrimary font-bold">{getIntervalLabel(formData.interval)}</span>
                   </p>
                   <p>
                     To <span className="text-textPrimary font-bold">{formData.recipientName || formData.recipient || '[recipient]'}</span>
@@ -362,11 +386,18 @@ export default function CreatePaymentPage() {
                   <p>
                     Starting <span className="text-textPrimary font-bold">{formData.startDate || '[date]'}</span>
                     {formData.endDate && (
-                      <> until <span className="text-textPrimary font-bold">{formData.endDate}</span></>
+                      <> until <span className="text-textPrimary font-bold">{formData.endDate}</span> ({estimatedPeriods} payment{estimatedPeriods !== 1 ? 's' : ''})</>
                     )}
-                    {!formData.endDate && <> (ongoing)</>}
+                    {!formData.endDate && <> — no end date (funds {estimatedPeriods} periods upfront)</>}
                   </p>
-                  <p className="pt-2 border-t border-border/40">
+                  <p className="pt-2 border-t border-border/40 text-base">
+                    Wallet deposit required:{' '}
+                    <span className="text-textPrimary font-bold">
+                      {amountNum > 0 ? totalDeposit.toFixed(8) : '0'} {formData.tokenType === 'BCH' ? 'BCH' : 'Tokens'}
+                    </span>
+                    <span className="text-xs ml-1">({estimatedPeriods} × {formData.amountPerPeriod || '0'})</span>
+                  </p>
+                  <p className="pt-1">
                     {formData.pausable ? (
                       <span className="text-accent">✓ Can be paused/resumed at any time</span>
                     ) : (

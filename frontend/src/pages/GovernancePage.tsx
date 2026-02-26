@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Vote, CheckCircle, XCircle, Clock, Users, TrendingUp, Lock, Unlock, X as CloseIcon } from 'lucide-react';
 import { fetchVaults, castVote } from '../utils/api';
 import { useWallet } from '../hooks/useWallet';
+import { useWalletModal } from '../hooks/useWalletModal';
 import { lockTokensToVote, unlockVotingTokens } from '../utils/blockchain';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
@@ -34,6 +35,7 @@ interface Proposal {
 
 export default function GovernancePage() {
   const wallet = useWallet();
+  const { openModal } = useWalletModal();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
   const [selectedTreasury, setSelectedTreasury] = useState<string>('');
@@ -320,7 +322,7 @@ export default function GovernancePage() {
           <p className="text-textMuted font-sans mb-6">
             Please connect your wallet to view treasury governance.
           </p>
-          <Button onClick={() => {}}>Connect Wallet</Button>
+          <Button onClick={openModal}>Connect Wallet</Button>
         </div>
       </div>
     );

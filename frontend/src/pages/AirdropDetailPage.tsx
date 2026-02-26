@@ -81,10 +81,11 @@ export default function AirdropDetailPage() {
       }
 
       try {
-        // Check if already claimed
-        const alreadyClaimed = claims.some((c) => c.claimer === wallet.address);
+        // Check if address has reached its per-address claim limit
+        const maxClaimsPerAddress = Math.max(1, Number(campaign.max_claims_per_address ?? 1));
+        const claimsByAddress = claims.filter((c) => c.claimer === wallet.address).length;
 
-        if (alreadyClaimed) {
+        if (claimsByAddress >= maxClaimsPerAddress) {
           setUserEligibility({ eligible: false, amount: 0, alreadyClaimed: true });
           return;
         }
@@ -361,8 +362,10 @@ export default function AirdropDetailPage() {
             ) : userEligibility?.alreadyClaimed ? (
               <div className="text-center">
                 <Check className="w-12 h-12 text-success mx-auto mb-2" />
-                <p className="text-lg font-display font-bold text-textPrimary">Already Claimed</p>
-                <p className="text-sm font-mono text-textMuted">You have already claimed from this airdrop</p>
+                <p className="text-lg font-display font-bold text-textPrimary">Claim Limit Reached</p>
+                <p className="text-sm font-mono text-textMuted">
+                  You have used all {Math.max(1, Number(campaign?.max_claims_per_address ?? 1))} claim{Number(campaign?.max_claims_per_address ?? 1) !== 1 ? 's' : ''} for this airdrop
+                </p>
               </div>
             ) : (
               <div className="text-center">

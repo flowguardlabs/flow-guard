@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, CheckCircle, Clock, XCircle, TrendingUp, Users } from 'lucide-react';
 import { fetchVaults, fetchProposals } from '../utils/api';
 import { useWallet } from '../hooks/useWallet';
+import { useWalletModal } from '../hooks/useWalletModal';
 import { Button } from '../components/ui/Button';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatsCard } from '../components/shared/StatsCard';
@@ -29,6 +30,7 @@ interface Proposal {
 
 export default function ProposalsPage() {
   const wallet = useWallet();
+  const { openModal } = useWalletModal();
   const navigate = useNavigate();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,7 +222,7 @@ export default function ProposalsPage() {
           <p className="text-textMuted font-sans mb-6">
             Please connect your wallet to view and manage proposals.
           </p>
-          <Button onClick={() => {}}>Connect Wallet</Button>
+          <Button onClick={openModal}>Connect Wallet</Button>
         </div>
       </div>
     );

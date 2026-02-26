@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Repeat, Plus, DollarSign, Clock, Zap, TrendingUp, Calendar, ExternalLink } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
+import { useWalletModal } from '../hooks/useWalletModal';
 import { Button } from '../components/ui/Button';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatsCard } from '../components/shared/StatsCard';
@@ -44,6 +45,7 @@ interface RecurringPayment {
 
 export default function PaymentsPage() {
   const wallet = useWallet();
+  const { openModal } = useWalletModal();
   const navigate = useNavigate();
   const [payments, setPayments] = useState<RecurringPayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -280,7 +282,7 @@ export default function PaymentsPage() {
           <p className="text-textMuted font-sans mb-6">
             Please connect your wallet to view and manage recurring payments.
           </p>
-          <Button onClick={() => {}}>Connect Wallet</Button>
+          <Button onClick={openModal}>Connect Wallet</Button>
         </div>
       </div>
     );

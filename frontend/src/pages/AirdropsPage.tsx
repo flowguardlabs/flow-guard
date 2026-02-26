@@ -20,6 +20,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
+import { useWalletModal } from '../hooks/useWalletModal';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -61,6 +62,7 @@ interface AirdropCampaign {
 
 export default function AirdropsPage() {
   const wallet = useWallet();
+  const { openModal } = useWalletModal();
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<AirdropCampaign[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,7 +213,7 @@ export default function AirdropsPage() {
           <p className="text-textMuted font-sans mb-6">
             Please connect your wallet to view and manage airdrop campaigns.
           </p>
-          <Button onClick={() => {}}>Connect Wallet</Button>
+          <Button onClick={openModal}>Connect Wallet</Button>
         </div>
       </div>
     );

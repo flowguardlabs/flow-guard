@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Plus, Inbox, Send, Clock, Zap, ExternalLink } from 'lucide-react';
 import { useWallet } from '../hooks/useWallet';
+import { useWalletModal } from '../hooks/useWalletModal';
 import { Button } from '../components/ui/Button';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatsCard } from '../components/shared/StatsCard';
@@ -42,6 +43,7 @@ interface Stream {
 
 export default function StreamsPage() {
   const wallet = useWallet();
+  const { openModal } = useWalletModal();
   const navigate = useNavigate();
   const [streams, setStreams] = useState<Stream[]>([]);
   const [loading, setLoading] = useState(true);
@@ -270,7 +272,7 @@ export default function StreamsPage() {
           <p className="text-textMuted font-sans mb-6">
             Please connect your wallet to view and manage your streams.
           </p>
-          <Button onClick={() => {}}>Connect Wallet</Button>
+          <Button onClick={openModal}>Connect Wallet</Button>
         </div>
       </div>
     );

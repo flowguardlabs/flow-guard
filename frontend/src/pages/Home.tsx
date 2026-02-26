@@ -51,7 +51,7 @@ export default function Home() {
             </a>
             <a href="#security" className="text-sm font-medium text-textSecondary hover:text-textPrimary transition-colors">Security</a>
             <ResourcesDropdown />
-            <Link to="/vaults">
+            <Link to="/app">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -131,7 +131,7 @@ export default function Home() {
                 transition={{ delay: 0.3, duration: 0.6 }}
                 className="flex flex-col sm:flex-row gap-4"
               >
-                <Link to="/vaults">
+                <Link to="/app">
                   <motion.button
                     whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
@@ -757,7 +757,7 @@ export default function Home() {
             <p className="text-xl mb-10 text-textSecondary leading-relaxed max-w-2xl mx-auto">
               Deploy your first non-custodial treasury with predictable budget automation
             </p>
-            <Link to="/vaults">
+            <Link to="/app">
               <motion.button
                 whileHover={{ scale: 1.05, y: -4 }}
                 whileTap={{ scale: 0.95 }}
