@@ -1,13 +1,13 @@
 # FlowGuard
 
-On-chain treasury, payments, vesting, and airdrops for Bitcoin Cash (BCH) with CashTokens support. Covenants enforce rules; wallets sign, not the backend.
+FlowGuard is a CashToken powered streaming and recurring payment protocol that encodes financial coordination logic directly into BCH UTXOs, enabling programmable treasury systems and token native economic flows. It turns BCH from static value storage into programmable value flow.
 
 ## Components
-- Frontend: React + Vite (`frontend/`), WalletConnect v2 (Paytaca, Cashonize), talks to `/api`.
-- Backend API: Express + TypeScript (`backend/`), builds WC transactions, stores app state in SQLite (better-sqlite3) by default.
-- Indexer (optional): Postgres-based chain indexer (`backend/indexer/`) for richer explorer/state queries.
-- Executor (optional): Postgres-based automation worker (`backend/executor/`) to auto-execute ready tasks.
-- Contracts: CashScript covenants (`contracts/`) compiled to `contracts/artifacts/`.
+* Frontend: React and Vite (`frontend/`), WalletConnect v2 (Paytaca, Selene), talks to `/api`.
+* Backend API: Express and TypeScript (`backend/`), builds WC transactions, stores state in SQLite (better sqlite3) by default.
+* Indexer (optional): Postgres based chain indexer (`backend/indexer/`) for richer explorer and state queries.
+* Executor (optional): Postgres based automation worker (`backend/executor/`) to auto execute ready tasks.
+* Contracts: CashScript covenants (`contracts/`) compiled to `contracts/artifacts/`.
 
 ## Quick Start (Chipnet dev)
 ```bash
@@ -29,24 +29,24 @@ Open http://localhost:5173 (wallet on chipnet).
 
 ## Environment
 Backend (`backend/.env`):
-- `PORT` default 3001
-- `BCH_NETWORK=chipnet|mainnet`
-- `DATABASE_PATH=./flowguard.db` (use a mounted volume in prod)
-- Optional: `CHAINGRAPH_URL`
+* `PORT` default 3001
+* `BCH_NETWORK=chipnet|mainnet`
+* `DATABASE_PATH=./flowguard.db` (use a mounted volume in prod)
+* Optional: `CHAINGRAPH_URL`
 
 Indexer (`backend/indexer/.env`):
-- `DATABASE_URL` (Postgres)
-- `BCH_NETWORK`, `ELECTRUM_SERVER`
-- `START_BLOCK`, `CONFIRMATIONS`, `POLL_INTERVAL`
+* `DATABASE_URL` (Postgres)
+* `BCH_NETWORK`, `ELECTRUM_SERVER`
+* `START_BLOCK`, `CONFIRMATIONS`, `POLL_INTERVAL`
 
 Executor (`backend/executor/.env`):
-- `DATABASE_URL` (same Postgres as indexer)
-- `BCH_NETWORK`, `ELECTRUM_SERVER`
-- `POLL_INTERVAL`, `MAX_GAS_PRICE`
-- Optional `EXECUTOR_PRIVATE_KEY` (WIF) to pay fees
+* `DATABASE_URL` (same Postgres as indexer)
+* `BCH_NETWORK`, `ELECTRUM_SERVER`
+* `POLL_INTERVAL`, `MAX_GAS_PRICE`
+* Optional `EXECUTOR_PRIVATE_KEY` (WIF) to pay fees
 
 Frontend:
-- `VITE_API_BASE_URL` pointing to backend host
+* `VITE_API_BASE_URL` pointing to backend host
 
 ## Build
 ```bash
@@ -59,14 +59,14 @@ cd ../frontend && pnpm build
 ```
 
 ## Deployment
-- Frontend: Vercel (static `frontend/dist`, set `VITE_API_BASE_URL`).
-- Backend API: Railway (Dockerfile), mount volume `/data` and set `DATABASE_PATH=/data/flowguard.db`.
-- Indexer (optional): Railway service with Postgres add-on; run `pnpm build && node dist/index.js`.
-- Executor (optional): Railway service with Postgres; run `pnpm build && node dist/index.js`.
+* Frontend: Vercel (static `frontend/dist`, set `VITE_API_BASE_URL`).
+* Backend API: Railway (Dockerfile), mount volume `/data` and set `DATABASE_PATH=/data/flowguard.db`.
+* Indexer (optional): Railway service with Postgres add on; run `pnpm build && node dist/index.js`.
+* Executor (optional): Railway service with Postgres; run `pnpm build && node dist/index.js`.
 
 ## Architecture (mermaid, focused views)
 
-### User → API → Wallet
+### User -> API -> Wallet
 ```mermaid
 flowchart LR
   UI[Frontend] -->|REST /api| API[API]
@@ -84,7 +84,7 @@ flowchart LR
   EXE -->|exec tx| BCH
 ```
 
-## Data flow (create & sign)
+## Data flow (create and sign)
 ```mermaid
 sequenceDiagram
   participant User
@@ -114,12 +114,12 @@ graph TD
 ```
 
 ## Wallets
-- Tested: Paytaca, Cashonize (WC2 `bch_signTransaction` with `sourceOutputs`).
-- CashTokens share the same cashaddr; no separate “token address.”
+* Tested: Paytaca, Selene (WC2 `bch_signTransaction` with `sourceOutputs`).
+* CashTokens share the same cashaddr; no separate token address.
 
-## Status & Safety
-- Designed and wired for chipnet; mainnet use only after audits and your own testing.
-- Backend cannot override covenant rules; funds remain non-custodial.
+## Status and Safety
+* Designed and wired for chipnet; mainnet use only after audits and your own testing.
+* Backend cannot override covenant rules; funds remain non custodial.
 
 ## License
 MIT
