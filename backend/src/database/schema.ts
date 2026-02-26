@@ -412,14 +412,15 @@ try {
   addIfMissing(paymentCols, 'payments', 'tx_hash',            'ALTER TABLE payments ADD COLUMN tx_hash TEXT');
 
   const airdropCols = db.prepare('PRAGMA table_info(airdrops)').all() as Array<{ name: string }>;
-  addIfMissing(airdropCols, 'airdrops', 'constructor_params', 'ALTER TABLE airdrops ADD COLUMN constructor_params TEXT');
-  addIfMissing(airdropCols, 'airdrops', 'token_type',         "ALTER TABLE airdrops ADD COLUMN token_type TEXT DEFAULT 'BCH'");
-  addIfMissing(airdropCols, 'airdrops', 'token_category',     'ALTER TABLE airdrops ADD COLUMN token_category TEXT');
-  addIfMissing(airdropCols, 'airdrops', 'nft_commitment',     'ALTER TABLE airdrops ADD COLUMN nft_commitment TEXT');
-  addIfMissing(airdropCols, 'airdrops', 'nft_capability',     "ALTER TABLE airdrops ADD COLUMN nft_capability TEXT DEFAULT 'mutable'");
-  addIfMissing(airdropCols, 'airdrops', 'merkle_root',        'ALTER TABLE airdrops ADD COLUMN merkle_root TEXT');
-  addIfMissing(airdropCols, 'airdrops', 'merkle_data',        'ALTER TABLE airdrops ADD COLUMN merkle_data TEXT');
-  addIfMissing(airdropCols, 'airdrops', 'tx_hash',            'ALTER TABLE airdrops ADD COLUMN tx_hash TEXT');
+  addIfMissing(airdropCols, 'airdrops', 'constructor_params',      'ALTER TABLE airdrops ADD COLUMN constructor_params TEXT');
+  addIfMissing(airdropCols, 'airdrops', 'token_type',              "ALTER TABLE airdrops ADD COLUMN token_type TEXT DEFAULT 'BCH'");
+  addIfMissing(airdropCols, 'airdrops', 'token_category',          'ALTER TABLE airdrops ADD COLUMN token_category TEXT');
+  addIfMissing(airdropCols, 'airdrops', 'nft_commitment',          'ALTER TABLE airdrops ADD COLUMN nft_commitment TEXT');
+  addIfMissing(airdropCols, 'airdrops', 'nft_capability',          "ALTER TABLE airdrops ADD COLUMN nft_capability TEXT DEFAULT 'mutable'");
+  addIfMissing(airdropCols, 'airdrops', 'merkle_root',             'ALTER TABLE airdrops ADD COLUMN merkle_root TEXT');
+  addIfMissing(airdropCols, 'airdrops', 'merkle_data',             'ALTER TABLE airdrops ADD COLUMN merkle_data TEXT');
+  addIfMissing(airdropCols, 'airdrops', 'tx_hash',                 'ALTER TABLE airdrops ADD COLUMN tx_hash TEXT');
+  addIfMissing(airdropCols, 'airdrops', 'claim_authority_privkey', 'ALTER TABLE airdrops ADD COLUMN claim_authority_privkey TEXT');
 
   const budgetCols = db.prepare('PRAGMA table_info(budget_plans)').all() as Array<{ name: string }>;
   addIfMissing(budgetCols, 'budget_plans', 'tx_hash',            'ALTER TABLE budget_plans ADD COLUMN tx_hash TEXT');

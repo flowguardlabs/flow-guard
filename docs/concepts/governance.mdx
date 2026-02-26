@@ -13,8 +13,8 @@ stateDiagram-v2
     [*] --> PENDING : create proposal
     PENDING --> APPROVED : M-of-N approvals reached
     PENDING --> EXPIRED : votingEnd elapsed (permissionless)
-    PENDING --> CANCELLED : M-of-N cancel
-    APPROVED --> CANCELLED : M-of-N cancel
+    PENDING --> CANCELLED : 2-of-3 cancel
+    APPROVED --> CANCELLED : 2-of-3 cancel
     APPROVED --> EXECUTED : executionTimelock passed
     EXECUTED --> [*]
     EXPIRED --> [*]
@@ -36,7 +36,7 @@ stateDiagram-v2
 ```
 [0]:    version
 [1]:    status
-[2]:    approval_count (uint8)
+[2]:    approval_bitmask (uint8: bit0=signer1, bit1=signer2, bit2=signer3)
 [3]:    required_approvals (uint8)
 [4-8]:  voting_end_timestamp (5 bytes)
 [9-13]: execution_timelock (5 bytes)

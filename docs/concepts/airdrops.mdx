@@ -1,10 +1,10 @@
 ---
 title: "Airdrops"
 description: "Fixed-amount, time-gated, self-service token distribution campaigns enforced on-chain."
-icon: "parachute-box"
+icon: "gift"
 ---
 
-`AirdropCovenant` lets any eligible address claim a fixed `amountPerClaim` from a funded pool. Claims are permissionless — the claimer self-signs. Authority controls campaign-level pause, resume, and cancel.
+`AirdropCovenant` lets eligible addresses claim a fixed `amountPerClaim` from a funded pool. Claims require two signatures: the claimer and a backend-held claim-authority key. Authority controls campaign-level pause, resume, and cancel.
 
 ## Use Cases
 
@@ -17,7 +17,7 @@ icon: "parachute-box"
 ```mermaid
 flowchart LR
     A([Authority deploys\nfunds totalPool]) --> B[ACTIVE\ntotalClaimed = 0]
-    B  -->|claim - anyone| C[Claimer receives\namountPerClaim]
+    B  -->|claim - claimer + claim-authority| C[Claimer receives\namountPerClaim]
     C  -->|totalClaimed < totalPool| B
     C  -->|totalClaimed >= totalPool| D([COMPLETED])
     B  -->|pause| E[PAUSED]
@@ -30,7 +30,7 @@ flowchart LR
 | Property | Detail |
 |-|-|
 | Claim amount | Fixed. Identical for every claimer. |
-| Eligibility | Any address that can sign. No allowlist (on-chain). Off-chain eligibility via backend check. |
+| Eligibility | Enforced off-chain by claim-authority co-signing policy (open or merkle/KYC). |
 | Time window | Optional `startTimestamp` and `endTimestamp` |
 | Pool behavior | Auto-completes when `totalClaimed >= totalPool` |
 | Authority | Can pause, resume, or cancel. Cancel returns remainder. |

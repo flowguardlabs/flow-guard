@@ -1,7 +1,7 @@
 ---
 title: "Claim an Airdrop"
 description: "How to claim BCH or tokens from an active FlowGuard airdrop campaign."
-icon: "hand-holding-dollar"
+icon: "hand-holding"
 ---
 
 <Steps>
@@ -15,12 +15,16 @@ icon: "hand-holding-dollar"
     For open campaigns, all addresses are eligible. For KYC-restricted campaigns, the app fetches your merkle proof via `GET /api/airdrops/:id/proof/:address`. If you are not in the merkle tree, you will see an ineligibility notice.
   </Step>
   <Step title="Claim">
-    Click **Claim**. The app calls `POST /api/airdrops/:id/claim` with your address. Your wallet presents the transaction to sign.
+    Click **Claim**. The app calls `POST /api/airdrops/:id/claim` with your address. The backend validates eligibility and co-signs with the campaign claim-authority key, then your wallet signs as claimer.
   </Step>
   <Step title="Confirm">
     After your wallet broadcasts, the app automatically calls `POST /api/airdrops/:id/confirm-claim`. Your claimed amount appears in your wallet within seconds.
   </Step>
 </Steps>
+
+<Note>
+KYC/whitelist eligibility is currently enforced in backend claim building (`/api/airdrops/:id/claim`) using stored merkle data. The on-chain `AirdropCovenant` itself enforces fixed claim math and state transitions.
+</Note>
 
 ## Claim Limits
 
