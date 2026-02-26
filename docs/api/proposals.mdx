@@ -1,15 +1,19 @@
 ---
 title: "Proposals API"
 description: "Endpoints for creating, approving, and executing treasury payout proposals with on-chain 2-of-3 multisig."
-icon: "file-signature"
+icon: "file-lines"
 ---
 
 Proposals are on-chain treasury payout requests. A proposal moves funds from a vault's covenant UTXO to a recipient address after 2-of-3 signers approve it.
 
+<Warning>
+The current backend mounts proposal routes at `/api` root scope (legacy), not under `/api/proposals/*`.
+</Warning>
+
 ## List All Proposals
 
 ```http
-GET /api/proposals?status=pending
+GET /api?status=pending
 ```
 
 Returns all proposals across all vaults, optionally filtered by `status` (`pending`, `approved`, `executed`, `rejected`).
@@ -25,7 +29,7 @@ Returns all proposals scoped to a specific vault.
 ## Get Proposal
 
 ```http
-GET /api/proposals/:id
+GET /api/:id
 ```
 
 Returns a single proposal with approval list, amounts, and status.
@@ -48,7 +52,7 @@ Creates a `pending` proposal record in the database. No on-chain transaction yet
 ## Create On-chain Proposal
 
 ```http
-POST /api/proposals/:id/create-onchain
+POST /api/:id/create-onchain
 x-user-address: bchtest:q...
 ```
 
@@ -68,7 +72,7 @@ Deploys the ProposalCovenant on-chain with the payout parameters, returns a `wcT
 ## Confirm Proposal Creation
 
 ```http
-POST /api/proposals/:id/confirm-create
+POST /api/:id/confirm-create
 
 { "txHash": "hex64" }
 ```
@@ -78,7 +82,7 @@ Verifies the covenant state NFT output exists on-chain and transitions the propo
 ## Approve On-chain
 
 ```http
-POST /api/proposals/:id/approve-onchain
+POST /api/:id/approve-onchain
 x-user-address: bchtest:q...
 ```
 
@@ -98,7 +102,7 @@ Builds the approval `wcTransaction` for one of the 3 signers. Each signer must c
 ## Confirm Approval
 
 ```http
-POST /api/proposals/:id/confirm-approval
+POST /api/:id/confirm-approval
 x-user-address: bchtest:q...
 
 { "txHash": "hex64" }
@@ -109,7 +113,7 @@ Records the signer's approval. When `approvalCount` reaches 2, the proposal stat
 ## Execute Payout
 
 ```http
-POST /api/proposals/:id/execute
+POST /api/:id/execute
 x-user-address: bchtest:q...
 ```
 
@@ -131,7 +135,7 @@ Vault signer initiates the 2-of-2 payout signing session. Returns a `wcTransacti
 ## Submit Execute Signature
 
 ```http
-POST /api/proposals/:id/execute-signature
+POST /api/:id/execute-signature
 x-user-address: bchtest:q...
 
 {
@@ -145,7 +149,7 @@ Each of the 2 required signers submits their signature. When the second signatur
 ## Broadcast
 
 ```http
-POST /api/proposals/broadcast
+POST /api/broadcast
 
 {
   "txHex": "0200...",

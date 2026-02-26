@@ -4,7 +4,7 @@ description: "Base URL, authentication, and common response patterns for the Flo
 icon: "code"
 ---
 
-All FlowGuard products — vesting, recurring payments, airdrops, grants, bounties, rewards, and governance — are backed by a single Express API running at your configured `VITE_API_BASE_URL`.
+All FlowGuard products are backed by a single Express API. Frontend apps should point `VITE_API_URL` to this backend.
 
 ## Base URL
 
@@ -22,11 +22,11 @@ The API does not require tokens or sessions. Wallet identity is asserted via a s
 x-user-address: bchtest:qr...
 ```
 
-Any route that mutates state or builds a wallet-signed transaction requires this header. Routes that only read data (list/get) omit it safely.
+Many protected routes (pause/cancel/approve/execute flows) require this header. Some create/build routes use explicit body fields instead, so always follow each endpoint's request spec.
 
 ## WalletConnect Transactions
 
-Every write action returns a `wcTransaction` object rather than broadcasting directly. The frontend passes this to the connected wallet (Paytaca, Cashonize) via WalletConnect v2 using `bch_signTransaction`. After the wallet signs and broadcasts, the frontend calls the corresponding `confirm-*` endpoint with the resulting `txHash`.
+Most on-chain build endpoints return a `wcTransaction` object rather than broadcasting directly. The frontend passes this to the connected wallet (Paytaca, Selene) via WalletConnect v2 using `bch_signTransaction`. After the wallet signs and broadcasts, the frontend calls the corresponding `confirm-*` endpoint with the resulting `txHash`.
 
 ```json
 {
@@ -41,7 +41,7 @@ Every write action returns a `wcTransaction` object rather than broadcasting dir
 
 ## Common Response Shape
 
-Successful responses always include `"success": true` at the top level:
+Many endpoints include `"success": true` at the top level:
 
 ```json
 {
@@ -50,7 +50,7 @@ Successful responses always include `"success": true` at the top level:
 }
 ```
 
-Errors return a non-2xx status with `"error"` and optionally `"message"`:
+Some read/list endpoints return plain JSON arrays/objects without a `success` wrapper. Errors return a non-2xx status with `"error"` and optionally `"message"`:
 
 ```json
 {
@@ -60,20 +60,23 @@ Errors return a non-2xx status with `"error"` and optionally `"message"`:
 
 ## Lifecycle Pattern
 
-Every on-chain contract follows the same two-step lifecycle:
+Most on-chain actions follow this two-step lifecycle:
 
 <Steps>
   <Step title="Build">
-    Call the action endpoint (e.g. `POST /api/streams/create`). The backend deploys a CashScript contract and returns a `wcTransaction` for the wallet to sign.
+    Call a build endpoint that returns a wallet payload (for example `GET /api/streams/:id/funding-info`, `POST /api/streams/:id/claim`, or `POST /api/airdrops/:id/pause`).
   </Step>
   <Step title="Confirm">
-    After the wallet broadcasts, call the corresponding `confirm-*` endpoint with `txHash`. The backend verifies the transaction on-chain and updates the database.
+    After wallet broadcast, call the corresponding `confirm-*` endpoint with `txHash`. The backend verifies on-chain outputs and updates database state.
   </Step>
 </Steps>
 
+Non-transactional endpoints (for example list/get metadata routes) return data directly and do not use build/confirm.
+Some create endpoints (`/api/streams/create`, `/api/payments/create`, `/api/airdrops/create`) return deployment metadata first, then require a separate funding build call.
+
 ## Status Values
 
-All covenant resources share the same status lifecycle:
+Most stream/distribution resources share this status lifecycle:
 
 | Status | Meaning |
 |--------|---------|
@@ -82,3 +85,5 @@ All covenant resources share the same status lifecycle:
 | `PAUSED` | Temporarily halted by authority |
 | `CANCELLED` | Terminated early, funds returned |
 | `COMPLETED` | All obligations fulfilled |
+
+Proposal and governance entities use their own status enums (for example `pending`, `approved`, `executed`, `rejected` for treasury proposals).

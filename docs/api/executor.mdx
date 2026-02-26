@@ -1,44 +1,37 @@
 ---
 title: "Executor API"
-description: "Optional Postgres-backed automation worker that executes ready stream claims and payment intervals."
+description: "Automation worker status: what exists, what is experimental, and how to run it safely."
 icon: "robot"
 ---
 
-The Executor is an optional background worker (`backend/executor/`) that automatically claims vested stream amounts and due payment intervals on behalf of recipients. It runs as a separate process alongside the core API.
+FlowGuard includes an executor scaffold in `backend/executor/` for automated task polling and transaction construction.
 
-## What It Does
+## Important Scope Note
 
-The executor polls all `ACTIVE` streams and recurring payments. When a claimable amount is detected (based on current block time vs. stream schedule), it builds and broadcasts the claim transaction. Recipients receive their funds without needing to manually claim.
+There is currently no public, stable REST API for the executor service itself. It is an internal/prototype worker process, not a customer-facing endpoint set.
 
-## Running the Executor
+## What Exists Today
 
-```bash
-cd backend/executor
-npm install
-npm run start
-```
+- Executor codebase: `backend/executor/`
+- Poll loop and task scanning scaffolding
+- Transaction builder scaffolding for schedule/proposal flows
+- Environment-driven configuration
 
-**Required environment variables**
+## Prototype Configuration
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | Postgres connection string |
-| `BCH_NETWORK` | `chipnet` or `mainnet` |
-| `EXECUTOR_PRIVATE_KEY` | WIF-encoded private key for the executor wallet |
-| `EXECUTOR_REWARD_ADDRESS` | BCH address to receive executor fees |
+The executor currently reads these environment values:
 
-## Executor Wallet
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Database connection |
+| `NETWORK` | `chipnet` or `mainnet` |
+| `ELECTRUM_SERVER` | Electrum server hostname |
+| `POLL_INTERVAL` | Poll interval in ms |
+| `MAX_GAS_PRICE` | Fee ceiling used by builder |
+| `EXECUTOR_PRIVATE_KEY` | Optional executor signing key |
 
-The executor wallet (`EXECUTOR_PRIVATE_KEY`) pays transaction fees. It does not need to hold any stream funds — the covenant contracts pay execution rewards directly to `EXECUTOR_REWARD_ADDRESS` from the stream pool.
+## Production Guidance
 
-## Poll Interval
-
-By default the executor polls every 60 seconds. Configure with `POLL_INTERVAL_MS` in environment.
-
-## Failure Handling
-
-If a claim transaction fails (e.g. nothing claimable yet, or UTXO race condition), the executor logs the error and continues. No retry limit — it will attempt again on the next poll cycle.
-
-<Warning>
-Running the executor on mainnet requires a funded executor wallet. Keep the private key secure and do not expose `EXECUTOR_PRIVATE_KEY` publicly.
-</Warning>
+- Do not assume autonomous payout execution unless your own deployment has validated and enabled executor behavior.
+- Treat executor automation as optional infrastructure that must be operated and monitored by your team.
+- Always preserve manual claim/execute paths in UI and ops playbooks.

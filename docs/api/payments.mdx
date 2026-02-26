@@ -4,7 +4,7 @@ description: "Endpoints for creating and managing recurring payment contracts wi
 icon: "repeat"
 ---
 
-Recurring payments auto-release a fixed amount at a fixed interval (`DAILY`, `WEEKLY`, `BIWEEKLY`, `MONTHLY`, `YEARLY`). The contract is funded with 12 periods upfront and the recipient claims each period as it becomes due.
+Recurring payments auto-release a fixed amount at a fixed interval (`DAILY`, `WEEKLY`, `BIWEEKLY`, `MONTHLY`, `YEARLY`). Funding is computed as up to 12 periods upfront (or fewer if the configured `endDate` occurs sooner), and the recipient claims each period as it becomes due.
 
 ## List Payments
 

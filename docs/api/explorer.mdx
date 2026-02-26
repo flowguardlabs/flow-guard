@@ -54,5 +54,5 @@ Returns a merged, time-sorted list of activity across all product types.
 Each row in `streams` includes an `activity_type` field set to `STREAM`, `PAYMENT`, `AIRDROP`, or `TREASURY` indicating the source product.
 
 <Note>
-Comprehensive analytics (token breakdowns, TVL history, daily volume charts) are served by the Indexer service at `/api/indexer/*`.
+Additional explorer/read-model endpoints are available under `/api/explorer/*` (for example stats, timeline, search, and contract/address lookups). Operator health for indexing is exposed at `/api/admin/indexer/*`.
 </Note>

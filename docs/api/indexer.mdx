@@ -1,42 +1,41 @@
 ---
 title: "Indexer API"
-description: "Optional Postgres-backed chain indexer for enriched TVL, volume, and on-chain state queries."
+description: "Current indexer status, operator endpoints, and what is production-ready vs prototype."
 icon: "database"
 ---
 
-The Indexer is an optional service (`backend/indexer/`) that maintains a Postgres database of confirmed on-chain state by watching the BCH blockchain. It provides richer analytics than the SQLite-based core API.
+FlowGuard currently exposes indexer visibility through backend admin routes.
 
-## When to Use the Indexer
-
-The core API (`/api/streams`, `/api/airdrops`, etc.) relies on the database records written by the frontend when a user confirms a transaction. The Indexer independently reads confirmed blockchain state and can surface:
-
-- Streams and payments that were funded but never confirmed via the frontend
-- Real-time NFT commitment diffs (showing actual vested amounts between claims)
-- Historical TVL snapshots and daily volume
-
-## Running the Indexer
-
-```bash
-cd backend/indexer
-npm install
-npm run start
-```
-
-Requires `DATABASE_URL` (Postgres connection string) and `BCH_NETWORK` in environment.
-
-## Indexer Endpoints
-
-The Indexer exposes its own HTTP server (default `:3002`) separate from the core API.
+## Current Production Endpoints
 
 ```http
-GET /indexer/streams
-GET /indexer/streams/:contractAddress
-GET /indexer/payments
-GET /indexer/airdrops
-GET /indexer/tvl
-GET /indexer/volume?from=1700000000&to=1731536000
+GET /api/admin/indexer/status
+GET /api/admin/indexer/errors
+POST /api/admin/indexer/resync
 ```
 
-## Core API Integration
+These routes provide operator-facing health/sync metadata for the running backend.
 
-When the Indexer is running, the core backend can optionally query it to enrich responses. Set `INDEXER_URL=http://localhost:3002` in the backend `.env` to enable this.
+## Current State of the Separate Indexer Service
+
+A separate service scaffold exists in `backend/indexer/`, but it is still an evolving component and should be treated as prototype infrastructure unless you explicitly harden and run it yourself.
+
+What is true today:
+
+- Core app flows (`/api/streams`, `/api/payments`, `/api/airdrops`, etc.) operate from the main backend database.
+- Admin indexer status routes are available from the main backend.
+- The standalone indexer package exists but is not a drop-in production requirement for normal app usage.
+
+## Recommended Usage
+
+- Use `/api/admin/indexer/status` for operational monitoring.
+- Treat standalone indexer endpoints as custom/self-hosted engineering work until your deployment team validates them.
+
+## Environment Notes
+
+For local experimentation with indexer components, you will typically configure:
+
+- `BCH_NETWORK`
+- `DATABASE_URL` (for Postgres-backed indexer experiments)
+
+Keep these separate from the default SQLite-backed backend setup unless you are intentionally running a multi-service architecture.

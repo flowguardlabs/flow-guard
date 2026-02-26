@@ -1,10 +1,10 @@
 ---
 title: "Airdrops API"
 description: "Endpoints for creating, funding, and managing airdrop campaigns with optional merkle-tree recipient verification."
-icon: "parachute-box"
+icon: "gift"
 ---
 
-Airdrops distribute BCH or CashTokens to many recipients at once. Open airdrops let anyone claim. KYC-restricted airdrops use a merkle tree to whitelist specific addresses.
+Airdrops distribute BCH or CashTokens to many recipients at once. Claim transactions are always backend co-signed by a per-campaign claim-authority key. Open campaigns allow any claimer address to request this co-signature; KYC campaigns require a merkle whitelist match first.
 
 ## List Campaigns (Creator)
 
@@ -141,6 +141,7 @@ POST /api/airdrops/:id/claim
 ```
 
 Builds the claim `wcTransaction`. For KYC campaigns, verifies the claimer is in the merkle tree. Enforces `maxClaimsPerAddress`.
+The backend also applies the claim-authority co-signature before returning the transaction to the claimer wallet.
 
 ## Confirm Claim
 
@@ -156,13 +157,16 @@ POST /api/airdrops/:id/confirm-claim
 
 Records the claim and increments `claimed_count`.
 
-## Pause / Resume / Cancel
+## Pause / Cancel
 
 ```http
 POST /api/airdrops/:id/pause
-POST /api/airdrops/:id/resume
 POST /api/airdrops/:id/cancel
 x-user-address: bchtest:q...
 ```
 
-Creator-only. Each returns an unsigned `wcTransaction`. Follow with the matching `confirm-pause`, `confirm-resume`, or `confirm-cancel` endpoint.
+Creator-only. Each returns an unsigned `wcTransaction`. Follow with `confirm-pause` or `confirm-cancel`.
+
+<Note>
+`resume` is available in the covenant but not exposed as a public HTTP route in the current backend release.
+</Note>
