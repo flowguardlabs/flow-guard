@@ -11,7 +11,11 @@ import {
   Repeat,
   Gift,
   X,
+  Users,
+  ShieldCheck,
+  Settings,
 } from 'lucide-react';
+import { useAppMode } from '../../hooks/useAppMode';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -35,21 +39,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onMobileClose
 }) => {
   const location = useLocation();
+  const { mode, setMode, toggleMode } = useAppMode();
+
   // On mobile, if the menu is open, we treat it as "expanded" regardless of desktop preference
   const resolvedOpen = isOpen || isMobileOpen;
 
-  const navItems = [
-    { path: '/streams', icon: Inbox, label: 'Vesting' }, // Vesting product
-    { path: '/payments', icon: Repeat, label: 'Payments' }, // Recurring payments product
-    { path: '/airdrops', icon: Gift, label: 'Airdrops' }, // Mass distribution product
+  type NavItem = { path: string; icon: any; label: string; beta?: boolean };
+
+  const userNavItems: NavItem[] = [
+    { path: '/app', icon: LayoutDashboard, label: 'App Home' },
     { path: '/vaults', icon: LayoutDashboard, label: 'Treasuries' },
-    { path: '/vaults/create', icon: PlusCircle, label: 'Create Treasury' },
+    { path: '/streams', icon: Inbox, label: 'Vesting' },
+    { path: '/payments', icon: Repeat, label: 'Payments' },
+    { path: '/airdrops', icon: Gift, label: 'Airdrops' },
     { path: '/proposals', icon: FileText, label: 'Proposals' },
     { path: '/budgets', icon: DollarSign, label: 'Budget Plans' },
     { path: '/governance', icon: Vote, label: 'Governance' },
   ];
 
+  const daoNavItems: NavItem[] = [
+    { path: '/app', icon: LayoutDashboard, label: 'App Home' },
+    { path: '/vaults', icon: LayoutDashboard, label: 'Treasuries' },
+    { path: '/streams', icon: Inbox, label: 'Vesting' },
+    { path: '/payments', icon: Repeat, label: 'Payments' },
+    { path: '/airdrops', icon: Gift, label: 'Airdrops' },
+    { path: '/proposals', icon: FileText, label: 'Proposals' },
+    { path: '/app/dao/overview', icon: FileText, label: 'DAO Overview', beta: true },
+    { path: '/app/dao/team', icon: Users, label: 'Team', beta: true },
+    { path: '/app/dao/roles', icon: ShieldCheck, label: 'Roles', beta: true },
+    { path: '/app/dao/treasury-policy', icon: Settings, label: 'Policy', beta: true },
+  ];
+
+  const filteredNavItems = mode === 'dao' ? daoNavItems : userNavItems;
+
   const isActive = (path: string) => {
+    if (path === '/app') {
+      return location.pathname === '/app';
+    }
     if (path === '/vaults') {
       return location.pathname === '/vaults' || (location.pathname.startsWith('/vaults/') && location.pathname !== '/vaults/create');
     }
@@ -112,11 +138,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
+        {/* Mode Switcher */}
+        {resolvedOpen ? (
+          <div className="px-4 py-2 mt-4">
+            <div className="bg-brand-100/50 p-1 rounded-xl flex items-center border border-border/50">
+              <button
+                onClick={() => setMode('user')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${mode === 'user' ? 'bg-white shadow-sm text-textPrimary' : 'text-textMuted hover:text-textPrimary'}`}
+              >
+                User
+              </button>
+              <button
+                onClick={() => setMode('dao')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${mode === 'dao' ? 'bg-[#00E676]/10 text-[#00E676] border border-[#00E676]/20' : 'text-textMuted hover:text-textPrimary'}`}
+              >
+                DAO (Beta)
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto mt-4 px-2">
+            <button
+              onClick={toggleMode}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${mode === 'dao' ? 'bg-[#00E676]/10 text-[#00E676]' : 'bg-surfaceAlt text-textMuted border border-border'}`}
+              title={`Switch Mode: Currently ${mode.toUpperCase()}`}
+            >
+              {mode === 'dao' ? <ShieldCheck className="w-5 h-5" /> : <Users className="w-5 h-5" />}
+            </button>
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-2 overflow-y-auto mt-2">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
+            const isBeta = item.beta;
+
             return (
               <Link
                 key={item.path}
@@ -137,10 +195,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`} />
 
                 <span
-                  className={`whitespace-nowrap transition-all duration-300 ${resolvedOpen ? 'opacity-100 max-w-xs' : 'opacity-0 max-w-0 pointer-events-none'
+                  className={`whitespace-nowrap flex-1 flex items-center gap-2 transition-all duration-300 ${resolvedOpen ? 'opacity-100 max-w-xs' : 'opacity-0 max-w-0 pointer-events-none'
                     }`}
                 >
                   {item.label}
+                  {isBeta && (
+                    <span className="bg-[#00E676] text-white text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-sans ml-auto shrink-0">
+                      Beta
+                    </span>
+                  )}
                 </span>
               </Link>
             );

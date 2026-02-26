@@ -239,7 +239,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                                 </div>
 
                                 <div className="pt-6 mt-6 border-t border-border">
-                                    <Link to="/vaults" onClick={onClose}>
+                                    <Link to="/app" onClick={onClose}>
                                         <motion.button
                                             whileTap={{ scale: 0.95 }}
                                             className="w-full bg-primary text-white px-6 py-3 rounded-xl text-base font-semibold shadow-lg"

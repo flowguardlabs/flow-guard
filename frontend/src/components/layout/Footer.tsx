@@ -78,7 +78,7 @@ export function Footer() {
               <h4 className="text-sm font-semibold text-brand50 uppercase tracking-wider">Product</h4>
               <ul className="space-y-3">
                 <li>
-                  <Link to="/vaults" className="text-brand100 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand300 rounded-sm">
+                  <Link to="/app" className="text-brand100 hover:text-white transition-colors text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand300 rounded-sm">
                     Launch App
                   </Link>
                 </li>

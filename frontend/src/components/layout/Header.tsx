@@ -37,11 +37,11 @@ export const Header: React.FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             <Link
-              to="/vaults"
-              className={`text-xs uppercase tracking-widest font-medium transition-colors ${isActive('/vaults') ? 'text-primary' : 'text-textSecondary hover:text-primary'
+              to="/app"
+              className={`text-xs uppercase tracking-widest font-medium transition-colors ${isActive('/app') || isActive('/vaults') ? 'text-primary' : 'text-textSecondary hover:text-primary'
                 }`}
             >
-              Vaults
+              Launch App
             </Link>
             <Link
               to="/proposals"
@@ -118,11 +118,11 @@ export const Header: React.FC = () => {
         <div className="md:hidden py-4 border-t border-border bg-surface absolute w-full left-0 shadow-lg">
           <nav className="flex flex-col space-y-4 px-6">
             <Link
-              to="/vaults"
+              to="/app"
               className="text-xs uppercase tracking-widest font-medium text-textSecondary hover:text-primary transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              Vaults
+              Launch App
             </Link>
             <Link
               to="/proposals"

@@ -40,13 +40,35 @@ import UpdatesPage from './pages/UpdatesPage';
 import UpdateDetailPage from './pages/UpdateDetailPage';
 import ChangelogPage from './pages/ChangelogPage';
 import RoadmapPage from './pages/RoadmapPage';
+import { AppShellPage } from './pages/AppShellPage';
+import { DaoOverviewPage } from './pages/dao/DaoOverviewPage';
+import { DaoTeamPage } from './pages/dao/DaoTeamPage';
+import { DaoRolesPage } from './pages/dao/DaoRolesPage';
+import { DaoTreasuryPolicyPage } from './pages/dao/DaoTreasuryPolicyPage';
+import { SplitLoginScreen } from './pages/SplitLoginScreen';
 
 function App() {
   const wallet = useWallet();
   const { isOpen, closeModal } = useWalletModal();
   const navigate = useNavigate();
   const location = useLocation();
-  /* Redirect logic removed to allow users to view landing page even when connected */
+
+  // Redirect to /app when wallet connects, if currently on public landing pages
+  useEffect(() => {
+    if (wallet.isConnected && !wallet.isConnecting) {
+      const isPublicLandingPage =
+        location.pathname === '/' ||
+        location.pathname === '/vesting' ||
+        location.pathname === '/payroll' ||
+        location.pathname === '/budgeting' ||
+        location.pathname === '/grants' ||
+        location.pathname === '/governance-info';
+
+      if (isPublicLandingPage) {
+        navigate('/app');
+      }
+    }
+  }, [wallet.isConnected, wallet.isConnecting, location.pathname, navigate]);
 
   // Scroll to top on route change
   useEffect(() => {
@@ -60,6 +82,28 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home />} />
+
+          {/* New App Shell Route with Conditional Disconnected Login Screen */}
+          <Route
+            path="/app"
+            element={
+              wallet.isConnected ? (
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <AppShellPage />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              ) : (
+                <SplitLoginScreen />
+              )
+            }
+          />
+
+          {/* DAO Beta Placeholders */}
+          <Route path="/app/dao/overview" element={<ProtectedRoute><DashboardLayout><DaoOverviewPage /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/app/dao/team" element={<ProtectedRoute><DashboardLayout><DaoTeamPage /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/app/dao/roles" element={<ProtectedRoute><DashboardLayout><DaoRolesPage /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/app/dao/treasury-policy" element={<ProtectedRoute><DashboardLayout><DaoTreasuryPolicyPage /></DashboardLayout></ProtectedRoute>} />
 
           {/* Solution landing pages (public) */}
           <Route path="/vesting" element={<VestingPage />} />
