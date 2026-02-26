@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { cashAddressToLockingBytecode } from '@bitauth/libauth';
 import db from '../database/schema.js';
 import { PaymentDeploymentService } from '../services/PaymentDeploymentService.js';
@@ -139,10 +139,23 @@ router.post('/payments/create', async (req: Request, res: Response) => {
     const intervalSeconds = INTERVAL_SECONDS[interval];
     const cancelableEnabled = cancelable !== false;
 
+    // Resolve vault linkage: keep UX standalone-friendly, but always use a nonzero
+    // internal vaultId for covenant constructor compatibility.
+    let actualVaultId = deriveStandaloneVaultId(`${id}:${sender}:${recipient}:${now}`);
+    if (vaultId) {
+      const vaultRow = db!.prepare('SELECT * FROM vaults WHERE vault_id = ?').get(vaultId) as any;
+      if (vaultRow?.constructor_params) {
+        const vaultParams = JSON.parse(vaultRow.constructor_params);
+        if (vaultParams[0]?.type === 'bytes') {
+          actualVaultId = vaultParams[0].value;
+        }
+      }
+    }
+
     // Deploy payment contract
     const deploymentService = new PaymentDeploymentService('chipnet');
     const deployment = await deploymentService.deployRecurringPayment({
-      vaultId: vaultId || '0000000000000000000000000000000000000000000000000000000000000000',
+      vaultId: actualVaultId,
       sender,
       recipient,
       amountPerInterval: amountPerPeriod,
@@ -900,4 +913,8 @@ function isP2pkhAddress(address: string): boolean {
     b[23] === 0x88 &&
     b[24] === 0xac
   );
+}
+
+function deriveStandaloneVaultId(seed: string): string {
+  return createHash('sha256').update(seed).digest('hex');
 }

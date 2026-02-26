@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { hexToBin, lockingBytecodeToCashAddress } from '@bitauth/libauth';
 import db from '../database/schema.js';
 import { AirdropDeploymentService } from '../services/AirdropDeploymentService.js';
@@ -195,7 +195,7 @@ router.post('/airdrops/create', async (req: Request, res: Response) => {
     const deploymentService = new AirdropDeploymentService('chipnet');
 
     // Get vault's contract vaultId
-    let actualVaultId = '0000000000000000000000000000000000000000000000000000000000000000';
+    let actualVaultId = deriveStandaloneVaultId(`${id}:${creator}:${now}`);
     if (vaultId) {
       const vaultRow = db!.prepare('SELECT * FROM vaults WHERE vault_id = ?').get(vaultId) as any;
       if (vaultRow?.constructor_params) {
@@ -975,6 +975,10 @@ function hashToP2pkhAddress(hash20: Uint8Array): string {
     throw new Error(`Failed to encode authority P2PKH address: ${encoded}`);
   }
   return encoded.address;
+}
+
+function deriveStandaloneVaultId(seed: string): string {
+  return createHash('sha256').update(seed).digest('hex');
 }
 
 function resolvePublicAppBaseUrl(req: Request): string {

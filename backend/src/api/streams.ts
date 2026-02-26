@@ -4,7 +4,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { cashAddressToLockingBytecode, hexToBin } from '@bitauth/libauth';
 import db from '../database/schema.js';
 import { streamService, Stream, StreamClaim } from '../services/streamService.js';
@@ -157,8 +157,9 @@ router.post('/streams/create', async (req: Request, res: Response) => {
     // Deploy stream contract with proper NFT state
     const deploymentService = new StreamDeploymentService('chipnet');
 
-    // Get vault's contract vaultId
-    let actualVaultId = '0000000000000000000000000000000000000000000000000000000000000000';
+    // Resolve vault linkage: support standalone streams while preserving nonzero
+    // constructor vaultId expected by on-chain covenant invariants.
+    let actualVaultId = deriveStandaloneVaultId(`${id}:${sender}:${recipient}:${now}`);
     if (vaultId) {
       const vaultRow = db!.prepare('SELECT * FROM vaults WHERE vault_id = ?').get(vaultId) as any;
       if (vaultRow?.constructor_params) {
@@ -1063,6 +1064,10 @@ function isP2pkhAddress(address: string): boolean {
     b[23] === 0x88 &&
     b[24] === 0xac
   );
+}
+
+function deriveStandaloneVaultId(seed: string): string {
+  return createHash('sha256').update(seed).digest('hex');
 }
 
 export default router;
