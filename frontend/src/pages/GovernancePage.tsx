@@ -237,7 +237,7 @@ export default function GovernancePage() {
       return;
     }
 
-    const amountSatoshis = Math.floor(parseFloat(stakeAmount) * 100000000);
+    const amountSatoshis = Math.round(parseFloat(stakeAmount) * 100000000);
     if (amountSatoshis <= 0) {
       alert('Stake amount must be greater than 0');
       return;

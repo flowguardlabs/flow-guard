@@ -25,6 +25,7 @@ import {
   getExplorerTxUrl,
   type SerializedWcTransaction,
 } from '../utils/blockchain';
+import { emitTransactionNotice, normalizeWalletNetwork } from '../utils/txNotice';
 
 interface Stream {
   id: string;
@@ -156,6 +157,12 @@ export default function StreamDetailPage() {
       setStream(streamData.stream);
       setClaims(streamData.claims || []);
 
+      emitTransactionNotice({
+        txHash: signResult.signedTransactionHash,
+        network: normalizeWalletNetwork(wallet.network),
+        label: 'Stream claim',
+      });
+
       alert(`Successfully claimed ${claimableAmount.toFixed(4)} BCH!\nTx: ${signResult.signedTransactionHash}`);
     } catch (error) {
       console.error('Claim failed:', error);
@@ -230,6 +237,11 @@ export default function StreamDetailPage() {
       }
 
       console.log('Cancel transaction signed and broadcast:', signResult.signedTransactionHash);
+      emitTransactionNotice({
+        txHash: signResult.signedTransactionHash,
+        network: normalizeWalletNetwork(wallet.network),
+        label: 'Stream cancelled',
+      });
 
       alert(`Stream cancelled successfully!\nTx: ${signResult.signedTransactionHash}`);
       navigate('/streams');
