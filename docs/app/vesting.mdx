@@ -1,50 +1,75 @@
 ---
-title: "Vesting Streams"
-description: "How to create, monitor, and claim vesting streams in the FlowGuard app."
-icon: "lock"
+title: 'Vesting Streams'
+description: 'How the shared FlowGuard stream product works across personal and organization workflows.'
+icon: 'lock'
 ---
 
-Vesting streams release BCH or CashTokens to a recipient over time. Choose linear (continuous) or step (discrete chunks) vesting. See [Create a Vesting Stream](/guides/vesting/create) for the full step-by-step guide.
+FlowGuard's stream product covers vesting-style schedules and recurring payout schedules in one shared interface. The same create, detail, activity, and batch surfaces are used in both personal and treasury-linked workflows.
 
-## Stream Types
+## Supported Schedule Families
 
-| Type | How it works |
-|------|-------------|
-| **LINEAR** | Tokens vest continuously per second from `startTime` to `endTime` |
-| **STEP** | Tokens release in equal chunks at fixed intervals |
-| **RECURRING** | Equal payments at calendar intervals (handled via the Payments product) |
+| Family        | What users see                                               | On-chain family            |
+| ------------- | ------------------------------------------------------------ | -------------------------- |
+| **LINEAR**    | Continuous unlock from start to end, optionally with a cliff | `VestingCovenant`          |
+| **HYBRID**    | One fixed unlock checkpoint followed by a linear tail        | `HybridVestingCovenant`    |
+| **STEP**      | Equal milestone unlocks at fixed cadence                     | `VestingCovenant`          |
+| **TRANCHE**   | Custom bounded unlock checkpoints with custom weights        | `TrancheVestingCovenant`   |
+| **RECURRING** | Fixed cadence payouts, optionally refillable                 | `RecurringPaymentCovenant` |
 
-## Viewing Your Streams
+## What the App Supports Today
 
-From **Streams** in the sidebar, you see two tabs:
+- Shape gallery with production templates for linear, hybrid, recurring, milestone, and tranche schedules
+- Schedule previews on create, detail, and batch pages
+- Shared single-stream creation for personal and organization launches
+- Batch stream creation with row-level overrides, row charts, CSV import, and CSV export
+- Treasury-linked stream activity and batch history views
 
-- **Sending**: streams where your address is the sender
-- **Receiving**: streams where your address is the recipient
+## Shared User and DAO Flow
 
-Each card shows the progress bar (vested %), total amount, asset type, and status.
+You can enter the stream product from:
 
-## Claiming Vested Funds
+- **Streams** in the personal workspace
+- **Vault -> Create Stream** or **Vault -> Batch Create**
+- **DAO treasury streams** in the organization workspace
+
+These routes all use the same stream builders and the same contract-backed transaction flow. The main difference is launch context, default vault selection, and where the app routes you after creation.
+
+## Claiming Funds
+
+Recipients claim directly from the stream detail page:
 
 <Steps>
-  <Step title="Open the stream">
-    Click any stream card in your **Receiving** tab.
+  <Step title="Open the stream">Open a stream from the list or treasury stream workspace.</Step>
+  <Step title="Review the schedule">
+    The detail page shows the active shape, claimable amount, cadence or checkpoints, and any
+    treasury launch context saved on the stream.
   </Step>
-  <Step title="Check claimable amount">
-    The stream detail page shows the current claimable amount based on elapsed time and the on-chain NFT commitment.
+  <Step title="Sign the claim transaction">
+    Click **Claim**. The app requests a contract-built transaction from `/api/streams/:id/claim`,
+    then your BCH wallet signs and broadcasts it.
   </Step>
-  <Step title="Claim">
-    Click **Claim**. Your wallet will prompt you to sign the transaction. No gas — BCH covenant execution is nearly free.
-  </Step>
-  <Step title="Confirm">
-    After the wallet broadcasts, the app calls `confirm-claim` and updates your balance.
+  <Step title="Confirm and refresh state">
+    The app confirms the claim and refreshes released totals, activity, and the current schedule
+    state.
   </Step>
 </Steps>
 
-## Cancelling a Stream
+## Sender Controls
 
-If the stream was created with `cancelable: true`, the sender can cancel at any time. The vested portion goes to the recipient, and the unvested remainder returns to the sender. Navigate to the stream detail and click **Cancel**.
+Depending on stream family and flags, the sender or recipient may also see:
+
+- **Pause / Resume** for active vesting and recurring streams when the stream is cancelable
+- **Refill** for refillable recurring streams
+- **Cancel** for cancelable streams
+- **Transfer recipient rights** for transferable non-recurring vesting streams
 
 ## Asset Support
 
-- **BCH**: amount in whole BCH (e.g., `10.5`)
-- **CashTokens (FT)**: amount in base token units, requires `tokenCategory` (hex32 category ID)
+- **BCH** streams settle in satoshis on-chain and display as BCH in the app
+- **CashTokens** streams support fungible token categories for grants, payroll, and treasury-managed token programs
+
+## Related Pages
+
+- [Create a Vesting Stream](/guides/vesting/create)
+- [Batch Create Streams](/guides/vesting/batch-create)
+- [Streams API](/api/streams)

@@ -1,23 +1,39 @@
 ---
-title: "Shared Types"
-description: "TypeScript type definitions shared across frontend, backend, indexer, and executor."
-icon: "code"
+title: 'Shared Types'
+description: 'TypeScript types shared across frontend, backend, indexer, executor, and contract tooling.'
+icon: 'code'
 ---
 
-All shared types live in `shared/types/`. They mirror the on-chain NFT commitment byte layouts exactly.
+FlowGuard keeps shared covenant and policy types in `shared/types/`.
+
+The most important file for on-chain state is `shared/types/covenant-types.ts`. These types mirror the NFT commitment layouts used by the covenant encoding helpers in `contracts/lib/StateEncoding.cash`.
+
+## Where They Are Used
+
+Shared types are consumed by:
+
+- frontend schedule and treasury views
+- backend transaction builders and API responses
+- indexer decode paths
+- executor services
+- internal SDK-style tooling
 
 ## VaultState
 
-```typescript
+`VaultState` is a 32-byte commitment that tracks vault lifecycle and spend-period state.
+
+```ts
 export interface VaultState {
   version: number;
   status: VaultStatus;
-  rolesMask: Buffer;         // 3 bytes
+  rolesMask: Buffer;
   currentPeriodId: bigint;
-  spentThisPeriod: bigint;   // satoshis
+  spentThisPeriod: bigint;
   lastUpdateTimestamp: bigint;
 }
+```
 
+```ts
 export enum VaultStatus {
   ACTIVE = 0,
   PAUSED = 1,
@@ -28,7 +44,9 @@ export enum VaultStatus {
 
 ## ProposalState
 
-```typescript
+`ProposalState` is a 64-byte commitment used for treasury proposal approval and execution state.
+
+```ts
 export interface ProposalState {
   version: number;
   status: ProposalStatus;
@@ -36,20 +54,30 @@ export interface ProposalState {
   requiredApprovals: number;
   votingEndTimestamp: bigint;
   executionTimelock: bigint;
-  payoutTotal: bigint;     // satoshis
-  payoutHash: Buffer;      // 28 bytes
+  payoutTotal: bigint;
+  payoutHash: Buffer;
 }
+```
 
+```ts
 export enum ProposalStatus {
-  DRAFT = 0, SUBMITTED = 1, VOTING = 2, APPROVED = 3,
-  QUEUED = 4, EXECUTABLE = 5, EXECUTED = 6,
-  CANCELLED = 7, EXPIRED = 8,
+  DRAFT = 0,
+  SUBMITTED = 1,
+  VOTING = 2,
+  APPROVED = 3,
+  QUEUED = 4,
+  EXECUTABLE = 5,
+  EXECUTED = 6,
+  CANCELLED = 7,
+  EXPIRED = 8,
 }
 ```
 
 ## ScheduleState
 
-```typescript
+`ScheduleState` is a 48-byte commitment used by schedule-style covenants.
+
+```ts
 export interface ScheduleState {
   version: number;
   scheduleType: ScheduleType;
@@ -57,9 +85,11 @@ export interface ScheduleState {
   nextUnlockTimestamp: bigint;
   amountPerInterval: bigint;
   totalReleased: bigint;
-  cliffTimestamp: bigint;    // 0 if no cliff
+  cliffTimestamp: bigint;
 }
+```
 
+```ts
 export enum ScheduleType {
   RECURRING = 0,
   LINEAR_VESTING = 1,
@@ -69,15 +99,19 @@ export enum ScheduleType {
 
 ## VoteState
 
-```typescript
+`VoteState` is a 32-byte commitment used for locked governance vote positions.
+
+```ts
 export interface VoteState {
   version: number;
-  proposalIdPrefix: Buffer;  // 4 bytes
+  proposalIdPrefix: Buffer;
   voteChoice: VoteChoice;
   lockTimestamp: bigint;
   unlockTimestamp: bigint;
 }
+```
 
+```ts
 export enum VoteChoice {
   AGAINST = 0,
   FOR = 1,
@@ -85,19 +119,25 @@ export enum VoteChoice {
 }
 ```
 
-## CovenantUTXO
+## TallyState
 
-```typescript
-export interface CovenantUTXO<TState = any> {
-  utxo: UTXORef;
-  address: string;
-  satoshis: bigint;
-  token?: CashTokenData;
-  state: TState;
-  height: number;
-  timestamp: bigint;
+`TallyState` is the shared type used for tally-style governance state.
+
+```ts
+export interface TallyState {
+  version: number;
+  proposalIdPrefix: Buffer;
+  votesFor: bigint;
+  votesAgainst: bigint;
+  votesAbstain: bigint;
+  quorumThreshold: bigint;
+  tallyTimestamp: bigint;
 }
+```
 
+## Generic UTXO Types
+
+```ts
 export interface UTXORef {
   txid: string;
   vout: number;
@@ -111,4 +151,28 @@ export interface CashTokenData {
   };
   amount?: bigint;
 }
+
+export interface CovenantUTXO<TState = any> {
+  utxo: UTXORef;
+  address: string;
+  satoshis: bigint;
+  token?: CashTokenData;
+  state: TState;
+  height: number;
+  timestamp: bigint;
+}
 ```
+
+The shared type package also exports convenience aliases such as:
+
+- `VaultUTXO`
+- `ProposalUTXO`
+- `ScheduleUTXO`
+- `VoteUTXO`
+- `TallyUTXO`
+
+## Policy Types
+
+Treasury policy and access-model types live alongside covenant types in `shared/types/policy-types.ts`.
+
+Use these for DAO workspace policy editors, proposal metadata, and higher-level treasury rules that are not stored directly inside covenant NFT commitments.

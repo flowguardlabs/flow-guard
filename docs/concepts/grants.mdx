@@ -1,51 +1,56 @@
 ---
-title: "Grants"
-description: "Multi-milestone grant disbursements with on-chain tranche release and optional recipient transfer."
-icon: "handshake"
+title: 'Grants'
+description: 'How FlowGuard models milestone-based grant funding in the current product.'
+icon: 'handshake'
 ---
 
-`GrantCovenant` releases funding tranche by tranche as milestones are approved by the authority. The total grant is split equally across a defined number of milestones.
+FlowGuard grants are milestone-based budget plans. They lock funding up front, then release it in scheduled stages as each milestone window becomes claimable on-chain.
 
-## Use Cases
+## Current Product Model
 
-- Developer grants with delivery milestones
-- Research funding disbursed in phases
-- Contractor payments tied to deliverables
+In the app today, grants are powered by the budget-plan flow rather than a separate dedicated grant screen. That means a grant behaves like a treasury-funded milestone release schedule with:
+
+- one recipient
+- a funded total amount
+- milestone timing between releases
+- on-chain release gating
+- release history in the product
 
 ## How It Works
 
 ```mermaid
 flowchart LR
-    A([Deploy\nN milestones\nfund totalAmount]) --> B[Milestone 0\nActive]
-    B  -->|releaseMilestone - authority| C[amountPerMilestone\nto recipient]
-    C  -->|completed < total| B
-    C  -->|completed = total| D([COMPLETED])
-    B  -->|transfer - recipient| E[New recipient\nassigned]
-    E --> B
-    B  -->|cancel - authority| F([Remaining returned\nto authority])
+    A([Create and fund grant]) --> B[ACTIVE]
+    B --> C{Milestone window elapsed?}
+    C -->|No| B
+    C -->|Yes| D[Recipient releases due amount]
+    D --> E{More milestones remaining?}
+    E -->|Yes| B
+    E -->|No| F([COMPLETED])
+    B -->|Cancelable recovery| G([Remaining amount returned])
 ```
 
 ## Key Properties
 
-| Property | Detail |
-|-|-|
-| Payout per milestone | Fixed: `totalAmount / milestonesTotal` |
-| Release control | Authority only — off-chain milestone verification |
-| Recipient | Mutable if `FLAG_TRANSFERABLE`. Current recipient signs to reassign. |
-| Cancel | Authority returns `totalAmount - totalReleased` |
+| Property        | Detail                                                                    |
+| --------------- | ------------------------------------------------------------------------- |
+| Funding model   | Entire grant is funded up front                                           |
+| Release control | Recipient triggers release when a milestone window is due                 |
+| Timing          | Each milestone uses a configured interval from the prior release schedule |
+| Asset support   | BCH and CashTokens                                                        |
+| Cancel behavior | Controlled by plan settings and remaining unreleased balance              |
 
-## NFT State
+## What Is Enforced On-Chain
 
-```
-[0]:    status
-[1]:    flags
-[2]:    milestones_completed (uint8, 0..255)
-[3-10]: total_released (uint64)
-[11-15]: last_release_timestamp (5 bytes)
-[16-35]: recipient_hash (bytes20)
-[36-39]: reserved
-```
+- milestone timing
+- releasable amount
+- remaining contract state after each release
+- final completion when the funded amount is exhausted
+
+## Relationship to the Contract Library
+
+FlowGuard also ships a `GrantCovenant` in the contract library. The current app experience, however, documents the live budget-plan milestone workflow that users interact with today.
 
 ## Contract Reference
 
-See [GrantCovenant](/reference/contracts/grant-covenant) for full documentation.
+See [GrantCovenant](/reference/contracts/grant-covenant) for the lower-level contract reference, and [Create a Grant](/guides/grants/create) for the product guide.

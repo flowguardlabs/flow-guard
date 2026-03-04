@@ -1,47 +1,54 @@
 ---
-title: "Transfer Stream Ownership"
-description: "How a vesting stream recipient reassigns the stream to a new address."
-icon: "arrow-right-arrow-left"
+title: 'Transfer Stream Recipient Rights'
+description: 'How the current recipient transfers a transferable vesting stream to a new address.'
+icon: 'arrow-right-arrow-left'
 ---
 
-If a vesting stream was created with `FLAG_TRANSFERABLE`, the current recipient can reassign it to any new address. The sender has no role in this operation.
+Transfer lets the current recipient reassign future claim rights for a transferable vesting stream.
 
-<Note>
-Transfer requires `FLAG_TRANSFERABLE` (`0x02`) to be set. If this flag is not present, the recipient is immutable for the lifetime of the stream.
-</Note>
+## Supported Families
 
-<Warning>
-`transfer()` is implemented in `VestingCovenant`, but the current backend release does not expose `/api/streams/:id/transfer` yet.
-</Warning>
+Transfer is supported for:
 
-## Transferring
+- `LINEAR`
+- `STEP`
+- `HYBRID`
+- `TRANCHE`
+
+Transfer is **not** supported for recurring streams.
+
+<Note>The stream must be marked `transferable` and must still be `ACTIVE`.</Note>
+
+## Flow
 
 <Steps>
-  <Step title="Open the stream">
-    Navigate to **Streams** and select the stream.
+  <Step title="Open the stream">Navigate to the stream detail page.</Step>
+  <Step title="Enter the new recipient">
+    Use the transfer form to enter the new recipient's BCH P2PKH address.
   </Step>
-  <Step title="Go to Transfer">
-    Click **Transfer Stream**. Enter the new recipient's BCH P2PKH address.
+  <Step title="Build the transfer transaction">
+    The app calls `POST /api/streams/:id/transfer` with the current recipient as `x-user-address`.
   </Step>
-  <Step title="Sign with current recipient wallet">
-    The current recipient must sign. The contract validates:
-    - `hash160(recipientPubkey) == recipient_hash` (from NFT state)
-    - `status == ACTIVE`
-    - `FLAG_TRANSFERABLE` is set
-  </Step>
-  <Step title="On-chain result">
-    The NFT `recipient_hash` field is updated to the new `hash160`. All future `claim()` calls must be signed by the new recipient. Prior claimed amounts are unaffected.
+  <Step title="Sign and broadcast">The current recipient signs the returned transaction.</Step>
+  <Step title="Confirm the transfer">
+    The app confirms the broadcast with `POST /api/streams/:id/confirm-transfer`, then refreshes the
+    stream detail and activity feed.
   </Step>
 </Steps>
 
-## What Gets Transferred
+## API Example
 
-- **Entitlement to all future claims**: the new recipient can claim all tokens that vest from this point forward, plus any previously vested but unclaimed tokens.
+```json
+POST /api/streams/:id/transfer
+x-user-address: bchtest:qcurrent...
 
-## What Is Not Transferred
+{
+  "newRecipientAddress": "bchtest:qnew..."
+}
+```
 
-- **Already-claimed tokens**: those were already paid to the original recipient and are settled.
+## What Changes
 
-## API Status
-
-Recipient transfer is contract-supported and planned for API wiring in a future backend release.
+- future claim rights move to the new recipient
+- unclaimed vested value remains attached to the stream and becomes claimable by the new recipient after confirmation
+- already claimed value stays settled to the old recipient

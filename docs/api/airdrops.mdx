@@ -1,18 +1,18 @@
 ---
-title: "Airdrops API"
-description: "Endpoints for creating, funding, and managing airdrop campaigns with optional merkle-tree recipient verification."
-icon: "gift"
+title: 'Airdrops API'
+description: 'Current endpoints for creating, funding, claiming, pausing, and cancelling FlowGuard airdrop campaigns.'
+icon: 'gift'
 ---
 
-Airdrops distribute BCH or CashTokens to many recipients at once. Claim transactions are always backend co-signed by a per-campaign claim-authority key. Open campaigns allow any claimer address to request this co-signature; KYC campaigns require a merkle whitelist match first.
+Airdrops distribute BCH or CashTokens through claimable campaigns. Campaigns can be public or Merkle-restricted.
 
-## List Campaigns (Creator)
+## List Campaigns
 
 ```http
 GET /api/airdrops?creator={address}
 ```
 
-Returns all campaigns created by the given address.
+Returns campaigns created by the provided address.
 
 ## List Claimable Campaigns
 
@@ -20,7 +20,7 @@ Returns all campaigns created by the given address.
 GET /api/airdrops/claimable?address={address}
 ```
 
-Returns all `ACTIVE` campaigns the given address has not yet claimed (or has remaining claims on).
+Returns active campaigns the address can still claim from.
 
 ## Resolve Claim Link
 
@@ -28,7 +28,7 @@ Returns all `ACTIVE` campaigns the given address has not yet claimed (or has rem
 GET /api/airdrops/claim/:token
 ```
 
-Resolves a claim link token (from the campaign's `claim_link` URL) to the full campaign record.
+Resolves a public claim token to its campaign.
 
 ## Get Campaign
 
@@ -36,7 +36,7 @@ Resolves a claim link token (from the campaign's `claim_link` URL) to the full c
 GET /api/airdrops/:id
 ```
 
-Returns the campaign record and its full claim history.
+Returns the campaign record and its claim history.
 
 ## Create Campaign
 
@@ -44,39 +44,7 @@ Returns the campaign record and its full claim history.
 POST /api/airdrops/create
 ```
 
-Deploys the AirdropCovenant on-chain and stores `status: PENDING`.
-
-**Body**
-```json
-{
-  "creator": "bchtest:qr...",
-  "title": "Community Rewards Q1",
-  "campaignType": "AIRDROP",
-  "tokenType": "BCH",
-  "totalAmount": 100,
-  "amountPerClaim": 0.5,
-  "startDate": 1700000000,
-  "endDate": 1731536000,
-  "maxClaimsPerAddress": 1,
-  "requireKyc": false,
-  "vaultId": "optional-vault-uuid"
-}
-```
-
-For token airdrops add `"tokenType": "FUNGIBLE_TOKEN"` and `"tokenCategory": "hex32"`.
-
-**Response**
-```json
-{
-  "success": true,
-  "campaign": { "id": "...", "status": "PENDING", "claim_link": "https://..." },
-  "deployment": {
-    "contractAddress": "bchtest:p...",
-    "fundingRequired": true,
-    "nftCommitment": "hex..."
-  }
-}
-```
+Creates a pending campaign and returns funding details.
 
 ## Generate Merkle Tree
 
@@ -84,45 +52,25 @@ For token airdrops add `"tokenType": "FUNGIBLE_TOKEN"` and `"tokenCategory": "he
 POST /api/airdrops/:id/generate-merkle
 ```
 
-For KYC-restricted campaigns. Build a merkle tree from an explicit recipient list before funding.
+Required for restricted campaigns before funding.
 
-**Body**
-```json
-{
-  "recipients": [
-    { "address": "bchtest:qr...", "amount": 1.0 },
-    { "address": "bchtest:qs...", "amount": 0.5 }
-  ]
-}
-```
-
-**Response**
-```json
-{
-  "success": true,
-  "merkleRoot": "hex32",
-  "totalRecipients": 2,
-  "leaves": [...]
-}
-```
-
-## Get Funding Info
+## Funding
 
 ```http
 GET /api/airdrops/:id/funding-info
+POST /api/airdrops/:id/confirm-funding
 ```
 
-Returns the unsigned `wcTransaction` to fund the campaign contract. KYC campaigns must generate their merkle tree first.
+Use these routes to build and confirm campaign funding.
 
-## Confirm Funding
+## Claim
 
 ```http
-POST /api/airdrops/:id/confirm-funding
-
-{ "txHash": "hex64" }
+POST /api/airdrops/:id/claim
+POST /api/airdrops/:id/confirm-claim
 ```
 
-Verifies the contract output on-chain and transitions the campaign to `ACTIVE`.
+Claim transactions are claim-authority co-signed by the backend flow before the wallet signs and broadcasts them.
 
 ## Get Merkle Proof
 
@@ -130,43 +78,26 @@ Verifies the contract output on-chain and transitions the campaign to `ACTIVE`.
 GET /api/airdrops/:id/proof/:address
 ```
 
-Returns the merkle proof for an address. Public campaigns return `"publicCampaign": true` with an empty proof array.
+Returns the Merkle proof for a restricted campaign recipient.
 
-## Claim
-
-```http
-POST /api/airdrops/:id/claim
-
-{ "claimerAddress": "bchtest:q..." }
-```
-
-Builds the claim `wcTransaction`. For KYC campaigns, verifies the claimer is in the merkle tree. Enforces `maxClaimsPerAddress`.
-The backend also applies the claim-authority co-signature before returning the transaction to the claimer wallet.
-
-## Confirm Claim
-
-```http
-POST /api/airdrops/:id/confirm-claim
-
-{
-  "claimerAddress": "bchtest:q...",
-  "claimedAmount": 0.5,
-  "txHash": "hex64"
-}
-```
-
-Records the claim and increments `claimed_count`.
-
-## Pause / Cancel
+## Campaign Controls
 
 ```http
 POST /api/airdrops/:id/pause
+POST /api/airdrops/:id/confirm-pause
 POST /api/airdrops/:id/cancel
-x-user-address: bchtest:q...
+POST /api/airdrops/:id/confirm-cancel
 ```
 
-Creator-only. Each returns an unsigned `wcTransaction`. Follow with `confirm-pause` or `confirm-cancel`.
+These routes are creator-only and require `x-user-address`.
 
-<Note>
-`resume` is available in the covenant but not exposed as a public HTTP route in the current backend release.
-</Note>
+## Public Control Surface
+
+The public control routes currently exposed by the backend are:
+
+- `pause`
+- `confirm-pause`
+- `cancel`
+- `confirm-cancel`
+
+Read operational docs from the mounted backend routes rather than from covenant capability alone.

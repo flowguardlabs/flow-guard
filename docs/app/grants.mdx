@@ -1,31 +1,33 @@
 ---
-title: "Grants"
-description: "Milestone-based budget disbursement for funded projects and contractors."
-icon: "chart-line"
+title: 'Grants'
+description: 'Milestone-based budget disbursement for funded projects and contractors.'
+icon: 'chart-line'
 ---
 
-Grants (budget plans) release funds to a recipient in structured milestones. Each milestone unlocks after a set duration from the previous release, enforced by the on-chain covenant — no trust required.
+FlowGuard grants are milestone-based budget plans. They lock funding up front, then release it in scheduled stages to a recipient as each milestone window becomes claimable on-chain.
+
+In the current product, grants share the budget-plan engine. That means the app presents them as treasury budget releases with milestone timing, release history, and recipient-side release actions.
 
 ## Creating a Grant
 
 Navigate to **Grants → New Grant** and specify:
 
-| Field | Description |
-|-------|-------------|
-| Recipient | BCH P2PKH address |
-| Vault | The vault funding this grant |
-| Token | BCH or CashToken |
+| Field      | Description                                         |
+| ---------- | --------------------------------------------------- |
+| Recipient  | BCH P2PKH address                                   |
+| Vault      | Treasury vault associated with the grant            |
+| Token      | BCH or CashToken                                    |
 | Milestones | Array of `{ amount, durationSeconds, description }` |
-| Cancelable | Whether unvested funds can be reclaimed |
+| Cancelable | Whether unvested funds can be reclaimed             |
 
-The entire grant amount is locked upfront in the budget covenant. Milestones unlock sequentially — the recipient cannot claim milestone 2 until milestone 1 has been released and its time period has elapsed.
+The entire grant amount is locked upfront in the budget covenant. Milestones unlock sequentially, so a later stage cannot be released before the earlier stage has already cleared.
 
 ## Releasing a Milestone
 
-When a milestone period elapses, the recipient navigates to the grant and clicks **Release**. The app builds a release transaction and the wallet signs it. Multiple elapsed milestones can be claimed in a single transaction.
+When a milestone period elapses, the recipient navigates to the grant and clicks **Release**. The app builds a release transaction and the wallet signs it. If more than one milestone is already due, the releasable amount can be bundled into one transaction.
 
 ## Cancelling a Grant
 
-The grant controller (vault creator) can cancel at any time. Released milestones are already in the recipient's wallet. Unreleased milestone funds return to the controller address.
+The grant controller can cancel according to the plan settings. Released milestones stay with the recipient. Unreleased milestone funds return through the contract recovery path to the configured controller side of the grant.
 
 See [Create a Grant](/guides/grants/create) for the complete guide.

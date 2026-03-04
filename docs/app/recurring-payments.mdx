@@ -1,47 +1,81 @@
 ---
-title: "Recurring Payments"
-description: "How to set up and manage recurring payment contracts in the FlowGuard app."
-icon: "repeat"
+title: 'Recurring Payments'
+description: 'How FlowGuard handles fixed-cadence payouts, including refillable recurring runway.'
+icon: 'repeat'
 ---
 
-Recurring payments automate fixed-amount payroll, subscriptions, or retainer agreements on BCH. Funds are locked in a covenant and released each interval — no custodian required.
+Recurring payments are the fixed-cadence branch of the shared stream product. They are enforced by `RecurringPaymentCovenant` and appear in the same create, detail, activity, and batch workflows used for other stream families.
 
-## Creating a Payment
+## What Recurring Payments Support
 
-Navigate to **Payments → New Payment** and fill in:
+| Capability            | Current behavior                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| Fixed cadence payouts | Weekly, monthly, quarterly, or custom cadence where the interval divides the full schedule evenly |
+| BCH and CashTokens    | Both are supported                                                                                |
+| Refillable runway     | Supported for recurring streams configured as `refillable`                                        |
+| Pause / Resume        | Supported when the stream is cancelable                                                           |
+| Cancel                | Supported when the stream is cancelable                                                           |
+| Recipient transfer    | Not supported for recurring streams                                                               |
 
-| Field | Description |
-|-------|-------------|
-| Recipient | BCH P2PKH address |
-| Amount per period | BCH or token amount per interval |
-| Interval | Daily, Weekly, Biweekly, Monthly, or Yearly |
-| Start date | Unix timestamp when first payment becomes claimable |
-| End date | Optional cutoff date |
-| Cancelable | Whether the sender can reclaim remaining funds |
-| Pausable | Whether the sender can pause disbursements |
+## Two Recurring Modes
 
-The contract is funded with **12 periods upfront**. If the sender wants to extend, they can top up the contract directly.
+### Fixed recurring schedule
 
-## Claiming a Payment
+The sender defines:
 
-Recipients can claim all overdue intervals in a single transaction. The contract verifies `current_time >= next_payment_time` and releases the correct number of intervals.
+- total amount
+- schedule duration
+- interval cadence
+
+The contract derives a fixed amount per interval and releases the overdue intervals when the recipient claims.
+
+### Refillable recurring runway
+
+The sender creates an open-ended recurring stream with refill enabled. In this mode:
+
+- the cadence is fixed
+- the sender can add more runway later with a contract-aware refill action
+- the stream detail page shows the current funded runway and refill controls
+
+<Note>
+  Refillable recurring streams must be topped up with the dedicated refill flow. Sending BCH
+  directly to the contract address is not the supported mechanism.
+</Note>
+
+## Claiming a Recurring Payment
 
 <Steps>
-  <Step title="Open the payment">
-    Click on the payment in your **Receiving** tab.
+  <Step title="Open the stream">
+    Navigate to the recurring stream from the personal stream list or the treasury stream workspace.
+  </Step>
+  <Step title="Review due cadence">
+    The detail page shows the amount per interval, the cadence, the next payment checkpoint, and
+    whether the stream is refillable.
   </Step>
   <Step title="Claim">
-    Click **Claim**. The app calculates how many intervals are due and builds a single claim transaction.
+    Click **Claim**. The backend builds a recurring payment claim transaction and the wallet signs
+    it.
   </Step>
   <Step title="Confirm">
-    Sign in your wallet. The `confirm-claim` call updates `total_paid` and schedules the next payment date.
+    After broadcast, FlowGuard confirms the claim and updates the recurring state and activity feed.
   </Step>
 </Steps>
 
-## Pausing and Resuming
+## Refill Flow
 
-The sender can pause a payment (e.g. during a contract dispute). While paused, no new intervals become claimable. Resuming resets `next_payment_date` to `now + interval`.
+If the stream is refillable and you are the sender:
 
-## Cancelling
+1. Open the recurring stream detail page
+2. Enter the refill amount
+3. Sign the refill transaction
+4. Confirm the refill broadcast
 
-Cancel returns all unfunded period balances to the sender's address. Already-due periods at the time of cancellation are still claimable by the recipient.
+The stream remains the same on-chain stream. The refill extends runway by increasing the funded amount tracked for that recurring covenant.
+
+## Where to Use It
+
+- Payroll
+- Contributor stipends
+- Retainers
+- Treasury operating budgets
+- Subscription-style BCH or CashToken payouts

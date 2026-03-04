@@ -1,10 +1,10 @@
 ---
-title: "Spending Proposals"
-description: "Create, approve, and execute vault spending proposals using M-of-N signer coordination."
-icon: "file-lines"
+title: 'Spending Proposals'
+description: 'Create, approve, and execute vault spending proposals using M-of-N signer coordination.'
+icon: 'file-lines'
 ---
 
-A spending proposal routes a payout through an approval and execution flow. In the current backend, proposal lifecycle is split into:
+A spending proposal routes a payout through an approval and execution flow. The product currently splits that lifecycle into:
 
 - Off-chain metadata + signer tracking in SQLite
 - On-chain proposal covenant deployment and execution
@@ -27,18 +27,17 @@ flowchart LR
 
 <Steps>
   <Step title="Navigate to Proposals">
-    Go to **Vault → Proposals → Create Proposal**, or navigate to your vault and click **New Proposal**.
+    Go to **Vault → Proposals → Create Proposal**, or navigate to your vault and click **New
+    Proposal**.
   </Step>
   <Step title="Define payout details">
-    - **Recipient**: BCH P2PKH address that will receive funds
-    - **Payout Amount**: BCH amount to transfer
-    - **Reason**: short payout rationale stored with the proposal record
+    - **Recipient**: BCH P2PKH address that will receive funds - **Payout Amount**: BCH amount to
+    transfer - **Reason**: short payout rationale stored with the proposal record
   </Step>
   <Step title="Submit">
-    This creates the proposal record (`POST /api/vaults/:vaultId/proposals`).
-    Then fund the on-chain proposal covenant using:
-    `POST /api/:id/create-onchain` and
-    `POST /api/:id/confirm-create`.
+    This creates the proposal record with `POST /api/vaults/:vaultId/proposals`. Then fund the
+    on-chain proposal covenant with: `POST /api/proposals/:id/create-onchain` and `POST
+    /api/proposals/:id/confirm-create`.
   </Step>
 </Steps>
 
@@ -46,8 +45,8 @@ flowchart LR
 
 Each signer clicks **Approve** in the proposal UI.
 
-- Build approval tx: `POST /api/:id/approve-onchain`
-- Confirm approval: `POST /api/:id/confirm-approval`
+- Build approval tx: `POST /api/proposals/:id/approve-onchain`
+- Confirm approval: `POST /api/proposals/:id/confirm-approval`
 
 Once approvals reach the required threshold, status transitions to `approved`.
 
@@ -55,24 +54,23 @@ Once approvals reach the required threshold, status transitions to `approved`.
 
 Execution uses a 2-signer session:
 
-- Start session: `POST /api/:id/execute`
-- Submit first/second signed tx: `POST /api/:id/execute-signature`
+- Start session: `POST /api/proposals/:id/execute`
+- Submit first/second signed tx: `POST /api/proposals/:id/execute-signature`
 
 When enough signatures are collected, backend broadcasts the final transaction and marks proposal executed.
 
 ## Current API Scope
 
-Proposal covenant functions like `cancel()` and `expire()` exist at contract level, but the current public HTTP API focuses on create/approve/execute flow.
-
+Proposal covenant functions such as `cancel()` and `expire()` exist at contract level, but the public HTTP workflow currently focuses on create, approve, and execute.
 
 ## API
 
 ```bash
 POST /api/vaults/:vaultId/proposals
-POST /api/:id/create-onchain
-POST /api/:id/confirm-create
-POST /api/:id/approve-onchain
-POST /api/:id/confirm-approval
-POST /api/:id/execute
-POST /api/:id/execute-signature
+POST /api/proposals/:id/create-onchain
+POST /api/proposals/:id/confirm-create
+POST /api/proposals/:id/approve-onchain
+POST /api/proposals/:id/confirm-approval
+POST /api/proposals/:id/execute
+POST /api/proposals/:id/execute-signature
 ```

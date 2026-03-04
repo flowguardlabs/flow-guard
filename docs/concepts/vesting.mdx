@@ -1,70 +1,76 @@
 ---
-title: "Vesting"
-description: "Linear and step-based token vesting with cliff, pause/resume, and transferable recipient support."
-icon: "lock"
+title: 'Vesting and Stream Schedules'
+description: 'The schedule families behind FlowGuard streams, how they differ, and which covenant family enforces each one.'
+icon: 'lock'
 ---
 
-`VestingCovenant` enforces token or BCH vesting schedules on-chain. Two schedule types are supported: linear (continuous pro-rata release) and step (discrete periodic unlocks).
+FlowGuard's stream product supports multiple schedule families. Some are continuous, some are fixed-cadence milestones, and some are custom checkpoint plans. The frontend shape gallery maps directly to these covenant-backed families rather than simulating unlock curves off-chain.
 
-## Schedule Types
+## Covenant Families
+
+| Schedule family | Contract                   | Core behavior                                                           |
+| --------------- | -------------------------- | ----------------------------------------------------------------------- |
+| **LINEAR**      | `VestingCovenant`          | Continuous pro-rata vesting between `startTime` and `endTime`           |
+| **STEP**        | `VestingCovenant`          | Equal milestone unlocks every `stepInterval` seconds                    |
+| **HYBRID**      | `HybridVestingCovenant`    | One fixed upfront unlock, then linear vesting for the remaining balance |
+| **TRANCHE**     | `TrancheVestingCovenant`   | Bounded custom unlock checkpoints with explicit cumulative amounts      |
+| **RECURRING**   | `RecurringPaymentCovenant` | Fixed cadence payouts with optional refillable runway                   |
+
+## Schedule Families
 
 <CardGroup cols={2}>
-  <Card title="Linear Vesting" icon="chart-line">
-    Tokens vest continuously proportional to elapsed time. At any moment, the claimable amount is `totalAmount × elapsed / duration − alreadyReleased`.
+  <Card title="Linear" icon="chart-line">
+    Best for open vesting and simple contributor schedules. Claims scale continuously with elapsed
+    time.
   </Card>
-  <Card title="Step Vesting" icon="stairs">
-    Tokens release in discrete chunks every `stepInterval` seconds. Claimable = `completedSteps × stepAmount − alreadyReleased`.
+  <Card title="Hybrid" icon="wave-square">
+    Best for plans that need a meaningful first unlock before the remaining balance vests over time.
+  </Card>
+  <Card title="Milestone" icon="stairs">
+    Best for equal cadence releases such as monthly or quarterly unlocks.
+  </Card>
+  <Card title="Custom Tranche" icon="layer-group">
+    Best for bounded custom schedules with non-uniform unlock weights and checkpoint timing.
   </Card>
 </CardGroup>
 
-## Cliff
+## Cliffs
 
-When `cliffTimestamp > 0`, no claims are allowed before that time. The cliff is enforced by the contract via `require(tx.locktime >= cliffTimestamp)`. After the cliff passes, all vested-since-start tokens become claimable at once.
+Cliffs are supported where the contract family supports them:
 
-```mermaid
-gantt
-    title Vesting Timeline (Linear with Cliff)
-    dateFormat X
-    axisFormat %s
-
-    section Cliff Period
-    No claims allowed     :0, 30
-
-    section Vesting
-    Tokens vest linearly  :30, 100
-
-    section Post-Vesting
-    Fully vested          :100, 110
-```
+- **LINEAR**: no claims before `cliffTimestamp`; once the cliff passes, all value vested since `startTime` becomes claimable.
+- **STEP**: milestone releases begin only after the cliff has passed.
+- **HYBRID**: the upfront unlock checkpoint is itself the first enforced unlock event.
+- **TRANCHE**: the first tranche unlock effectively acts as the first claimable checkpoint.
 
 ## Pause and Resume
 
-When the sender pauses a vesting stream, `pause_start` is recorded in the NFT commitment. On resume, the `cursor` advances by `(resumeTime - pause_start)`, effectively excluding the paused duration from all future vested-amount calculations.
+FlowGuard records pause state in the NFT commitment rather than in a database-only field.
 
-```
-newCursor = cursor + (tx.locktime - pause_start)
-vestedAmount = totalAmount × (tx.locktime - newCursor) / duration
-```
+- **Vesting-based schedules** advance their effective cursor when resumed, excluding paused time from future vesting calculations.
+- **Recurring schedules** pause the cadence clock and resume from the updated next payment window.
 
-## Cancel
+## Transferability
 
-Cancellation splits the remaining pool at the moment of cancellation:
-- **Vested (unclaimed)** → recipient
-- **Unvested** → sender
+Recipient transfer is available for transferable non-recurring vesting streams:
 
-The split is calculated using the same formula as `claim()` at the cancellation timestamp.
+- supported: `LINEAR`, `STEP`, `HYBRID`, `TRANCHE`
+- not supported: `RECURRING`
 
-## Transfer
+The contract updates the recipient hash in the mutable NFT state after a valid transfer transaction.
 
-If `FLAG_TRANSFERABLE` (`0x02`) is set, the current recipient can reassign the stream to a new `bytes20` recipient hash. The current recipient must sign. The NFT commitment `recipient_hash` field is updated in place.
+## Refillable Runway
 
-## NFT State (40 bytes)
+Refill is a recurring-only concept in the supported product surface today. A refillable recurring stream keeps the contract alive while the sender adds more runway using an explicit contract-aware refill transaction. A direct BCH send to the contract address is not the supported refill path.
 
-```
-[0]:    status
-[1]:    flags
-[2-9]:  total_released (uint64)
-[10-14]: cursor (5 bytes, unix timestamp)
-[15-19]: pause_start (5 bytes, 0 if not paused)
-[20-39]: recipient_hash (bytes20)
-```
+## State Model
+
+All stream families share the same broad lifecycle:
+
+- `PENDING` after deployment, before contract funding is confirmed
+- `ACTIVE` while claims or payments can continue
+- `PAUSED` when sender controls have temporarily frozen progression
+- `CANCELLED` when the stream is terminated early
+- `COMPLETED` when the final state is settled on-chain
+
+Use [Stream Lifecycle](/concepts/stream-lifecycle) for the shared status and flags model, and [Streams API](/api/streams) for the current create, control, and activity routes.

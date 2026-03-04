@@ -1,57 +1,50 @@
 ---
-title: "Create a Recurring Payment"
-description: "Deploy a fixed-interval recurring payment for payroll, subscriptions, or DAO contributor payments."
-icon: "arrows-rotate"
+title: 'Create a Recurring Payment'
+description: 'Create a fixed-cadence payment or refillable recurring runway in FlowGuard.'
+icon: 'arrows-rotate'
 ---
 
-<Steps>
-  <Step title="Navigate to Payments">
-    Go to **Payments → Create Payment** in the dashboard.
-  </Step>
-  <Step title="Set recipient and amount">
-    Enter the recipient BCH address and the amount per interval in BCH or a token.
+FlowGuard supports recurring payouts in two product surfaces:
 
-    <Warning>
-    The `recipientHash` is compiled into the contract bytecode at deployment. It cannot be changed later. There is no `transfer()` function on recurring payments.
-    </Warning>
+- the dedicated **Payments** workflow
+- the shared **Streams** workflow using recurring templates
+
+Use the dedicated payment flow when you want a straightforward fixed-cadence payout. Use the shared stream builder when you want recurring schedules to live alongside other treasury stream families and batch payroll tools.
+
+## In the App
+
+<Steps>
+  <Step title="Open the recurring payment flow">
+    Go to **Payments -> Create Payment** for the dedicated payment workflow, or use a recurring template inside **Streams -> Create Stream** if you want the shared stream builder.
   </Step>
-  <Step title="Configure the schedule">
-    | Setting | Examples |
-    |-|-|
-    | Interval | `604800` = weekly, `2592000` = monthly |
-    | Start Timestamp | When the first payment can be collected |
-    | End Timestamp | Hard stop date. `0` = no expiry. |
-    | Total Pool | Max total payout. `0` = unlimited until cancelled. |
+  <Step title="Set the recipient and cadence">
+    Choose the recipient, asset, amount per interval, and cadence.
   </Step>
-  <Step title="Set flags">
-    - **Cancelable**: allows sender to cancel and recover remaining pool
-    - **Asset**: BCH or CashToken
+  <Step title="Choose the recurring mode">
+    Pick either:
+
+    - a fixed recurring schedule with a bounded duration
+    - a refillable recurring runway if you want an open-ended treasury payroll lane
+
   </Step>
-  <Step title="Fund and deploy">
-    The vault funds the initial pool. Sign the deployment transaction. The payment appears in the dashboard and is immediately eligible for the executor to call `pay()` after `startTimestamp`.
+  <Step title="Review the schedule preview">
+    The app shows the cadence and payout structure before creation.
+  </Step>
+  <Step title="Create and fund">
+    Create the recurring payment or recurring stream, then sign the funding transaction from the wallet.
   </Step>
 </Steps>
 
-## Execution Model
+## What to Decide Up Front
 
-Once deployed, the `pay()` function is permissionless. The FlowGuard executor service calls it automatically each interval. You can also call it manually from the payment detail page.
+| Decision            | Why it matters                                                      |
+| ------------------- | ------------------------------------------------------------------- |
+| Recipient           | recurring contracts do not support recipient transfer later         |
+| Cadence             | the contract enforces the interval you choose                       |
+| Fixed vs refillable | refillable recurring streams can be extended without redeploying    |
+| BCH vs CashTokens   | affects funding and display, but the recurring model stays the same |
 
-## API
+## Best Fit
 
-```bash
-POST /api/payments/create
-Content-Type: application/json
-
-{
-  "vaultId": "hex_32_bytes",
-  "senderAddress": "bchtest:q...",
-  "recipientAddress": "bchtest:q...",
-  "amountPerInterval": 500000,
-  "intervalSeconds": 604800,
-  "totalAmount": 26000000,
-  "startTimestamp": 1700000000,
-  "endTimestamp": 0,
-  "cancelable": true,
-  "usesTokens": false
-}
-```
+- **Dedicated payment flow**: subscriptions, simple payroll, retainers
+- **Recurring stream in the shared stream builder**: treasury payroll lanes, batch payroll, organization-linked recurring schedules

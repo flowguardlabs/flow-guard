@@ -1,71 +1,66 @@
 ---
-title: "Stream Lifecycle"
-description: "The shared status and flags model used by every FlowGuard covenant."
-icon: "arrows-rotate"
+title: 'Stream Lifecycle'
+description: 'The shared status and flags model used across FlowGuard stream and payout covenants.'
+icon: 'arrows-rotate'
 ---
 
-Every FlowGuard covenant — vesting, recurring payment, airdrop, grant, bounty, reward — follows the same status lifecycle and flags bitmap. This consistency means the same indexer, explorer, and frontend can handle all products uniformly.
+FlowGuard stream and payout contracts share a common lifecycle and flags model. This consistency lets the indexer, explorer, API, and frontend handle multiple covenant families with one state model.
 
 ## Status Transitions
 
 ```mermaid
 stateDiagram-v2
-    [*] --> ACTIVE : deploy()
+    [*] --> ACTIVE : fund and activate
     ACTIVE --> PAUSED : pause()
     PAUSED --> ACTIVE : resume()
     ACTIVE --> CANCELLED : cancel()
     PAUSED --> CANCELLED : cancel()
-    ACTIVE --> COMPLETED : all funds distributed
+    ACTIVE --> COMPLETED : all value distributed
     COMPLETED --> [*]
     CANCELLED --> [*]
 ```
 
 ## Status Values
 
-| Status | Byte | Description |
-|-|-|-|
-| `ACTIVE` | `0x00` | Normal operating state. All function paths available. |
-| `PAUSED` | `0x01` | Frozen by authority. Claims and payments blocked. |
-| `CANCELLED` | `0x02` | Terminated early. Remaining funds returned to sender/authority. |
-| `COMPLETED` | `0x03` | All obligations fulfilled. UTXO consumed, no NFT output produced. |
+| Status      | Byte   | Meaning                                                                              |
+| ----------- | ------ | ------------------------------------------------------------------------------------ |
+| `ACTIVE`    | `0x00` | Normal operating state. Claims and supported controls are available.                 |
+| `PAUSED`    | `0x01` | Progression is frozen by sender authority.                                           |
+| `CANCELLED` | `0x02` | The stream ended early and remaining value was returned according to contract rules. |
+| `COMPLETED` | `0x03` | The covenant finished and no replacement state UTXO was produced.                    |
 
 ## Flags Bitmap
 
-The `flags` byte at position `[1]` of every NFT commitment is a bitfield:
+The `flags` byte at position `[1]` of the mutable NFT commitment is a bitfield:
 
-| Bit | Hex | Name | Effect |
-|-|-|-|-|
-| 0 | `0x01` | `FLAG_CANCELABLE` | Sender/authority may call `cancel()` |
-| 1 | `0x02` | `FLAG_TRANSFERABLE` | Recipient may call `transfer()` to reassign |
-| 2 | `0x04` | `FLAG_USES_TOKENS` | Covenant holds CashToken FTs, not BCH |
+| Bit | Hex    | Name                | Effect                                                  |
+| --- | ------ | ------------------- | ------------------------------------------------------- |
+| 0   | `0x01` | `FLAG_CANCELABLE`   | Sender controls may cancel the stream                   |
+| 1   | `0x02` | `FLAG_TRANSFERABLE` | Recipient may transfer future rights to a new recipient |
+| 2   | `0x04` | `FLAG_USES_TOKENS`  | The covenant escrows CashTokens instead of BCH          |
 
 ### Examples
 
 ```
-0x05 = 0b00000101 = FLAG_CANCELABLE + FLAG_USES_TOKENS
-       Cancelable CashToken stream
-
-0x07 = 0b00000111 = FLAG_CANCELABLE + FLAG_TRANSFERABLE + FLAG_USES_TOKENS
-       Cancelable, transferable CashToken vesting stream
-
-0x00 = Non-cancelable BCH payment (irrevocable)
+0x05 = cancelable CashToken stream
+0x07 = cancelable, transferable CashToken vesting stream
+0x00 = non-cancelable BCH stream
 ```
 
-## Terminal State Behavior
+## Pause and Resume Behavior
 
-When a covenant reaches `COMPLETED` or `CANCELLED`:
+- **Vesting-based schedules** exclude paused time from future vesting math by advancing the effective cursor on resume.
+- **Recurring schedules** keep their cadence state in the recurring commitment and resume from the updated recurring window.
 
-- The input NFT UTXO is **consumed** by the spending transaction
-- **No replacement NFT output** is created — the covenant ends
-- The indexer marks the record as terminated
-- The explorer shows final state with the completion transaction hash
+## Terminal States
+
+When a contract reaches `COMPLETED` or `CANCELLED`:
+
+- the existing covenant UTXO is consumed
+- no replacement mutable NFT state output is created
+- indexers and explorers treat the stream as terminal
 
 <Info>
-Terminal state transactions do not include a covenant UTXO output. This is how both the indexer and the explorer detect that a covenant has ended.
+  Terminal status is detected from the transaction structure as well as from the persisted record.
+  The covenant ends when the state UTXO is consumed without a replacement state output.
 </Info>
-
-## Pause and Resume
-
-Pausing does not discard accumulated state. For vesting covenants, pausing records `pause_start` and resuming advances the `cursor` by the elapsed pause duration — so paused time is excluded from the vesting calculation.
-
-For recurring payments, resuming resets `next_payment_timestamp` to `now + intervalSeconds`, so no backdated intervals are paid for the pause period.

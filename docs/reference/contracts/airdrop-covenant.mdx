@@ -4,7 +4,7 @@ description: "Full parameter, function, and state reference for the AirdropCoven
 icon: "parachute-box"
 ---
 
-`AirdropCovenant` enforces fixed-size BCH/FT claims with dual-signature claiming (claimer + claim-authority) and authority-only administration.
+`AirdropCovenant` enforces fixed-size BCH/FT claims with permissionless claim submission plus claim-authority co-signing, and authority-only administration.
 
 **Contract path:** `contracts/core/distribution/AirdropCovenant.cash`
 **CashScript version:** `^0.13.0`
@@ -45,13 +45,11 @@ All entrypoints spend the covenant UTXO at `tx.inputs[0]`.
 
 ## Functions
 
-### `claim(sig claimerSig, pubkey claimerPubkey, bytes20 claimerHash, sig claimAuthSig, pubkey claimAuthPubkey)`
+### `claim(bytes20 claimerHash, sig claimAuthSig, pubkey claimAuthPubkey)`
 
-Claim requires both claimant signature and claim-authority co-signature.
+Claim submission is permissionless. The claimer does not sign; backend claim-authority co-signs after eligibility checks.
 
 **Validation**
-- `hash160(claimerPubkey) == claimerHash`
-- `checkSig(claimerSig, claimerPubkey)`
 - `hash160(claimAuthPubkey) == claimAuthorityHash`
 - `checkSig(claimAuthSig, claimAuthPubkey)`
 - Current status is `ACTIVE`

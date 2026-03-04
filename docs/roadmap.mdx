@@ -1,78 +1,74 @@
 ---
-title: "Roadmap"
-description: "The strategic and technical path for FlowGuard to become the standard trust minimized treasury automation layer on Bitcoin Cash."
-icon: "map"
+title: 'Roadmap'
+description: 'The product and protocol milestones that move FlowGuard from a BCH treasury tool into a full operating layer for on-chain finance.'
+icon: 'map'
 ---
 
-The FlowGuard roadmap merges protocol upgrades with firm go to market strategies. The goal is to enforce policy onchain while building the dashboards, roles, and analytics that organizations need to operate at scale.
+FlowGuard already ships real BCH-native treasury, stream, distribution, and governance flows. The roadmap below focuses on deepening those products, closing current operating gaps, and making the system easier for organizations to run at scale.
 
-## Phase 1 Revenue Wedge: Proposal Modules and Audit Tooling
+## Near-Term Priorities
 
-Focus: Clear pain points, defensible value, execution trace.
+### Treasury operations
 
-### Proposal Modules
-* Enforce proposal schemas natively.
-* Templates for grants, budgets, and contract upgrades.
-* Milestone gating and strict payout automation.
-* Stop vague proposals by making governance repeatable.
+- complete treasury policy enforcement across vault, proposal, and stream workflows
+- strengthen treasury activity review, exports, and operational reporting
+- improve organization workspace handoff into shared create and execution flows
 
-### Audit Tooling
-* Track proposal intent directly to onchain execution trace.
-* Verify contract upgrade risks including bytecode and admin changes.
-* Continuous monitoring for suspicious transfers and new privileged roles.
-* Audit readiness exports for compliance.
+### Streams and payroll
 
-### Technical Upgrades
-* **Executor Incentive Layer**: Carve execution fees from recurring payments to incentivize permissionless execution.
-* **Deployment Registry Anchor**: Merkle anchored onchain registry UTXO to store a hash of the canonical deployment list.
-* **MerkleTreeService**: Allowlist based airdrops where only whitelisted addresses can claim via Merkle proofs.
+- expand stream history, batch history, and audit views
+- improve recurring payroll controls and treasury-linked operating views
+- document and expose the full supported stream family set clearly across product and docs
 
-## Phase 2 Stickiness: Permissioned Roles and Alerts
+### Governance operations
 
-Focus: Operational control and workflow enforcement.
+- improve proposal templates for treasury payouts, grants, and budget motions
+- connect proposal review to downstream treasury execution and audit traces
+- strengthen role-aware governance workflows in the organization workspace
 
-### Permissioned Roles
-* Policy based access control for governance and treasury ops.
-* Assign roles (Treasury operations, Risk officer) tied to onchain identity or Treasury NFTs.
-* Complete audit trail for permission changes and emergency break glass flows.
+## Protocol Expansion
 
-### Advanced Treasury UX
-* **Single Transaction Deposits**: Lock assets, route payments, and retain liquid balances in one step.
-* **Multi Recipient Vesting**: Create multiple vesting covenants from a single vault spend.
+### Additional schedule families
 
-### Technical Upgrades
-* **Batch Operations**: Contracts and frontend flow to deploy multiple covenant UTXOs in one transaction.
-* **Large Allowlists**: Pending Loops CHIP activation to support large arrays.
+- broader contract-backed schedule families beyond the current linear, hybrid, recurring, milestone, and bounded tranche set
+- richer treasury-controlled stream operations where they improve the BCH covenant model without hiding state transitions
 
-## Phase 3 Scale: Analytics, Benchmarking, and API
+### Distribution and treasury scale
 
-Focus: Decision metrics, risk analysis, and developer tooling.
+- larger and more operationally friendly distribution sets
+- better batch execution paths across treasury-linked covenant families
+- stronger multi-asset treasury handling for BCH and CashTokens
 
-### High Value Analytics
-* Voter concentration and capture risk metrics.
-* Delegate performance tracking and proposal ROI.
-* Treasury risk analytics covering stablecoin exposure and volatility.
-* Operational KPIs including time to execution and dispute rates.
+### Contract verification and tooling
 
-### Infrastructure and Automation
-* **Developer SDK**: Installable package with contract factory, reusable covenant templates, and example integrations.
-* **GraphQL API Layer**: Eliminate over fetching and co locate data requirements.
-* **Railway Multi Service**: Split API, indexer, and executor into independently scaling services.
+- continue expanding current artifact-based contract verification
+- add more scripted live-smoke coverage for networked test environments
+- improve developer-facing tooling around deployment, auditability, and integration
 
-### Technical Upgrades
-* **Arbitrary Signers**: Pending Loops CHIP to support dynamic M of N configurations.
-* **Governance Tally Contract**: Accumulate and finalize vote UTXOs into a canonical tally.
+## Product Infrastructure
 
-## Phase 4 Premium Expansion: Privacy and Selective Disclosure
+### API and indexing
 
-Focus: Protecting contributors without losing accountability.
+- stronger server-side filtering and pagination across high-volume treasury and stream feeds
+- better organization-scoped history surfaces and exportable audit views
+- more stable developer-facing interfaces for integrations and internal tooling
 
-### Privacy Layers
-* **Selective Disclosure Proofs**: Prove payments are within budget without revealing full payroll details.
-* **Private Deployments**: Opt in disclosure for auditors and signers.
-* **Future Expansions**: Private voting to reduce bribery, and private treasury movements.
+### Operator tooling
 
-### Ecosystem Integrations
-* **Stablecoin Vaults**: Native support for stable CashTokens with UI level accounting.
-* **USD Denominated Streams**: Oracle priced payments recalculated dynamically at execution time.
-* **AI Agent Economy**: API hooks for automated disbursement approvals and proposal execution.
+- richer alerts for treasury movements, stream changes, and proposal state transitions
+- cleaner operator dashboards for roles, activity, and execution readiness
+- more complete operational views for batch history and stream lifecycle monitoring
+
+## Longer-Term Research
+
+These items remain research-heavy and should only move forward when the BCH covenant model and product need are both clear:
+
+- privacy-preserving treasury and payroll disclosures
+- oracle-aware accounting or denomination layers where they materially improve treasury operations
+- more advanced custom schedule modeling beyond the current bounded-tranche approach
+
+<Note>
+  The roadmap is intentionally written from what FlowGuard already ships today. Planned work should
+  extend the current BCH-native model, not replace it with a product story the contracts do not
+  support.
+</Note>

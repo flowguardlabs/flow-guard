@@ -1,47 +1,62 @@
 ---
-title: "Deployment Addresses"
-description: "Canonical contract addresses for all FlowGuard covenants on mainnet and chipnet."
-icon: "location-dot"
+title: 'Deployment Addresses'
+description: 'How to verify FlowGuard deployment addresses and use the deployment registry.'
+icon: 'location-dot'
 ---
 
 <Warning>
-Addresses are deterministic from the contract bytecode and deployment parameters. Always verify the address you are interacting with against the expected bytecode hash for the parameters you configured.
+  Most FlowGuard contract addresses are deployment-specific. Always verify the address you are
+  interacting with against the stored deployment metadata and current artifact check.
 </Warning>
 
 ## How Addresses Are Derived
 
-FlowGuard contracts compile to P2SH32 addresses. Each unique combination of constructor parameters produces a unique address. Two vesting covenants with different `totalAmount` values will have different addresses.
+FlowGuard contracts compile to BCH script addresses. Each unique set of constructor parameters produces a different deployed address. Two vesting contracts with different totals, recipients, or schedule parameters do not share the same address.
 
-The `DeploymentRegistryService` in the backend tracks all addresses deployed through FlowGuard along with the parameters used.
+The backend `DeploymentRegistryService` tracks deployments created through FlowGuard together with:
 
-## Mainnet
+- contract type
+- network
+- deployment metadata
+- constructor parameters
+- artifact match status
+- optional on-chain verification data
 
-| Contract | Version | Address |
-|-|-|-|
-| VaultCovenant | v1.0 | See deployment registry |
-| VestingCovenant | v1.0 | Per-deployment (parameterized) |
-| RecurringPaymentCovenant | v1.0 | Per-deployment (parameterized) |
-| AirdropCovenant | v1.0 | Per-deployment (parameterized) |
-| GrantCovenant | v1.0 | Per-deployment (parameterized) |
-| BountyCovenant | v1.0 | Per-deployment (parameterized) |
-| RewardCovenant | v1.0 | Per-deployment (parameterized) |
-| ProposalCovenant | v1.0 | Per-deployment (parameterized) |
-| VoteLockCovenant | v1.0 | Per-deployment (parameterized) |
+## Use the Registry
 
-<Info>
-Because each covenant is parameterized at deploy time, there is no single canonical address for most contracts. Use `GET /api/deployment/registry` to list tracked deployments.
-</Info>
-
-## Chipnet (Testing)
-
-Chipnet deployments are tracked separately in `flowguard-chipnet.db`. Use the API with `BCH_NETWORK=chipnet` to query chipnet deployments.
-
-## Verify a Contract
-
-To verify that a given BCH address corresponds to a FlowGuard covenant with specific parameters:
-
-```bash
-curl https://api.flowguard.cash/api/deployment/verify/<address>
+```http
+GET /api/deployment/registry
+GET /api/deployment/registry?network=chipnet
+GET /api/deployment/registry?network=mainnet
 ```
 
-The response includes the contract type, version, parameters, and the bytecode hash used to derive the address.
+<Info>
+  Because most covenants are parameterized at deploy time, there is no single canonical address for
+  streams, recurring payments, airdrops, grants, bounties, rewards, proposals, or vote locks. Use
+  the deployment registry to inspect the addresses your deployment actually created.
+</Info>
+
+## Verify One Address
+
+```http
+GET /api/deployment/verify/:address
+```
+
+This route returns:
+
+- current balance
+- UTXO set summary
+- confirmation status
+- network
+- explorer link
+
+## Networks
+
+The registry supports:
+
+- `chipnet`
+- `mainnet`
+- `testnet3`
+- `testnet4`
+
+Use the network query parameter when you need a specific deployment set.

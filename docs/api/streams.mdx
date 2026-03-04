@@ -1,10 +1,38 @@
 ---
-title: "Streams API"
-description: "Endpoints for creating, funding, claiming, and cancelling vesting streams and recurring payments."
-icon: "water"
+title: 'Streams API'
+description: 'Current endpoints for stream templates, stream lifecycle actions, activity, treasury batch runs, and refillable recurring streams.'
+icon: 'water'
 ---
 
-Streams cover both **linear/step vesting** (`streamType: LINEAR | STEP`) and **recurring payments** (`streamType: RECURRING`). All routes live under `/api`.
+The streams API covers the full shared FlowGuard stream product:
+
+- vesting-style schedules
+- hybrid schedules
+- recurring schedules
+- milestone schedules
+- tranche schedules
+- treasury batch creation
+- activity and batch run history
+
+All routes live under `/api`.
+
+## Supported Stream Types
+
+Current `streamType` values:
+
+- `LINEAR`
+- `RECURRING`
+- `STEP`
+- `TRANCHE`
+- `HYBRID`
+
+## Get Stream Templates
+
+```http
+GET /api/streams/templates
+```
+
+Returns the current contract-backed schedule template catalog used by the stream gallery and builder.
 
 ## List Streams
 
@@ -12,88 +40,112 @@ Streams cover both **linear/step vesting** (`streamType: LINEAR | STEP`) and **r
 GET /api/streams?recipient={address}
 GET /api/streams?sender={address}
 GET /api/streams?address={address}
-GET /api/streams?sender={address}&recipient={address}&status=ACTIVE
+GET /api/streams?vaultId={vaultId}&treasury=true
+GET /api/streams?contextSource=dao&treasury=true&page=1&limit=20
 ```
 
-Returns all streams matching the query. `address` matches both sender and recipient roles.
+### Query Parameters
 
-**Response**
-```json
-{
-  "success": true,
-  "streams": [...],
-  "total": 3
-}
+| Param           | Meaning                                             |
+| --------------- | --------------------------------------------------- |
+| `recipient`     | filter by recipient address                         |
+| `sender`        | filter by sender address                            |
+| `address`       | match sender or recipient                           |
+| `status`        | filter by stream status                             |
+| `vaultId`       | filter by linked treasury / vault                   |
+| `contextSource` | filter by saved launch context source such as `dao` |
+| `treasury=true` | only return streams linked to a vault               |
+| `page`          | page number, default `1`                            |
+| `limit`         | page size, default `20`, max `100`                  |
+
+## Stream Activity Feed
+
+```http
+GET /api/streams/activity?address={address}
+GET /api/streams/activity?vaultId={vaultId}&treasury=true
+GET /api/streams/activity?contextSource=dao&eventType=claimed&dateFrom=1761955200&dateTo=1764547200
 ```
 
-## Get Stream
+### Activity Filters
+
+- `address`
+- `vaultId`
+- `contextSource`
+- `treasury=true`
+- `eventType`
+- `dateFrom`
+- `dateTo`
+- `page`
+- `limit`
+
+## Batch Run History
+
+```http
+GET /api/streams/batch-runs
+GET /api/streams/batch-runs/:id
+GET /api/streams/batch-runs/:id/export
+```
+
+Use these routes to inspect treasury batch runs and export batch-level history.
+
+## Get a Stream
 
 ```http
 GET /api/streams/:id
 ```
 
-Returns the stream record plus its full claim history.
+Returns the stream record and its claim history.
 
-```json
-{
-  "success": true,
-  "stream": { ... },
-  "claims": [
-    { "id": "...", "stream_id": "...", "recipient": "...", "amount": 1.5, "claimed_at": 1700000000, "tx_hash": "..." }
-  ]
-}
-```
-
-## Create Stream
+## Create a Stream
 
 ```http
 POST /api/streams/create
-x-user-address: bchtest:qr...
+x-user-address: bchtest:q...
 ```
 
-Deploys the CashScript covenant on-chain and stores `status: PENDING`. Fund the returned contract address to activate.
+### Body
 
-**Body**
 ```json
 {
-  "sender": "bchtest:qr...",
-  "recipient": "bchtest:qs...",
+  "sender": "bchtest:q...",
+  "recipient": "bchtest:q...",
   "tokenType": "BCH",
-  "totalAmount": 10,
-  "streamType": "LINEAR",
-  "startTime": 1700000000,
-  "endTime": 1731536000,
-  "cliffTimestamp": 1706745600,
+  "totalAmount": 12,
+  "streamType": "HYBRID",
+  "startTime": 1761955200,
+  "endTime": 1793491200,
   "cancelable": true,
-  "vaultId": "optional-vault-uuid"
-}
-```
-
-For `RECURRING` streams, `streamType: "RECURRING"` and the interval is derived from `(endTime - startTime)`.
-For `FUNGIBLE_TOKEN` streams, also include `"tokenCategory": "hex32"`.
-
-**Response**
-```json
-{
-  "success": true,
-  "stream": { "id": "...", "status": "PENDING", ... },
-  "deployment": {
-    "contractAddress": "bchtest:p...",
-    "fundingRequired": true,
-    "nftCommitment": "hex..."
+  "description": "Contributor vesting lane",
+  "vaultId": "optional-vault-id",
+  "scheduleTemplate": "hybrid-upfront-linear",
+  "hybridUnlockTimestamp": 1769817600,
+  "hybridUpfrontPercentage": 25,
+  "launchContext": {
+    "source": "dao",
+    "title": "Treasury stream launch",
+    "description": "Approved by treasury operators",
+    "preferredLane": "contributors"
   }
 }
 ```
 
-## Get Funding Info
+### Family-Specific Fields
+
+| Family      | Required or relevant fields                                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------------- |
+| `LINEAR`    | `startTime`, `endTime`, optional `cliffTimestamp`                                                         |
+| `RECURRING` | `intervalSeconds`, optional `refillable`, `endTime` is stored as `null` for open runway recurring streams |
+| `STEP`      | `intervalSeconds`                                                                                         |
+| `HYBRID`    | `hybridUnlockTimestamp`, `hybridUpfrontPercentage`                                                        |
+| `TRANCHE`   | `trancheSchedule`                                                                                         |
+
+## Funding Info
 
 ```http
 GET /api/streams/:id/funding-info
 ```
 
-Returns the unsigned `wcTransaction` the sender must sign to fund the stream contract.
-
-Only works on streams with `status: PENDING`. Includes inputs, outputs, fee and the full `wcTransaction`.
+Returns the wallet transaction the sender signs to fund a pending stream.
 
 ## Confirm Funding
 
@@ -101,63 +153,145 @@ Only works on streams with `status: PENDING`. Includes inputs, outputs, fee and 
 POST /api/streams/:id/confirm-funding
 ```
 
-**Body**
 ```json
-{ "txHash": "hex64" }
+{
+  "txHash": "hex64"
+}
 ```
 
-Verifies the transaction on-chain and transitions the stream to `ACTIVE`.
+Confirms the on-chain funding transaction and activates the stream.
 
-## Get Claim Info
+## Claim Info
 
 ```http
 GET /api/streams/:id/claim-info
 ```
 
-Returns the currently claimable amount and the unsigned `wcTransaction`. Only works on `ACTIVE` streams. Uses on-chain NFT commitment to compute vested amount.
+Returns the current claimable amount and the built wallet transaction.
 
 ## Claim
 
 ```http
 POST /api/streams/:id/claim
-x-user-address: bchtest:q...
-
-{ "recipientAddress": "bchtest:qs..." }
+x-user-address: bchtest:qrecipient...
 ```
 
-Builds and returns the claim `wcTransaction`. Only the stream recipient can call this.
+```json
+{
+  "recipientAddress": "bchtest:qrecipient..."
+}
+```
+
+Builds the claim transaction for the current recipient.
 
 ## Confirm Claim
 
 ```http
 POST /api/streams/:id/confirm-claim
-
-{ "claimedAmount": 1.5, "txHash": "hex64" }
 ```
 
-Updates `withdrawn_amount` and records the claim in `stream_claims`.
+```json
+{
+  "claimedAmount": 1.5,
+  "txHash": "hex64"
+}
+```
 
-## Cancel Stream
+Records the claim and refreshes stream state.
+
+## Pause and Resume
+
+```http
+POST /api/streams/:id/pause
+POST /api/streams/:id/confirm-pause
+POST /api/streams/:id/resume
+POST /api/streams/:id/confirm-resume
+```
+
+These routes are sender-only and require `x-user-address`.
+
+## Refill a Refillable Recurring Stream
+
+```http
+POST /api/streams/:id/refill
+POST /api/streams/:id/confirm-refill
+```
+
+### Refill Body
+
+```json
+{
+  "refillAmount": 2.5
+}
+```
+
+Refill is only available for recurring streams created with `refillable: true`.
+
+## Transfer Recipient Rights
+
+```http
+POST /api/streams/:id/transfer
+POST /api/streams/:id/confirm-transfer
+```
+
+Recurring streams do not support recipient transfer. Vesting-style streams require the current recipient to sign.
+
+## Cancel
 
 ```http
 POST /api/streams/:id/cancel
-x-user-address: bchtest:q...
-
-{ "sender": "bchtest:qr..." }
+POST /api/streams/:id/confirm-cancel
 ```
 
-Only the stream sender can cancel, and only if `cancelable: true` and `status: ACTIVE`. Returns the cancel `wcTransaction` which splits vested and unvested amounts.
+Cancellation is sender-controlled and only available on cancelable streams.
 
-<Warning>
-If the contract's sender hash resolves to a different return address than the signing wallet, the cancel is blocked with a `409` to protect against stranded funds. Pass `"allowUnsafeRecovery": true` to override.
-</Warning>
-
-## Confirm Cancel
+## Treasury Batch Create
 
 ```http
-POST /api/streams/:id/confirm-cancel
-
-{ "txHash": "hex64" }
+POST /api/treasuries/:vaultId/batch-create
+POST /api/treasuries/:vaultId/batch-create/confirm
 ```
 
-Transitions the stream to `CANCELLED`.
+### Batch Create Body
+
+```json
+{
+  "senderAddress": "bchtest:q...",
+  "tokenType": "BCH",
+  "entries": [
+    {
+      "recipient": "bchtest:q...",
+      "totalAmount": 5,
+      "streamType": "RECURRING",
+      "startTime": 1761955200,
+      "endTime": 1777507200,
+      "intervalSeconds": 2592000,
+      "refillable": true,
+      "scheduleTemplate": "recurring-open-monthly"
+    }
+  ],
+  "launchContext": {
+    "source": "dao",
+    "title": "Treasury batch payroll",
+    "preferredLane": "payroll"
+  }
+}
+```
+
+The response includes:
+
+- created pending stream records
+- batch metadata
+- one funding transaction for the full run
+
+### Batch Confirm Body
+
+```json
+{
+  "txHash": "hex64",
+  "batchId": "uuid",
+  "streamIds": ["uuid-1", "uuid-2"]
+}
+```
+
+This verifies that the transaction funded every expected stream output before the batch is activated.

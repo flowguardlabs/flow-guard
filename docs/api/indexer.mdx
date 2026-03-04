@@ -1,10 +1,10 @@
 ---
-title: "Indexer API"
-description: "Current indexer status, operator endpoints, and what is production-ready vs prototype."
-icon: "database"
+title: 'Indexer API'
+description: 'Operator-facing indexer health routes and how they fit into the backend deployment.'
+icon: 'database'
 ---
 
-FlowGuard currently exposes indexer visibility through backend admin routes.
+FlowGuard exposes indexer visibility through backend admin routes. These are operator-facing diagnostics, not end-user product endpoints.
 
 ## Current Production Endpoints
 
@@ -14,22 +14,22 @@ GET /api/admin/indexer/errors
 POST /api/admin/indexer/resync
 ```
 
-These routes provide operator-facing health/sync metadata for the running backend.
+These routes provide health, sync, and resync controls for the running backend instance.
 
-## Current State of the Separate Indexer Service
+## Separate Indexer Service
 
-A separate service scaffold exists in `backend/indexer/`, but it is still an evolving component and should be treated as prototype infrastructure unless you explicitly harden and run it yourself.
+A separate service scaffold exists in `backend/indexer/`. Treat it as self-hosted infrastructure work rather than a required part of the standard FlowGuard app deployment.
 
 What is true today:
 
 - Core app flows (`/api/streams`, `/api/payments`, `/api/airdrops`, etc.) operate from the main backend database.
 - Admin indexer status routes are available from the main backend.
-- The standalone indexer package exists but is not a drop-in production requirement for normal app usage.
+- The standalone indexer package exists, but normal product usage does not depend on it.
 
 ## Recommended Usage
 
 - Use `/api/admin/indexer/status` for operational monitoring.
-- Treat standalone indexer endpoints as custom/self-hosted engineering work until your deployment team validates them.
+- Treat the standalone indexer as deployment-specific engineering work until your team validates it in your own environment.
 
 ## Environment Notes
 

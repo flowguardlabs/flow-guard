@@ -1,72 +1,99 @@
 ---
-title: "Batch Create Streams"
-description: "Deploy multiple vesting or recurring payment streams from a single vault in one operation."
-icon: "layer-group"
+title: 'Batch Create Streams'
+description: "Create and fund multiple streams from one treasury run using FlowGuard's batch builder."
+icon: 'layer-group'
 ---
 
-Batch creation deploys multiple covenant UTXOs in a coordinated sequence from a single vault. This is useful for:
+Batch creation is the treasury-grade version of the shared stream builder. It lets you prepare many stream rows, review per-row schedule charts, and fund the full run with a single BCH transaction.
 
-- Onboarding multiple team members with individual vesting schedules
-- Setting up DAO contributor payments in bulk
-- Distributing a grant to multiple recipients simultaneously
+## What Batch Creation Supports
 
-## How to Batch Create
+- up to 100 rows in one batch run
+- shared lane defaults for a payroll or vesting lane
+- per-row overrides for template, dates, duration, cadence, cliff, and tranche geometry
+- always-visible row schedule charts
+- CSV import and export
+- one funding transaction for the batch run
+
+## Flow in the App
 
 <Steps>
-  <Step title="Navigate to Batch Create">
-    Go to **Vault → Batch Create Streams**, or navigate to **Streams → Batch Create**.
+  <Step title="Open batch create">
+    Launch from **Streams -> Batch Create** or from a treasury / vault stream workspace.
   </Step>
-  <Step title="Build recipient list">
-    Add each row to the recipient table:
-
-    | Field | Description |
-    |-|-|
-    | Recipient Address | BCH P2PKH address |
-    | Amount | Total tokens for this recipient |
-    | Start Date | Vesting or payment start |
-    | End Date | Vesting end (ignored for recurring payments) |
-    | Cliff Date | Optional, vesting only |
-    | Schedule Type | Linear, Step, or Recurring |
+  <Step title="Choose a lane template">
+    Pick the shared schedule family or template for the batch. This becomes the default for rows that inherit the lane.
   </Step>
-  <Step title="Review summary">
-    The batch summary shows total funds required from the vault. Confirm the vault has sufficient balance.
+  <Step title="Build the roster">
+    Add recipients manually or import a CSV. Each row can override the shared lane.
   </Step>
-  <Step title="Deploy">
-    Each recipient's covenant is deployed as a separate on-chain transaction. Transactions are batched and submitted sequentially. The dashboard displays progress as each confirms.
+  <Step title="Review row-level previews">
+    Every row shows a resolved schedule chart. This reflects the actual row after inherited defaults and row overrides are applied.
+  </Step>
+  <Step title="Create the pending batch">
+    The app calls `POST /api/treasuries/:vaultId/batch-create`. FlowGuard creates pending stream records for the full roster and returns one funding transaction.
+  </Step>
+  <Step title="Sign once to fund the run">
+    Sign the returned `wcTransaction`. After the funding transaction confirms, the app calls `POST /api/treasuries/:vaultId/batch-create/confirm`.
   </Step>
 </Steps>
 
-<Warning>
-The vault balance must cover the total of all streams in the batch. Ensure the vault is funded before initiating a batch deployment.
-</Warning>
+## Current On-Chain Behavior
 
-## Current Limitations
+The treasury batch builder prepares multiple pending streams and returns one funding transaction for the run.
 
-Pre-Loops CHIP, each covenant UTXO is a separate transaction. A batch of 10 streams requires 10 transactions. The FlowGuard app sequences these automatically, but confirmation time scales linearly with batch size.
+<Note>
+  Each stream still becomes its own covenant state on-chain. The batch UX is about orchestrating
+  many stream deployments and funding them from one treasury action.
+</Note>
 
-Post-Loops CHIP, a single transaction will be able to deploy multiple covenant UTXOs simultaneously.
+## Example Request
 
-## API
-
-```bash
-POST /api/treasuries/:vaultId/batch-create
-Content-Type: application/json
-
+```json
 {
-  "recipients": [
+  "senderAddress": "bchtest:q...",
+  "tokenType": "BCH",
+  "entries": [
     {
-      "address": "bchtest:q...",
-      "amount": 0.5,
-      "duration": 2592000,
-      "type": "LINEAR",
-      "cancelable": true,
-      "transferable": false
+      "recipient": "bchtest:q...",
+      "totalAmount": 3,
+      "streamType": "RECURRING",
+      "startTime": 1761955200,
+      "endTime": 1777507200,
+      "intervalSeconds": 2592000,
+      "refillable": true,
+      "scheduleTemplate": "recurring-open-monthly"
     },
-    { ... }
+    {
+      "recipient": "bchtest:q...",
+      "totalAmount": 12,
+      "streamType": "TRANCHE",
+      "startTime": 1761955200,
+      "endTime": 1793491200,
+      "scheduleTemplate": "tranche-performance-ladder",
+      "trancheSchedule": [
+        { "unlockTime": 1764547200, "cumulativeAmount": 1 },
+        { "unlockTime": 1769817600, "cumulativeAmount": 3 },
+        { "unlockTime": 1775088000, "cumulativeAmount": 6 },
+        { "unlockTime": 1793491200, "cumulativeAmount": 12 }
+      ]
+    }
   ]
 }
 ```
 
-<Note>
-Current backend implementation creates BCH streams directly in one request. It does not yet deploy each stream covenant in a single on-chain atomic transaction.
-</Note>
+## CSV Notes
+
+The current batch builder supports CSV fields for:
+
+- recipient
+- amount
+- template
+- start date
+- duration
+- cadence
+- cliff
+- tranche offsets
+- tranche weights
+
+Use export from the builder if you want a CSV that can be re-imported without guessing the current field names.

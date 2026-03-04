@@ -4,7 +4,7 @@ description: "Fixed-amount, time-gated, self-service token distribution campaign
 icon: "gift"
 ---
 
-`AirdropCovenant` lets eligible addresses claim a fixed `amountPerClaim` from a funded pool. Claims require two signatures: the claimer and a backend-held claim-authority key. Authority controls campaign-level pause, resume, and cancel.
+`AirdropCovenant` lets eligible addresses claim a fixed `amountPerClaim` from a funded pool. Claim submission is permissionless, while a backend-held claim-authority key co-signs each claim after eligibility checks. Authority controls campaign-level pause, resume, and cancel.
 
 ## Use Cases
 
@@ -17,7 +17,7 @@ icon: "gift"
 ```mermaid
 flowchart LR
     A([Authority deploys\nfunds totalPool]) --> B[ACTIVE\ntotalClaimed = 0]
-    B  -->|claim - claimer + claim-authority| C[Claimer receives\namountPerClaim]
+    B  -->|claim - claim-authority co-signed| C[Claimer receives\namountPerClaim]
     C  -->|totalClaimed < totalPool| B
     C  -->|totalClaimed >= totalPool| D([COMPLETED])
     B  -->|pause| E[PAUSED]

@@ -1,44 +1,33 @@
 ---
 title: "Executor Network"
-description: "The permissionless executor layer that triggers time-dependent covenant functions when intervals elapse."
+description: "The optional operator layer that triggers permissionless covenant actions when the BCH model requires an external transaction builder."
 icon: "robot"
 ---
 
-Several FlowGuard covenants have functions that are **permissionless** — anyone can call them at the right time. The executor network is the infrastructure layer that makes this automatic.
+Some FlowGuard contract paths are permissionless, which means anyone can submit the valid transaction once the timing condition is satisfied. The executor layer is the optional infrastructure that watches for those moments and broadcasts the transaction.
 
-## What the Executor Does
+## Why an Executor Exists
 
-The executor monitors all active covenant UTXOs and submits transactions when:
+Bitcoin Cash uses a UTXO model. Contracts do not wake up on their own. A valid transaction still needs to be constructed and broadcast by some external actor.
 
-- A recurring payment interval has elapsed (`RecurringPaymentCovenant.pay()`)
-- A proposal's voting deadline has passed (`ProposalCovenant.expire()`)
-- A vesting schedule has passed `endTimestamp` (`VestingCovenant.complete()`)
+That is where an executor helps:
 
-## Architecture
+- watch for due recurring payout windows
+- watch for expired proposal windows
+- submit valid permissionless transitions
 
-```mermaid
-flowchart TD
-    BM[blockchain-monitor.ts\nIndexes new blocks] --> DB[(SQLite DB\nCovenant states)]
-    DB --> CUS[cycle-unlock-scheduler.ts\nChecks next_payment timestamps]
-    CUS  -->|interval elapsed| TB[TransactionBuilder.ts\nBuilds pay tx]
-    TB --> TM[TransactionMonitor.ts\nBroadcasts + confirms]
-    TM --> DB
-```
+## What It Does Today
 
-## Running Your Own Executor
+The executor layer is most relevant for:
 
-The executor is a standalone service in `backend/executor/`. It connects to a BCH node via Electrum protocol, reads covenant state from the SQLite database, and broadcasts transactions.
+- recurring payment and recurring payout collection
+- proposal expiry flows
+- other permissionless time-triggered covenant actions supported by the current stack
 
-<Note>
-Running an executor is permissionless and trustless. The covenant contract validates all correctness — the executor cannot steal funds or trigger incorrect payouts.
-</Note>
+## Trust Boundary
 
-Anyone running an executor participates in the liveness guarantee for FlowGuard recurring payments. In future versions, an executor fee parameter will be added to the covenant so operators are compensated directly on-chain.
+An executor can improve liveness, but it does not get special contract privileges. It cannot redirect funds or change the contract rules. It can only submit transactions the covenant already allows.
 
-## Supported Permissionless Functions
+## Self-Hosting
 
-| Contract | Function | Trigger Condition |
-|-|-|-|
-| `RecurringPaymentCovenant` | `pay()` | `tx.locktime >= next_payment_timestamp` |
-| `ProposalCovenant` | `expire()` | `tx.locktime >= voting_end_timestamp` |
-| `VestingCovenant` | `complete()` | `tx.locktime >= endTimestamp` |
+Executor infrastructure can be self-hosted. If you need stronger operational control, run your own executor and monitoring stack rather than relying only on a shared deployment.

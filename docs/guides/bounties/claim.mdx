@@ -1,7 +1,7 @@
 ---
-title: "Claim a Bounty"
-description: "How to claim a funded bounty after the lock period elapses."
-icon: "hand-holding"
+title: 'Claim a Bounty'
+description: 'How a bounty recipient releases the funded payout after the lock period elapses.'
+icon: 'hand-holding'
 ---
 
 <Steps>
@@ -9,22 +9,22 @@ icon: "hand-holding"
     Navigate to **Bounties → Receiving** and click on the bounty you completed.
   </Step>
   <Step title="Wait for the lock to expire">
-    The bounty detail page shows a countdown to the unlock time. The covenant enforces this time on-chain — the **Claim** button remains disabled until `current_blocktime >= startTime + lockDuration`.
+    The bounty detail page shows a countdown to the unlock time. The covenant enforces this time on-chain, and the release action stays unavailable until `current_blocktime >= startTime + lockDuration`.
   </Step>
-  <Step title="Claim">
-    Once unlocked, click **Claim Bounty**. The app calls `POST /api/budget-plans/:id/release` with your recipient address.
+  <Step title="Release the bounty payout">
+    Once unlocked, click **Release** on the bounty detail page. Bounties use the budget-plan release flow under the hood, so the app calls `POST /api/budget-plans/:id/release` with your recipient address.
   </Step>
   <Step title="Sign">
     Your wallet displays the transaction. Sign and broadcast.
   </Step>
   <Step title="Confirm">
-    The app automatically calls `POST /api/budget-plans/:id/confirm-release`. The funds arrive in your wallet and the bounty status updates to `COMPLETED`.
+    The app then calls `POST /api/budget-plans/:id/confirm-release`. The funds arrive in your wallet and the bounty status updates to `COMPLETED`.
   </Step>
 </Steps>
 
 ## Cancellation During Lock Period
 
-If the funder created the bounty with `cancelable: true`, they can cancel before you claim. You will see a **"Bounty cancelled"** notice and no funds will be transferred to your address. Contact the funder to resolve any dispute off-chain.
+If the funder created the bounty with `cancelable: true`, they can cancel before you release the payout. You will see a **Bounty cancelled** notice and no funds will be transferred to your address. Contact the funder to resolve any dispute off-chain.
 
 ## Partial Claims Not Supported
 

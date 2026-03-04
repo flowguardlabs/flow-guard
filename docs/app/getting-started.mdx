@@ -1,10 +1,10 @@
 ---
-title: "Getting Started with FlowGuard"
-description: "Connect your wallet and navigate the FlowGuard application."
-icon: "rocket"
+title: 'Getting Started with FlowGuard'
+description: "Connect your wallet, choose a workspace, and navigate FlowGuard's shared treasury and stream product surfaces."
+icon: 'rocket'
 ---
 
-FlowGuard is a BCH-native treasury and payments protocol. The web app connects to your BCH wallet via WalletConnect v2 and lets you deploy covenants directly from the browser — no backend custody, no seed phrases submitted.
+FlowGuard is a BCH-native treasury, streams, distributions, and governance product. The web app connects to your BCH wallet via WalletConnect v2 and lets you deploy and control covenant transactions directly from the browser without backend custody.
 
 ## Supported Wallets
 
@@ -20,7 +20,8 @@ FlowGuard works with any WalletConnect v2 compatible BCH wallet:
     Navigate to the FlowGuard frontend URL. The header shows **Connect Wallet**.
   </Step>
   <Step title="Scan or Click">
-    Click **Connect Wallet**. On mobile, the wallet app opens automatically. On desktop, scan the QR code with your wallet app.
+    Click **Connect Wallet**. On mobile, the wallet app opens automatically. On desktop, scan the QR
+    code with your wallet app.
   </Step>
   <Step title="Approve">
     Approve the connection request in your wallet. Your BCH address now appears in the header.
@@ -31,24 +32,49 @@ FlowGuard works with any WalletConnect v2 compatible BCH wallet:
 
 FlowGuard currently runs on **Chipnet** (BCH testnet). You can get test BCH from the [Chipnet faucet](https://tbch.googol.cash/).
 
+## Choose a Workspace
+
+When you enter the app, FlowGuard lets you choose between:
+
+- **Personal Workspace** for individual vaults, streams, payments, and distributions
+- **Organization Workspace** for DAO-style treasury, role, policy, and stream operations
+
+The two workspaces share the same underlying product flows. The difference is context, navigation, and treasury defaults.
+
 ## Navigating the App
 
-| Section | What it does |
-|---------|-------------|
-| Dashboard | Overview of all your active streams, payments, and vaults |
-| Streams | Create and manage vesting streams |
-| Payments | Set up recurring payroll or subscriptions |
-| Airdrops | Run token distribution campaigns |
-| Grants | Milestone-based budget disbursements |
-| Bounties | Fund tasks with conditional release |
-| Rewards | Issue one-time or ongoing rewards |
-| Governance | Vote on vault proposals with token locking |
-| Explorer | Browse all FlowGuard activity on-chain |
-| Vaults | Multi-sig treasury containers |
+| Section    | What it does                                                                  |
+| ---------- | ----------------------------------------------------------------------------- |
+| Dashboard  | Overview of your treasury, streams, payments, and linked workflows            |
+| Streams    | Create and manage linear, hybrid, recurring, milestone, and tranche schedules |
+| Payments   | Set up recurring payroll or subscription-style payouts                        |
+| Airdrops   | Run token distribution campaigns                                              |
+| Grants     | Milestone-based budget disbursements                                          |
+| Bounties   | Fund tasks with conditional release                                           |
+| Rewards    | Issue one-time or ongoing rewards                                             |
+| Governance | Vote on vault proposals with token locking                                    |
+| Explorer   | Browse all FlowGuard activity on-chain                                        |
+| Vaults     | Multi-sig treasury containers                                                 |
 
 ## First Steps
 
 1. Get Chipnet BCH from the [faucet](https://tbch.googol.cash/)
-2. Create a Vault with 3 signer addresses  
-3. Fund the vault
-4. Create a stream, payment, or airdrop from the vault
+2. Choose whether you are working in a personal or organization context
+3. Create or open a vault if you want treasury-linked operations
+4. Open the stream shape gallery or create a recurring payment
+5. Review the schedule preview before signing any funding transaction
+
+## Stream Builder Highlights
+
+The shared stream builder currently supports:
+
+- linear schedules
+- linear schedules with cliffs
+- hybrid upfront unlock plus linear tail
+- recurring schedules
+- refillable recurring runway
+- equal milestone schedules
+- custom bounded tranche schedules
+- batch creation with row-level charts and CSV import / export
+
+For an end-user walkthrough, start with [Create a Stream](/guides/vesting/create). 3. Fund the vault 4. Create a stream, payment, or airdrop from the vault

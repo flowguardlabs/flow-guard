@@ -1,47 +1,46 @@
 ---
 title: "Governance"
-description: "Token-weighted voting on vault proposals with on-chain lock and unlock."
+description: "How FlowGuard governance works in the app today, including vote locking and proposal review."
 icon: "landmark"
 ---
 
-FlowGuard governance lets vault members vote on proposals using their CashTokens as stake. Tokens are locked in a voting covenant for the duration of the voting period and returned automatically after it ends.
+FlowGuard currently has two related governance surfaces:
 
-## Creating a Proposal
+- **governance voting**, where token holders can lock voting weight on a proposal
+- **treasury proposals**, where vault signers review and execute treasury payout proposals
 
-Navigate to **Governance → New Proposal** inside a vault:
+These are connected product areas, but they are not the same workflow.
 
-| Field | Description |
-|-------|-------------|
-| Title | What is being decided |
-| Description | Full rationale and details |
-| Quorum | Minimum total vote weight to pass |
-| Voting duration | How many days the vote is open (default 7) |
+## Governance Voting
 
-## Voting
+The governance voting surface lets a user:
 
-<Steps>
-  <Step title="Open the proposal">
-    Navigate to the active proposal and click **Vote**.
-  </Step>
-  <Step title="Choose your vote">
-    Select **For**, **Against**, or **Abstain**.
-  </Step>
-  <Step title="Lock tokens">
-    Enter the token amount to stake. The app deploys a VoteLockCovenant and returns a `wcTransaction` to fund it with your CashTokens.
-  </Step>
-  <Step title="Sign">
-    Sign the funding transaction in your wallet. Your vote is recorded on-chain.
-  </Step>
-</Steps>
+- review an active governance proposal
+- choose a vote direction
+- lock tokens on-chain through `VoteLockCovenant`
+- reclaim tokens after the voting period ends
 
-## Unlocking After Voting
+## Treasury Proposals
 
-When the voting period ends, return to the proposal and click **Unlock Tokens**. The covenant releases your staked tokens back to your wallet. Tokens cannot be unlocked before the voting period closes.
+Treasury proposals are the operational payout workflow used by vault signers. These proposals move funds after the required treasury approval flow is satisfied.
 
-## Off-chain Voting
+Use the treasury proposal APIs and vault proposal flows when you want:
 
-For lightweight internal decisions, proposals also support off-chain voting (no token lock). Call `POST /api/governance/:proposalId/vote` directly or use the simple vote button in the proposal UI. Off-chain votes count toward tallies but do not require token locking.
+- treasury payout approval
+- treasury signer approval collection
+- treasury execution after approval
 
-## Proposal Outcome
+## In the App
 
-FlowGuard does not automatically execute on-chain actions based on governance votes. The proposal outcome informs vault signers who then manually create treasury proposals or modify products accordingly.
+From the governance area, users can:
+
+- review proposal details
+- cast lightweight off-chain votes where that workflow is enabled
+- lock tokens for on-chain governance voting
+- reclaim locked voting tokens after the proposal window ends
+
+For treasury execution, FlowGuard uses the proposal and vault workflow rather than automatically turning governance vote results into treasury payouts.
+
+## Important Boundary
+
+Governance vote outcomes do not automatically execute treasury actions by themselves in the current product. Treasury execution remains an explicit treasury proposal and signer workflow.

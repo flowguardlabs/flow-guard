@@ -1,65 +1,44 @@
 ---
-title: "Execute a Payment"
-description: "How recurring payment collection works in the current app and API."
-icon: "play"
+title: 'Claim a Recurring Payment'
+description: 'How recurring payout collection works in the current FlowGuard app.'
+icon: 'play'
 ---
 
-The `pay()` function on `RecurringPaymentCovenant` is **permissionless**. Any party can call it when the interval has elapsed. The contract enforces correctness — the caller cannot alter the amount or recipient.
+Recurring payouts are collected through the same contract-backed claim model used elsewhere in FlowGuard. The app or an executor can trigger the due recurring window, but the covenant still enforces the cadence and amount.
 
-## When Can pay() Be Called?
-
-```
-require(tx.locktime >= next_payment_timestamp)
-require(status == ACTIVE)
-```
-
-The executor service monitors `next_payment_timestamp` for all active payments and submits `pay()` transactions automatically. You can also trigger payment manually from the app.
-
-## Triggering Manually (Current API)
+## In the App
 
 <Steps>
-  <Step title="Open the payment">
-    Navigate to **Payments** and select the payment. The detail page shows **Next Payment Due** and whether it is currently claimable.
+  <Step title="Open the recurring payment or recurring stream">
+    Navigate to the payment or recurring stream detail page.
   </Step>
-  <Step title="Click Claim Payment">
-    If an interval is due, the **Claim Payment** button is active. The recipient wallet signs the transaction.
+  <Step title="Check what is due">
+    The detail page shows the cadence, the current due amount, and whether the schedule is
+    refillable.
+  </Step>
+  <Step title="Claim">
+    Click **Claim**. The app requests the transaction from the backend and the recipient wallet
+    signs it.
+  </Step>
+  <Step title="Confirm">
+    After broadcast, FlowGuard confirms the claim and updates recurring state, history, and
+    activity.
   </Step>
 </Steps>
 
-## What the Transaction Produces
+## What the Transaction Does
 
-A valid `pay()` transaction:
-1. Releases `amountPerInterval` to `recipientHash`
-2. Advances `next_payment_timestamp` by `intervalSeconds`
-3. Increments `payment_count`
-4. Adds `amountPerInterval` to `total_paid`
-5. Auto-completes if `total_paid >= totalAmount` (when capped)
+A valid recurring claim:
 
-## Executor Automation
+1. pays the amount due to the fixed recipient
+2. advances the recurring window
+3. updates total paid state
+4. keeps the recurring state UTXO alive when the schedule continues
 
-The FlowGuard executor service polls all active payments and triggers `pay()` as each interval elapses. No action is needed from the sender or recipient. See [Executor Network](/concepts/executor-network) for details.
+## Refillable Runway
 
-## API (Current)
+If the recurring schedule is refillable:
 
-```bash
-POST /api/payments/:id/claim
-Content-Type: application/json
-
-{
-  "recipientAddress": "bchtest:q..."
-}
-
-# Response
-{
-  "success": true,
-  "claimableAmount": 0.1,
-  "intervalsClaimable": 1,
-  "wcTransaction": { ... }
-}
-```
-
-After wallet broadcast:
-
-```bash
-POST /api/payments/:id/confirm-claim
-```
+- the sender can add more runway later
+- the recurring claim flow stays the same
+- the stream detail page will show refill actions when the sender is connected

@@ -1,12 +1,16 @@
 ---
-title: "Architecture"
-description: "How all FlowGuard contracts interconnect: system diagram, contract relationships, and the indexer/executor data flow."
-icon: "diagram-project"
+title: 'Architecture'
+description: "How FlowGuard's contracts, backend services, indexer, executor, and frontend fit together."
+icon: 'diagram-project'
 ---
 
 ## System Overview
 
-FlowGuard is composed of three layers: on-chain contracts, an off-chain backend (API + indexer + executor), and a frontend app.
+FlowGuard has three main layers:
+
+- on-chain covenant state on Bitcoin Cash
+- backend services that build, confirm, index, and monitor transactions
+- frontend product surfaces for treasury, streams, distributions, and governance
 
 ```mermaid
 flowchart TD
@@ -16,127 +20,120 @@ flowchart TD
     EXE --> BCH
     API --> DB
     APP --> API
-    APP -->|wallet tx| BCH
+    APP -->|wallet signing + broadcast| BCH
 
-    VC -->|vaultId| VSC
-    VC -->|vaultId| RPC
-    VC -->|vaultId| AC
-    VC -->|vaultId| GC
-    VC -->|vaultId| BC
-    VC -->|vaultId| RC
-    PC -->|proposalId| VLC
-    PC -->|vaultId| VC
+    VC -->|vault linkage| STREAMS
+    VC -->|vault linkage| DIST
+    VC -->|proposal funding| PC
+    PC -->|vote locks| VLC
 
     VC["VaultCovenant"]
     PC["ProposalCovenant"]
     VLC["VoteLockCovenant"]
-    VSC["VestingCovenant"]
-    RPC["RecurringPaymentCovenant"]
-    AC["AirdropCovenant"]
-    GC["GrantCovenant"]
-    BC["BountyCovenant"]
-    RC["RewardCovenant"]
+    STREAMS["Streaming Covenants"]
+    DIST["Distribution Covenants"]
     IDX["Indexer"]
     DB[("SQLite DB")]
-    API["REST API"]
-    EXE["Executor"]
+    API["Backend API"]
+    EXE["Optional Executor"]
     APP["Frontend App"]
-
-    classDef contract fill:#00C896,stroke:#00A37A,color:#000
-    classDef backend fill:#1a2e27,stroke:#00C896,color:#fff
-    classDef node fill:#0A0F0D,stroke:#444,color:#ccc
-
-    class VC,PC,VLC,VSC,RPC,AC,GC,BC,RC contract
-    class IDX,DB,API,EXE backend
-    class BCH,APP node
 ```
 
-## Contract Dependency Map
+## Contract Families
 
-```mermaid
-flowchart LR
-    V[VaultCovenant] -->|spawn| S["Streaming Covenants\nVesting + RecurringPayment"]
-    V -->|spawn| D["Distribution Covenants\nAirdrop + Grant + Bounty + Reward"]
-    V -->|"linked via vaultId"| P[ProposalCovenant]
-    P -->|"spawns per vote"| VL[VoteLockCovenant]
-```
+| Family       | Contracts                                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------------------- |
+| Treasury     | `VaultCovenant`, `ProposalCovenant`                                                                       |
+| Governance   | `VoteLockCovenant`                                                                                        |
+| Streaming    | `VestingCovenant`, `RecurringPaymentCovenant`, hybrid/tranche schedule variants built on the stream stack |
+| Distribution | `AirdropCovenant`, `GrantCovenant`, `BountyCovenant`, `RewardCovenant`                                    |
 
-## NFT Commitment Sizes
+## Commitment Sizes
 
-| Contract | Commitment Size |
-|-|-|
-| VaultCovenant | 32 bytes |
-| ProposalCovenant | 40 bytes |
-| VestingCovenant | 40 bytes |
-| RecurringPaymentCovenant | 40 bytes |
-| AirdropCovenant | 40 bytes |
-| GrantCovenant | 40 bytes |
-| BountyCovenant | 40 bytes |
-| RewardCovenant | 40 bytes |
-| VoteLockCovenant | 32 bytes |
+| Contract family    | Commitment size |
+| ------------------ | --------------- |
+| Vault state        | 32 bytes        |
+| Proposal state     | 64 bytes        |
+| Schedule state     | 48 bytes        |
+| Distribution state | 40 bytes        |
+| Vote lock state    | 32 bytes        |
 
-All commitments are within the CashTokens 40-byte hard limit.
+These sizes map to the shared encoding helpers and shared TypeScript state definitions.
 
-## Indexer Data Flow
+## Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant BCH as BCH Node
-    participant BM as blockchain-monitor
-    participant DB as SQLite DB
-    participant API as REST API
     participant FE as Frontend
+    participant API as Backend API
+    participant BCH as BCH Node
+    participant IDX as Indexer / Monitor
+    participant DB as SQLite DB
 
-    BCH->>BM: New block notification
-    BM->>BCH: Fetch block transactions
-    BM->>BM: Parse covenant UTXOs / decode NFT commitments
-    BM->>DB: Upsert covenant states + insert transactions
-    FE->>API: GET /api/streams
-    API->>DB: Query streams table
-    API->>FE: Stream records with decoded state
+    FE->>API: request build payload
+    API->>FE: wcTransaction + metadata
+    FE->>BCH: wallet signs and broadcasts
+    FE->>API: confirm txHash
+    API->>BCH: verify outputs and state transition
+    API->>DB: persist product state
+    IDX->>BCH: monitor covenant activity
+    IDX->>DB: decode and reconcile indexed state
+    FE->>API: query updated product views
 ```
 
-## Executor Flow
+## Executor Role
+
+The executor is optional infrastructure. It exists to improve liveness for permissionless transitions such as timed recurring payouts and similar eligible actions.
 
 ```mermaid
 sequenceDiagram
-    participant SCH as cycle-unlock-scheduler
+    participant EXE as Executor
     participant DB as SQLite DB
     participant TB as TransactionBuilder
     participant BCH as BCH Node
 
-    loop Every 60 seconds
-        SCH->>DB: Query active recurring payments where next_payment <= now
-        DB->>SCH: Eligible covenants
-        SCH->>TB: Build pay() transaction
-        TB->>BCH: Broadcast transaction
-        BCH->>TB: Transaction ID
-        TB->>DB: Record execution + advance next_payment_date
+    loop Poll interval
+        EXE->>DB: find eligible permissionless actions
+        DB->>EXE: matching covenant state
+        EXE->>TB: build valid transaction
+        TB->>BCH: broadcast
+        BCH->>TB: txid
+        TB->>DB: record execution metadata
     end
 ```
 
-## Backend Service Map
+## Core Backend Services
 
-| Service | Responsibility |
-|-|-|
-| `StreamDeploymentService` | Deploy `VestingCovenant` and `RecurringPaymentCovenant` |
-| `StreamClaimService` | Build `claim()` transactions for vesting |
-| `StreamCancelService` | Build `cancel()` transactions |
-| `StreamFundingService` | Fund existing stream UTXOs |
-| `PaymentDeploymentService` | Deploy `RecurringPaymentCovenant` |
-| `PaymentClaimService` | Build `pay()` transactions |
-| `PaymentControlService` | Pause, resume, cancel payments |
-| `AirdropDeploymentService` | Deploy `AirdropCovenant` |
-| `AirdropClaimService` | Build `claim()` for airdrop self-service |
-| `AirdropControlService` | Authority pause/resume/cancel |
-| `BudgetDeploymentService` | Deploy Grant, Bounty, Reward covenants |
-| `BudgetReleaseService` | Release milestones, issue rewards, approve bounty claims |
-| `VaultFundingService` | Fund vault UTXOs |
-| `VoteDeploymentService` | Deploy `VoteLockCovenant` |
-| `VoteLockService` | Lock governance tokens |
-| `VoteUnlockService` | Reclaim after unlock time |
-| `ProposalService` | Full proposal lifecycle management |
-| `DeploymentRegistryService` | Track all covenant deployments |
-| `TransactionMonitor` | Confirm and track submitted transactions |
-| `MerkleTreeService` | Merkle tree generation for airdrop eligibility |
-| `cycle-unlock-scheduler` | Executor loop for recurring payments |
+| Service                     | Responsibility                                         |
+| --------------------------- | ------------------------------------------------------ |
+| `StreamDeploymentService`   | deploy stream covenant families                        |
+| `StreamFundingService`      | fund stream contracts                                  |
+| `StreamClaimService`        | build stream claim transactions                        |
+| `StreamCancelService`       | build stream cancel flows                              |
+| `StreamControlService`      | pause, resume, refill, and transfer supported streams  |
+| `PaymentDeploymentService`  | deploy recurring payment contracts                     |
+| `PaymentClaimService`       | build recurring payout transactions                    |
+| `PaymentControlService`     | pause, resume, cancel, and refill recurring payments   |
+| `AirdropDeploymentService`  | deploy airdrop contracts                               |
+| `AirdropClaimService`       | build claim transactions                               |
+| `AirdropControlService`     | handle campaign control flows                          |
+| `BudgetDeploymentService`   | deploy budget-plan style distribution contracts        |
+| `BudgetFundingService`      | fund budget-plan contracts                             |
+| `BudgetReleaseService`      | build release transactions for milestone-style payouts |
+| `BudgetControlService`      | pause, resume, and cancel budget-plan state            |
+| `VaultFundingService`       | build and confirm vault funding                        |
+| `ProposalService`           | proposal records, approvals, execution sessions        |
+| `VoteDeploymentService`     | deploy vote lock contracts                             |
+| `VoteLockService`           | build vote lock flows                                  |
+| `VoteUnlockService`         | build reclaim flows                                    |
+| `DeploymentRegistryService` | verify and report deployment records                   |
+| `TransactionMonitor`        | verify and track submitted transactions                |
+| `MerkleTreeService`         | generate Merkle trees for restricted airdrops          |
+
+## Source of Truth
+
+The blockchain is the source of truth for contract validity.
+
+The backend database is the source of truth for product indexing, history, and UI-friendly aggregation.
+
+The frontend is the operator and user surface that presents those indexed states and routes signing through the connected wallet.

@@ -1,44 +1,49 @@
 ---
 title: "Status"
-description: "FlowGuard service health, network status, and known issues."
+description: "Current network, service, and operational status for the public FlowGuard stack."
 icon: "signal"
 ---
 
-## Network
+## Current Network
 
-FlowGuard currently operates on **Chipnet** (BCH testnet). Mainnet deployment is planned following security audits.
+FlowGuard currently runs on **Chipnet**. The public app, wallet flows, and covenant deployment paths are built around BCH testnet operation today.
 
-| Component | Status | Network |
-|-----------|--------|---------|
-| Frontend | Live | Chipnet |
-| Backend API | Live | Chipnet |
-| WalletConnect v2 | Live | Chipnet |
-| Indexer | Optional | Chipnet |
-| Executor | Optional | Chipnet |
+| Component | Current state | Network |
+| --- | --- | --- |
+| Frontend | available | Chipnet |
+| Backend API | available | Chipnet |
+| WalletConnect v2 | available | Chipnet |
+| Contract builds and local verification | available | local + Chipnet-targeted |
+| Indexer | optional operator component | Chipnet |
+| Executor | optional operator component | Chipnet |
 
-## Checking API Health
+## Health Check
 
 ```http
 GET /health
 ```
 
-Returns:
+Example response:
 
 ```json
-{ "status": "ok", "service": "flowguard-backend", "blockchain": "connected" }
+{
+  "status": "ok",
+  "service": "flowguard-backend",
+  "blockchain": "connected"
+}
 ```
 
-## Chipnet Faucet
+## Current Operational Notes
 
-Get test BCH at [tbch.googol.cash](https://tbch.googol.cash/). Chipnet BCH has no real-world value.
+- the public product is still Chipnet-only
+- some operator services are optional and can be self-hosted
+- richer analytics and monitoring depend on the indexer and related operator infrastructure
+- vault creation still uses the current signer model and product constraints shown in the app
 
-## Known Limitations
+## Getting Test BCH
 
-- **Mainnet not yet live**: all current deployments are on Chipnet
-- **Executor is opt-in**: without the executor service, recipients must manually claim their vested amounts
-- **Indexer is opt-in**: advanced analytics require the Postgres indexer running separately
-- **3-signer requirement**: vaults require exactly 3 signer addresses and public keys
+Use the [Chipnet faucet](https://tbch.googol.cash/) to fund testing wallets.
 
-## Getting Help
+## Support
 
-Report issues on the [FlowGuard GitHub repository](https://github.com/winsznx/flow-guard) or reach out on the community channels listed in the footer.
+Report issues through the FlowGuard repository or the public community channels linked from the docs footer.

@@ -1,22 +1,18 @@
 ---
-title: "Proposals API"
-description: "Endpoints for creating, approving, and executing treasury payout proposals with on-chain 2-of-3 multisig."
-icon: "file-lines"
+title: 'Proposals API'
+description: 'Current endpoints for treasury payout proposals, on-chain proposal state, approvals, and execution sessions.'
+icon: 'file-lines'
 ---
 
-Proposals are on-chain treasury payout requests. A proposal moves funds from a vault's covenant UTXO to a recipient address after 2-of-3 signers approve it.
+Treasury payout proposals are exposed through the proposal router and vault proposal routes in the backend.
 
-<Warning>
-The current backend mounts proposal routes at `/api` root scope (legacy), not under `/api/proposals/*`.
-</Warning>
-
-## List All Proposals
+## List Proposals
 
 ```http
 GET /api?status=pending
 ```
 
-Returns all proposals across all vaults, optionally filtered by `status` (`pending`, `approved`, `executed`, `rejected`).
+Returns proposal records, optionally filtered by status.
 
 ## List Vault Proposals
 
@@ -24,139 +20,60 @@ Returns all proposals across all vaults, optionally filtered by `status` (`pendi
 GET /api/vaults/:vaultId/proposals
 ```
 
-Returns all proposals scoped to a specific vault.
+Returns proposals for a specific vault.
 
 ## Get Proposal
 
 ```http
-GET /api/:id
+GET /api/proposals/:id
 ```
 
-Returns a single proposal with approval list, amounts, and status.
+Returns a single proposal.
 
-## Create Proposal (Off-chain)
+## Create Off-Chain Proposal Record
 
 ```http
 POST /api/vaults/:vaultId/proposals
 x-user-address: bchtest:q...
-
-{
-  "recipient": "bchtest:qs...",
-  "amount": 2.5,
-  "reason": "Quarterly contractor payout"
-}
 ```
 
-Creates a `pending` proposal record in the database. No on-chain transaction yet.
+Creates the proposal record before the on-chain proposal state is funded.
 
-## Create On-chain Proposal
+## Create On-Chain Proposal State
 
 ```http
-POST /api/:id/create-onchain
-x-user-address: bchtest:q...
+POST /api/proposals/:id/create-onchain
+POST /api/proposals/:id/confirm-create
 ```
 
-Deploys the ProposalCovenant on-chain with the payout parameters, returns a `wcTransaction` for the proposer to sign and fund.
+These routes build and confirm the proposal covenant funding flow.
 
-**Response**
-```json
-{
-  "success": true,
-  "proposalContractAddress": "bchtest:p...",
-  "tokenCategory": "hex32",
-  "fundingSatoshis": "250000000",
-  "wcTransaction": { ... }
-}
-```
-
-## Confirm Proposal Creation
+## Approvals
 
 ```http
-POST /api/:id/confirm-create
-
-{ "txHash": "hex64" }
+POST /api/proposals/:id/approve-onchain
+POST /api/proposals/:id/confirm-approval
 ```
 
-Verifies the covenant state NFT output exists on-chain and transitions the proposal to `pending`.
+These routes collect proposal approval state on-chain.
 
-## Approve On-chain
+## Execute Treasury Payout
 
 ```http
-POST /api/:id/approve-onchain
-x-user-address: bchtest:q...
+POST /api/proposals/:id/execute
+POST /api/proposals/:id/execute-signature
 ```
 
-Builds the approval `wcTransaction` for one of the 3 signers. Each signer must call this and sign independently.
+Execution uses a session-based signature collection flow. Once the required signatures are collected, the backend broadcasts the payout transaction and marks the proposal executed.
 
-**Response**
-```json
-{
-  "success": true,
-  "proposalContractAddress": "bchtest:p...",
-  "newApprovalCount": 1,
-  "isApproved": false,
-  "wcTransaction": { ... }
-}
-```
-
-## Confirm Approval
-
-```http
-POST /api/:id/confirm-approval
-x-user-address: bchtest:q...
-
-{ "txHash": "hex64" }
-```
-
-Records the signer's approval. When `approvalCount` reaches 2, the proposal status becomes `approved`.
-
-## Execute Payout
-
-```http
-POST /api/:id/execute
-x-user-address: bchtest:q...
-```
-
-Vault signer initiates the 2-of-2 payout signing session. Returns a `wcTransaction` with `"broadcast": false` — the wallet must sign but not broadcast.
-
-**Response**
-```json
-{
-  "success": true,
-  "sessionId": "...",
-  "wcTransaction": { ..., "broadcast": false },
-  "signaturesCollected": 0,
-  "requiredSignatures": 2,
-  "requiredSignerAddresses": ["bchtest:q...", "bchtest:q..."],
-  "payoutSatoshis": "250000000"
-}
-```
-
-## Submit Execute Signature
-
-```http
-POST /api/:id/execute-signature
-x-user-address: bchtest:q...
-
-{
-  "sessionId": "...",
-  "signedTransaction": "0200..."
-}
-```
-
-Each of the 2 required signers submits their signature. When the second signature arrives, the backend broadcasts the transaction automatically and marks the proposal `executed`.
-
-## Broadcast
+## Low-Level Broadcast
 
 ```http
 POST /api/broadcast
-
-{
-  "txHex": "0200...",
-  "txType": "execute",
-  "vaultId": "...",
-  "proposalId": "..."
-}
 ```
 
-Low-level broadcast endpoint. Used when automatic broadcast is not desired.
+Used by the proposal execution flow when raw transaction broadcast control is needed.
+
+## Scope
+
+These routes document the current treasury proposal implementation that the app uses today.

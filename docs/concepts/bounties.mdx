@@ -1,57 +1,40 @@
 ---
-title: "Bounties"
-description: "On-chain competition funding where the authority co-signs each verified claim with a proof hash."
-icon: "trophy"
+title: 'Bounties'
+description: 'How FlowGuard models bounty-style payouts in the current product.'
+icon: 'trophy'
 ---
 
-`BountyCovenant` funds a competition with a fixed prize per winner, up to `maxWinners`. The authority reviews submissions off-chain and co-signs each `claim()` with a non-zero `proofHash` identifying the work.
+In the current product, FlowGuard bounties are presented as single-stage budget-style releases tied to one deliverable and one recipient. They are best understood as a one-milestone payout pattern rather than a multi-winner competition surface.
 
 ## Use Cases
 
-- Code bounties (bug fixes, feature implementations)
-- Design or content competitions
-- Research prize pools
-- Security vulnerability disclosures
+- bug fixes and feature implementations
+- one-off contributor tasks
+- paid deliverables with a single payout
+- time-locked completion payouts
 
 ## How It Works
 
 ```mermaid
-sequenceDiagram
-    participant Creator
-    participant BountyCovenant
-    participant Contestant
-    participant Authority
-
-    Creator->>BountyCovenant: Deploy + fund rewardPerWinner × maxWinners
-    Contestant->>Authority: Submit work off-chain
-    Authority->>Authority: Verify submission
-    Authority->>BountyCovenant: claim(authSig, winnerHash, proofHash)
-    BountyCovenant->>Contestant: Receives rewardPerWinner
-    Note right of BountyCovenant: Repeats until maxWinners reached
-    BountyCovenant>>Creator: COMPLETED
+flowchart LR
+    A([Create and fund bounty]) --> B[ACTIVE]
+    B --> C{Unlock window elapsed?}
+    C -->|No| B
+    C -->|Yes| D[Recipient releases full payout]
+    D --> E([COMPLETED])
+    B -->|Cancelable recovery| F([Remaining amount returned])
 ```
 
 ## Key Properties
 
-| Property | Detail |
-|-|-|
-| Prize | Fixed per winner — `rewardPerWinner` |
-| Winners | Up to `maxWinners`. Auto-completes at limit. |
-| Proof | `proofHash` (non-zero `bytes32`) recorded per claim |
-| Authority | Sole decision-maker on valid claims |
-| Cancel | Returns remaining unclaimed prizes |
+| Property               | Detail                                    |
+| ---------------------- | ----------------------------------------- |
+| Payout shape           | Single full release                       |
+| Recipient count        | One recipient in the current product flow |
+| Timing                 | Unlocks after the configured duration     |
+| Cancel path            | Controlled by the bounty settings         |
+| Typical funding source | personal or treasury budget               |
 
-## NFT State
+## Contract Library Note
 
-```
-[0]:    status
-[1]:    flags
-[2-9]:  total_paid (uint64)
-[10-13]: winners_count (uint32)
-[14-18]: last_claim_timestamp (5 bytes)
-[19-39]: reserved
-```
-
-## Contract Reference
-
-See [BountyCovenant](/reference/contracts/bounty-covenant) for full documentation.
+FlowGuard also includes a dedicated `BountyCovenant` in the contract library for proof-based multi-winner bounty flows. The current app documentation here focuses on the bounty experience users actually interact with today.

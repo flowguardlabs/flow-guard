@@ -1,64 +1,69 @@
 ---
-title: "Distribution"
-description: "Airdrops, grants, bounties, and rewards — four distinct on-chain distribution patterns for different funding scenarios."
-icon: "gift"
+title: 'Distribution'
+description: 'How FlowGuard handles airdrops, grants, bounties, and rewards in the current product.'
+icon: 'gift'
 ---
 
-FlowGuard provides four distribution covenant types, each tailored to a specific payout pattern.
+FlowGuard supports several distribution patterns, but they do not all use the same product surface or contract path.
+
+## Current Product View
+
+| Pattern  | Current product model                                 | Best fit                                             |
+| -------- | ----------------------------------------------------- | ---------------------------------------------------- |
+| Airdrops | Claim-based campaign using `AirdropCovenant`          | open or restricted community distributions           |
+| Grants   | Milestone-based budget plan                           | funded project work and contractor milestones        |
+| Bounties | Single-stage budget-style release                     | one deliverable, one payout, one unlock condition    |
+| Rewards  | Immediate or deferred single-recipient payout pattern | contributor bonuses, recognition, one-off incentives |
 
 ## Airdrops
 
-`AirdropCovenant` enables fixed-amount, self-service token campaigns. Any eligible address can call `claim()` and receive `amountPerClaim`. Claims are time-gated by `startTimestamp` and `endTimestamp`.
+Airdrops are the most explicit distribution product in the current app. They support:
 
-```mermaid
-flowchart LR
-    A([Deploy Airdrop\nfund totalPool]) --> B[ACTIVE]
-    B  -->|claim - anyone\nwithin time window| C[Claimer receives\namountPerClaim]
-    C  -->|totalClaimed < totalPool| B
-    C  -->|totalClaimed >= totalPool| D([COMPLETED])
-    B  -->|pause - authority| E[PAUSED]
-    E  -->|resume - authority| B
-    B  -->|cancel - authority| F([Remaining pool\nreturned to authority])
-```
+- BCH or CashToken pools
+- public campaigns
+- restricted campaigns with Merkle proofs
+- claim history
+- pause and cancel controls
 
-**Key parameters:** `amountPerClaim`, `totalPool`, `startTimestamp`, `endTimestamp`
+Use [Airdrops](/app/airdrops) when many recipients should claim from the same campaign.
 
 ## Grants
 
-`GrantCovenant` releases funding in discrete tranches as milestones are completed. The authority calls `releaseMilestone()` to approve each tranche. The grant recipient is mutable — if `FLAG_TRANSFERABLE` is set, the recipient can transfer the grant.
+Grants are structured milestone releases. They work best when one recipient should receive funding over several stages.
 
-```mermaid
-flowchart LR
-    A([Deploy Grant\nN milestones]) --> B[Milestone 0\nmilestonesCompleted = 0]
-    B  -->|releaseMilestone - authority| C[amountPerMilestone\nto recipient]
-    C  -->|milestonesCompleted < milestonesTotal| B
-    C  -->|milestonesCompleted = milestonesTotal| D([COMPLETED])
-```
+Use [Grants](/app/grants) when:
 
-**Key parameters:** `milestonesTotal`, `amountPerMilestone`, `totalAmount`
+- funding is committed up front
+- release should happen in stages
+- the recipient should only withdraw what has actually become due
 
 ## Bounties
 
-`BountyCovenant` funds a competition where multiple winners each receive `rewardPerWinner`. The authority verifies submissions off-chain and co-signs `claim()` with a `proofHash` identifying the work.
+Bounties are the simplest milestone pattern in the product today: one task, one amount, one release path.
 
-**Use cases:** code bounties, bug bounties, design competitions, research prizes
+Use [Bounties](/app/bounties) when:
 
-**Key parameters:** `rewardPerWinner`, `maxWinners`, `startTimestamp`, `endTimestamp`
-
-The contract tracks `winners_count` and auto-completes when `winners_count >= maxWinners`.
+- there is one deliverable
+- the payout should stay locked until a time-based condition clears
+- the recipient should receive the full amount in one release
 
 ## Rewards
 
-`RewardCovenant` is the most flexible distribution type. The authority calls `reward()` with a variable `rewardAmount` (up to `maxRewardAmount`) for each event. Four reward categories are encoded in the NFT state: `ACHIEVEMENT` (1), `REFERRAL` (2), `LOYALTY` (3), `CUSTOM` (4).
+Rewards cover one-off contributor payments and similar bonus-style distributions.
 
-**Key parameters:** `maxRewardAmount`, `totalPool`, `startTimestamp`, `endTimestamp`
+Use [Rewards](/app/rewards) when:
 
-## Comparison
+- the payout targets a specific wallet
+- the amount is not part of a longer recurring schedule
+- the distribution should be immediate or deferred, but still simple
 
-| Feature | Airdrop | Grant | Bounty | Reward |
-|-|-|-|-|-|
-| Claimer | Anyone (self-claim) | Authority triggers | Authority co-signs | Authority triggers |
-| Amount per event | Fixed | Fixed per milestone | Fixed per winner | Variable (0..maxReward) |
-| Multi-recipient | Yes (sequential) | No (single) | Yes (up to maxWinners) | Yes (sequential) |
-| Work proof required | No | Milestone approval | Yes (proofHash) | No |
-| Recipient transferable | No | Yes (optional) | No | No |
+## Contract Library vs Product Surface
+
+The FlowGuard contract library includes lower-level distribution covenants such as:
+
+- `AirdropCovenant`
+- `GrantCovenant`
+- `BountyCovenant`
+- `RewardCovenant`
+
+The current product does not expose each of those as an equally separate end-user surface. This documentation follows the current app experience first, while the contract reference pages describe the lower-level covenant set in detail.

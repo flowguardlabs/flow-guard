@@ -1,33 +1,33 @@
 ---
-title: "Executor API"
-description: "Automation worker status: what exists, what is experimental, and how to run it safely."
-icon: "robot"
+title: 'Executor API'
+description: 'Automation worker scope, configuration, and current operational boundaries.'
+icon: 'robot'
 ---
 
 FlowGuard includes an executor scaffold in `backend/executor/` for automated task polling and transaction construction.
 
 ## Important Scope Note
 
-There is currently no public, stable REST API for the executor service itself. It is an internal/prototype worker process, not a customer-facing endpoint set.
+There is currently no public customer-facing REST API for the executor service itself. It is an operator-run worker process.
 
 ## What Exists Today
 
 - Executor codebase: `backend/executor/`
-- Poll loop and task scanning scaffolding
-- Transaction builder scaffolding for schedule/proposal flows
+- Poll loop and task scanning logic
+- Transaction builder logic for schedule and proposal flows
 - Environment-driven configuration
 
 ## Prototype Configuration
 
 The executor currently reads these environment values:
 
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | Database connection |
-| `NETWORK` | `chipnet` or `mainnet` |
-| `ELECTRUM_SERVER` | Electrum server hostname |
-| `POLL_INTERVAL` | Poll interval in ms |
-| `MAX_GAS_PRICE` | Fee ceiling used by builder |
+| Variable               | Purpose                       |
+| ---------------------- | ----------------------------- |
+| `DATABASE_URL`         | Database connection           |
+| `NETWORK`              | `chipnet` or `mainnet`        |
+| `ELECTRUM_SERVER`      | Electrum server hostname      |
+| `POLL_INTERVAL`        | Poll interval in ms           |
+| `MAX_GAS_PRICE`        | Fee ceiling used by builder   |
 | `EXECUTOR_PRIVATE_KEY` | Optional executor signing key |
 
 ## Production Guidance

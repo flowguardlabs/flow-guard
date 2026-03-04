@@ -1,80 +1,109 @@
 ---
-title: "Create a Vesting Stream"
-description: "Deploy a linear or step vesting stream with optional cliff, cancelability, and transferability."
-icon: "lock"
+title: 'Create a Stream'
+description: 'Create a linear, hybrid, recurring, milestone, or tranche stream from the shared FlowGuard stream builder.'
+icon: 'lock'
 ---
 
+Use the shared stream builder to create schedules for contributor vesting, payroll, grants, retainers, and treasury releases. The same builder is used in personal and organization contexts.
+
+## Before You Start
+
+- Connect a BCH wallet that can sign FlowGuard transactions
+- Decide whether you are launching from a personal workflow or a treasury / vault workflow
+- Choose the asset type: BCH or CashTokens
+- Choose the schedule family you actually need
+
+## Supported Stream Families
+
+| Family      | Best for                        | Key inputs                                                      |
+| ----------- | ------------------------------- | --------------------------------------------------------------- |
+| `LINEAR`    | Simple continuous vesting       | total amount, start, end, optional cliff                        |
+| `HYBRID`    | Upfront unlock plus linear tail | total amount, start, end, unlock checkpoint, upfront percentage |
+| `RECURRING` | Payroll and retainers           | total amount, cadence, duration, optional refillable runway     |
+| `STEP`      | Equal milestone unlocks         | total amount, cadence, duration, optional cliff                 |
+| `TRANCHE`   | Custom staged unlocks           | total amount, custom checkpoint schedule                        |
+
+## Flow in the App
+
 <Steps>
-  <Step title="Navigate to Vesting">
-    Go to **Streams → Create Stream** in the dashboard, or navigate to a vault and select **Create Stream from Vault**.
+  <Step title="Open the builder">
+    Navigate to **Streams -> Create Stream** for personal workflows, or launch from a vault or DAO treasury stream view for organization workflows.
   </Step>
-  <Step title="Choose schedule type">
-    <Tabs>
-      <Tab title="Linear Vesting">
-        Tokens vest continuously. Configure:
-        - **Total Amount** — total tokens or BCH to vest
-        - **Start Timestamp** — when vesting begins (unix seconds)
-        - **End Timestamp** — when fully vested
-        - **Cliff Timestamp** — no claims before this time (0 = no cliff)
-      </Tab>
-      <Tab title="Step Vesting">
-        Tokens release in discrete chunks. Configure:
-        - **Total Amount** — total to vest
-        - **Step Interval** — seconds between each step
-        - **Step Amount** — tokens released per step
-        - **Cliff Timestamp** — optional, same behavior as linear
-      </Tab>
-    </Tabs>
+  <Step title="Choose a template or family">
+    Use the shape gallery if you want a guided starting point. Templates load real schedule parameters into the builder, including linear + cliff, hybrid, recurring runway, milestone cadence, and custom tranche plans.
   </Step>
-  <Step title="Set recipient">
-    Enter the recipient's BCH P2PKH address. The `hash160` is derived from the address automatically.
+  <Step title="Set the schedule">
+    Configure the fields required by the chosen family:
+
+    - **LINEAR**: start, end, optional cliff
+    - **HYBRID**: start, end, unlock checkpoint, upfront percentage
+    - **RECURRING**: start, end, interval seconds, optional refillable toggle
+    - **STEP**: start, end, milestone cadence
+    - **TRANCHE**: custom unlock checkpoints and percentages
+
   </Step>
-  <Step title="Set flags">
-    - **Cancelable**: allows sender to call `cancel()` and split vested/unvested
-    - **Transferable**: allows recipient to reassign the stream to a new address
-    - **Asset**: BCH or a CashToken (select token category if token)
+  <Step title="Review the preview">
+    The builder shows a contract-truthful schedule preview. This preview changes when you change cadence, cliff, unlock timing, or tranche geometry.
   </Step>
-  <Step title="Deploy">
-    Sign the deployment transaction. The stream appears in both sender and recipient dashboards once confirmed.
+  <Step title="Create the stream record">
+    Click **Create Stream**. The app calls `POST /api/streams/create`, stores the stream in `PENDING`, and returns the contract address and funding requirements.
+  </Step>
+  <Step title="Fund the contract">
+    Sign the funding transaction from the wallet. Once the funding transaction confirms, the app calls `confirm-funding` and the stream becomes `ACTIVE`.
   </Step>
 </Steps>
 
-## Vested Amount Formula
+## Example Request
 
-**Linear:**
-```
-vestedTotal = (totalAmount × elapsed) / duration
-claimable   = vestedTotal - totalReleased
-```
-
-**Step:**
-```
-completedSteps = elapsed / stepInterval
-vestedTotal    = completedSteps × stepAmount
-claimable      = vestedTotal - totalReleased
-```
-
-Where `elapsed = tx.locktime - cursor` and `cursor` starts at `startTimestamp` but advances by pause duration on each resume.
-
-## API
-
-```bash
-POST /api/streams/create
-Content-Type: application/json
-
+```json
 {
-  "vaultId": "hex_32_bytes",
-  "senderAddress": "bchtest:q...",
-  "recipientAddress": "bchtest:q...",
-  "scheduleType": 1,
-  "totalAmount": 1000000000,
-  "startTimestamp": 1700000000,
-  "endTimestamp": 1731536000,
-  "cliffTimestamp": 1706745600,
-  "stepInterval": 0,
-  "stepAmount": 0,
+  "sender": "bchtest:q...",
+  "recipient": "bchtest:q...",
+  "tokenType": "BCH",
+  "totalAmount": 12,
+  "streamType": "HYBRID",
+  "startTime": 1761955200,
+  "endTime": 1793491200,
   "cancelable": true,
-  "transferable": false,
-  "usesTokens": false
+  "scheduleTemplate": "hybrid-upfront-linear",
+  "hybridUnlockTimestamp": 1769817600,
+  "hybridUpfrontPercentage": 25,
+  "launchContext": {
+    "source": "dao",
+    "title": "Contributor runway",
+    "description": "Treasury-approved contributor vesting lane",
+    "preferredLane": "contributors"
+  }
 }
 ```
+
+## Notes by Family
+
+### Recurring
+
+- `intervalSeconds` is required
+- the interval must divide the schedule duration evenly
+- `refillable` is only valid for recurring streams
+
+### Tranche
+
+- the tranche schedule must be bounded and internally valid
+- the app and backend normalize tranche schedules before deployment
+- the first unlock checkpoint becomes the effective first claimable event
+
+### Hybrid
+
+- the upfront unlock time must be after `startTime` and before `endTime`
+- the upfront percentage must be greater than `0` and less than `100`
+
+## After Creation
+
+Once active, the stream detail page becomes the operational surface for:
+
+- claim
+- pause / resume
+- refill for recurring runway streams
+- transfer recipient rights for transferable non-recurring streams
+- cancellation where allowed
+
+Use [Streams API](/api/streams) for the current payload and route reference.

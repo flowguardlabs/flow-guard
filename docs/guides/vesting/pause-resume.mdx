@@ -1,75 +1,70 @@
 ---
-title: "Pause and Resume"
-description: "How to pause and resume a vesting stream, and how pauses affect the vesting cursor."
-icon: "circle-pause"
+title: 'Pause and Resume'
+description: 'Pause and resume supported stream families from the sender workflow.'
+icon: 'circle-pause'
 ---
 
-The sender can pause a vesting stream at any time to temporarily freeze vesting. Paused time is excluded from all future vesting calculations.
+Pause and resume are sender controls for active streams. In the current product, pause is available on streams that were created as cancelable.
 
-<Warning>
-The current public backend does not expose `/api/streams/:id/pause` and `/api/streams/:id/resume` endpoints yet. This guide documents contract behavior and planned API support.
-</Warning>
+## Supported Families
 
-## Pause
+- `LINEAR`
+- `STEP`
+- `HYBRID`
+- `TRANCHE`
+- `RECURRING`
+
+## Who Can Pause or Resume
+
+- only the **stream sender**
+- only while the stream is in the correct status
+  - `ACTIVE` to pause
+  - `PAUSED` to resume
+
+## Pause Flow
 
 <Steps>
-  <Step title="Open the stream">
-    Go to **Streams** and select the active stream.
+  <Step title="Open the stream">Navigate to the stream detail page as the sender.</Step>
+  <Step title="Build the pause transaction">
+    The app calls `POST /api/streams/:id/pause` with the sender address in `x-user-address`.
   </Step>
-  <Step title="Click Pause">
-    Click **Pause Stream**. Sign the transaction with the sender wallet.
-  </Step>
-  <Step title="What happens on-chain">
-    The `pause_start` field in the NFT commitment is set to `tx.locktime`. Status changes to `PAUSED`. No tokens are moved.
+  <Step title="Sign and broadcast">Sign the returned transaction in the wallet.</Step>
+  <Step title="Confirm the broadcast">
+    The app calls `POST /api/streams/:id/confirm-pause` with the transaction hash. The stream status
+    changes to `PAUSED`.
   </Step>
 </Steps>
 
-<Note>
-Pause requires `FLAG_CANCELABLE` (`0x01`) to be set on the stream. Non-cancelable streams cannot be paused.
-</Note>
-
-## Resume
+## Resume Flow
 
 <Steps>
-  <Step title="Click Resume">
-    On the stream detail page, click **Resume Stream**. Sign with the sender wallet.
+  <Step title="Build the resume transaction">
+    Click **Resume** on a paused stream. The app calls `POST /api/streams/:id/resume`.
   </Step>
-  <Step title="What happens on-chain">
-    The `cursor` advances by the pause duration:
-
-    ```
-    newCursor = cursor + (tx.locktime - pause_start)
-    ```
-
-    `pause_start` is reset to `0`. Status returns to `ACTIVE`.
+  <Step title="Sign and broadcast">Sign the returned wallet transaction.</Step>
+  <Step title="Confirm the broadcast">
+    The app calls `POST /api/streams/:id/confirm-resume`. The stream returns to `ACTIVE`.
   </Step>
 </Steps>
 
-## Effect on Vesting Math
+## What Pause Means
 
-After resume, all vesting calculations use the updated `cursor` instead of the original `startTimestamp`:
+- vesting-based schedules stop progressing while paused
+- recurring schedules stop accruing new payment windows while paused
+- no value is paid out by the pause transaction itself
 
+## API Example
+
+```json
+POST /api/streams/:id/pause
+x-user-address: bchtest:qsender...
 ```
-elapsed     = tx.locktime - cursor   # cursor has absorbed pause duration
-vestedTotal = (totalAmount × elapsed) / duration
-claimable   = vestedTotal - totalReleased
+
+```json
+POST /api/streams/:id/confirm-pause
+x-user-address: bchtest:qsender...
+
+{
+  "txHash": "hex64"
+}
 ```
-
-The recipient receives the same total amount — only the duration shifts forward.
-
-## Example
-
-| Event | Time | Cursor | Vested |
-|-|-|-|-|
-| Deploy | T=0 | T=0 | 0% |
-| 6 months pass | T=6m | T=0 | 50% |
-| Pause | T=6m | T=0 | 50% |
-| 3 months paused | — | — | 50% (frozen) |
-| Resume | T=9m | T=3m | 50% (as if T=6m) |
-| 6 more months | T=15m | T=3m | 100% |
-
-The total vesting duration is 12 months of active time, as originally configured.
-
-## API Status
-
-Pause/resume is available in `VestingCovenant` and related services, but the HTTP routes are not wired in the current API build.

@@ -1,43 +1,45 @@
 ---
 title: "Airdrops"
-description: "Launch BCH or token distribution campaigns with optional recipient whitelisting."
+description: "How FlowGuard handles claim-based BCH and CashToken distributions in the app."
 icon: "gift"
 ---
 
-Airdrops let you distribute BCH or CashTokens to many wallets at once. Two campaign modes are available:
+FlowGuard airdrops distribute BCH or CashTokens through claimable campaigns. Campaigns can be public or whitelist-restricted, and the app handles creation, funding, claims, and campaign controls.
 
-- **Open**: any BCH address can claim up to `maxClaimsPerAddress` times
-- **KYC / Whitelisted**: only addresses in the merkle tree can claim, each with a custom amount
+## Campaign Types
 
-## Creating a Campaign
+- **Open campaigns** for broad public claims
+- **Whitelisted campaigns** for recipient-specific distributions backed by a Merkle tree
 
-Navigate to **Airdrops → New Campaign** and configure:
+## In the App
+
+When creating an airdrop, users configure:
 
 | Field | Description |
-|-------|-------------|
-| Title | Public name for the campaign |
-| Token | BCH or a CashToken (requires token category) |
-| Total amount | Total pool size |
-| Amount per claim | Fixed amount per wallet (open campaigns) |
-| Start / End | Optional time window |
-| Max claims per address | Defaults to 1 |
-| KYC restricted | If on, you must upload a recipient CSV before funding |
+| --- | --- |
+| Title | public campaign name |
+| Token type | BCH or CashToken |
+| Total amount | total campaign pool |
+| Amount per claim | fixed claim amount for open campaigns |
+| Start / End window | optional campaign timing |
+| Max claims per address | claim cap per wallet |
+| Whitelist / KYC mode | enables Merkle-restricted claiming |
 
-After creation, fund the contract. The campaign goes `ACTIVE` once on-chain funding is confirmed.
+After creation, the campaign must be funded before it becomes active.
 
-## Sharing the Claim Link
+## What Creators Can Do
 
-Every campaign generates a unique claim link like `https://yourapp.com/claim/{token}`. Share it publicly or privately. Recipients click the link and claim with one wallet-signed transaction.
+- pause an active campaign
+- cancel an active or paused campaign
+- generate a Merkle tree for restricted campaigns
 
-## Managing a Campaign
+## What Claimers Do
 
-As the creator you can:
+- open the claim link
+- connect a wallet
+- request the claim transaction
+- sign and broadcast the claim
 
-- **Pause**: halt new claims while keeping the contract funded
-- **Cancel**: withdraw remaining unclaimed funds
+## Current Boundary
 
-All actions above are on-chain and require a wallet signature.
-
-<Note>
-The contract includes a `resume()` function, but the current backend release does not expose a public resume route yet.
-</Note>
+The covenant supports `resume()`, but the public HTTP layer currently exposes pause and cancel, not resume. Documented campaign controls should match the routes the product actually exposes.

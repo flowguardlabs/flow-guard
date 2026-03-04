@@ -1,37 +1,37 @@
 ---
-title: "Vaults"
-description: "Create and manage multi-sig treasury vaults to fund FlowGuard products."
-icon: "vault"
+title: 'Vaults'
+description: 'Create and manage multi-sig treasury vaults to fund FlowGuard products.'
+icon: 'vault'
 ---
 
-Vaults are the on-chain treasury containers for all FlowGuard products. All streams, payments, airdrops, grants, and governance tokens can be linked to a vault, making it easy to manage organizational budgets from a single address.
+Vaults are FlowGuard's on-chain treasury layer. They hold BCH, CashTokens, and the state NFT that governs treasury approvals, allowing a team to manage payouts, proposals, distributions, and linked funding programs from one coordinated treasury surface.
 
 ## Creating a Vault
 
 Navigate to **Vaults → Create Vault**:
 
-| Field | Description |
-|-------|-------------|
-| Name | Human-readable label |
-| Signer 1, 2, 3 | BCH addresses of the three vault signers |
+| Field          | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| Name           | Human-readable label                                              |
+| Signer 1, 2, 3 | BCH addresses of the three vault signers                          |
 | Signer pubkeys | 33-byte compressed public keys for the CashScript 2-of-3 covenant |
-| Total deposit | Initial BCH deposit amount |
-| Public | Whether the vault appears in the public explorer |
+| Total deposit  | Initial BCH treasury funding                                      |
+| Public         | Whether the vault appears in the public explorer                  |
 
 Three signers and three public keys are required. The on-chain vault covenant enforces that any payout requires at minimum 2-of-3 signatures.
 
 ## Funding a Vault
 
-After creation, the dashboard shows a **Deposit** button. The first deposit must include the state NFT (built automatically by the app). Subsequent deposits are plain P2SH sends to the vault contract address.
+After creation, the dashboard shows a **Deposit** button. The first funding step creates the live treasury state. After that, the vault can receive additional BCH deposits and can be associated with linked treasury products in the app.
 
 ## Vault Roles
 
-| Role | Permissions |
-|------|-------------|
-| Creator | Create and fund the vault, create proposals, pause/cancel products |
-| Signer | Approve and co-sign proposals |
-| Viewer | Read-only access to public vault data |
+| Role    | Permissions                                                            |
+| ------- | ---------------------------------------------------------------------- |
+| Creator | Creates the vault record and configures treasury operations in the app |
+| Signer  | Approves and co-signs treasury proposals                               |
+| Viewer  | Read-only view of public or shared treasury data                       |
 
 ## Linked Products
 
-Any stream, payment, airdrop, or grant can be linked to a vault by selecting it in the creation form. This surfaces the product in the vault's detail view and uses the vault's `vaultId` in the covenant's constructor parameters, allowing future governance proposals to control the contract.
+Streams, recurring payments, airdrops, grants, and proposal workflows can be launched from treasury context. In practice, this means the product is associated with the vault in FlowGuard's records and treasury UI, while the exact funding and control path depends on the product family.
