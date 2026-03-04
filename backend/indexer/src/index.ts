@@ -83,6 +83,7 @@ interface IndexerStatusSnapshot {
     lastError: string | null;
   };
   workload: {
+    indexingMode: 'monitored_addresses';
     monitoredAddresses: number;
     blocksIndexed: number;
     covenantUtxosProcessed: number;
