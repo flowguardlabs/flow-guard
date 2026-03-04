@@ -216,10 +216,10 @@ export const DaoOverviewPage: React.FC = () => {
   );
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-28 md:px-6 md:pb-8">
       <div className="mb-6">
         <p className="mb-3 text-xs font-mono uppercase tracking-[0.24em] text-textMuted">DAO Treasury</p>
-        <h1 className="font-display text-3xl text-textPrimary md:text-5xl">Organization Overview</h1>
+        <h1 className="font-display text-3xl text-textPrimary sm:text-4xl md:text-5xl">Organization Overview</h1>
         <p className="mt-3 max-w-3xl text-base leading-7 text-textSecondary">
           Monitor treasury posture across vaults, asset classes, proposal stages, and policy controls from a single DAO operations surface.
         </p>
@@ -233,7 +233,7 @@ export const DaoOverviewPage: React.FC = () => {
         description="This frontend workspace is designed to feel production-ready: live treasury metrics, editable proposals, client-side governance controls, and multi-asset monitoring for BCH-native organizations."
       />
 
-      <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatsCard
           label="Treasury Value"
           value={summary.treasuryValue}

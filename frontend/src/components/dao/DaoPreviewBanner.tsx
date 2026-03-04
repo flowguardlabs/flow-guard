@@ -27,13 +27,13 @@ export function DaoPreviewBanner({
         <div className="flex flex-col gap-3 sm:flex-row">
           <Link
             to="/vaults"
-            className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 font-mono text-sm text-white transition-all hover:-translate-y-0.5 hover:bg-primaryHover hover:shadow-md"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-5 py-3 font-mono text-sm text-white transition-all hover:-translate-y-0.5 hover:bg-primaryHover hover:shadow-md sm:w-auto"
           >
             Open Vaults
           </Link>
           <Link
             to="/proposals"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 font-mono text-sm text-textPrimary transition-colors hover:bg-surfaceAlt"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-5 py-3 font-mono text-sm text-textPrimary transition-colors hover:bg-surfaceAlt sm:w-auto"
           >
             Review Proposals
             <ArrowRight className="h-4 w-4" />

@@ -297,10 +297,10 @@ export const DaoStreamsPage: React.FC = () => {
   });
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 pb-28 md:px-6 md:pb-8">
       <div className="mb-6">
         <p className="text-xs font-mono uppercase tracking-[0.24em] text-primary">DAO Treasury Streams</p>
-        <h1 className="mt-2 font-display text-4xl text-textPrimary">Treasury stream inventory and execution feed.</h1>
+        <h1 className="mt-2 font-display text-3xl text-textPrimary sm:text-4xl">Treasury stream inventory and execution feed.</h1>
         <p className="mt-4 max-w-3xl text-base leading-7 text-textSecondary">
           Review every treasury-backed vesting schedule, recurring payout runway, milestone unlock, and stream activity event from one organization-first workspace.
         </p>
@@ -312,11 +312,12 @@ export const DaoStreamsPage: React.FC = () => {
         description="This workspace combines treasury-linked stream inventory with filtered activity so operators can audit organization workflow instead of jumping between generic user pages."
       />
 
-      <div className="mb-8 flex flex-wrap gap-3">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:flex xl:flex-wrap">
         <Button
           onClick={() => navigate('/streams/create?template=linear-cliff', {
             state: { daoContext: buildDaoContext('dao-streams', 'DAO Treasury Streams', 'Launch a treasury-backed vesting schedule from the dedicated DAO streams workspace.', 'Finance lane') },
           })}
+          className="w-full justify-center xl:w-auto"
         >
           Create treasury stream
         </Button>
@@ -325,18 +326,19 @@ export const DaoStreamsPage: React.FC = () => {
           onClick={() => navigate('/streams/batch-create', {
             state: { daoContext: buildDaoContext('dao-streams', 'DAO Treasury Streams', 'Launch a treasury payroll run from the dedicated DAO streams workspace.', 'Payroll lane') },
           })}
+          className="w-full justify-center xl:w-auto"
         >
           Batch payroll run
         </Button>
-        <Button variant="outline" onClick={() => navigate('/app/dao/stream-batches')}>
+        <Button variant="outline" onClick={() => navigate('/app/dao/stream-batches')} className="w-full justify-center xl:w-auto">
           Batch history
         </Button>
-        <Button variant="outline" onClick={() => navigate('/app/dao/stream-activity')}>
+        <Button variant="outline" onClick={() => navigate('/app/dao/stream-activity')} className="w-full justify-center xl:w-auto">
           Open full activity feed
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 xl:grid-cols-4">
         <StatsCard
           label="Treasury streams"
           value={`${streamTotal}`}
@@ -378,13 +380,13 @@ export const DaoStreamsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <div>
             <label className="block text-sm font-medium text-textPrimary mb-2">Launch source</label>
             <select
               value={contextFilter}
               onChange={(event) => setContextFilter(event.target.value)}
-              className="w-full rounded-lg border border-border bg-surface px-4 py-2 text-sm text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing"
+              className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing md:py-2 md:text-sm"
             >
               {contextOptions.map((option) => (
                 <option key={option} value={option}>
@@ -398,7 +400,7 @@ export const DaoStreamsPage: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as StreamStatusFilter)}
-              className="w-full rounded-lg border border-border bg-surface px-4 py-2 text-sm text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing"
+              className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing md:py-2 md:text-sm"
             >
               <option value="all">All statuses</option>
               <option value="ACTIVE">Active</option>
@@ -413,7 +415,7 @@ export const DaoStreamsPage: React.FC = () => {
             <select
               value={eventType}
               onChange={(event) => setEventType(event.target.value as EventTypeFilter)}
-              className="w-full rounded-lg border border-border bg-surface px-4 py-2 text-sm text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing"
+              className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing md:py-2 md:text-sm"
             >
               <option value="all">All events</option>
               <option value="created">Created</option>
@@ -430,7 +432,7 @@ export const DaoStreamsPage: React.FC = () => {
             <select
               value={dateRange}
               onChange={(event) => setDateRange(event.target.value as DateRangePreset)}
-              className="w-full rounded-lg border border-border bg-surface px-4 py-2 text-sm text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing"
+              className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-base text-textPrimary focus:outline-none focus:ring-2 focus:ring-focusRing md:py-2 md:text-sm"
             >
               <option value="all">All time</option>
               <option value="24h">Last 24 hours</option>

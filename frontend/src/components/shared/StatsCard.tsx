@@ -85,13 +85,13 @@ export function StatsCard({
         // Standard card layout
         <div className="flex items-start gap-3 md:gap-4">
           {Icon && (
-            <div className={`p-2 md:p-3 rounded-full ${colors.bg}`}>
+            <div className={`shrink-0 p-2 md:p-3 rounded-full ${colors.bg}`}>
               <Icon className={`w-5 h-5 md:w-6 md:h-6 ${colors.icon}`} />
             </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between mb-1">
-              <p className="text-xs md:text-sm text-textMuted font-sans uppercase tracking-wider truncate">
+              <p className="min-w-0 text-xs md:text-sm text-textMuted font-sans uppercase tracking-wider break-words">
                 {label}
               </p>
               {trend && (
@@ -105,14 +105,14 @@ export function StatsCard({
                 </span>
               )}
             </div>
-            <p className={`text-xl md:text-2xl lg:text-3xl font-display font-bold ${colors.text} truncate`}>
+            <p className={`break-words text-xl md:text-2xl lg:text-3xl font-display font-bold ${colors.text}`}>
               {value}
             </p>
             {subtitle && (
-              <p className="text-xs text-textMuted font-mono mt-1">{subtitle}</p>
+              <p className="mt-1 break-words text-xs text-textMuted font-mono">{subtitle}</p>
             )}
             {trend?.label && (
-              <p className="text-xs text-textMuted font-sans mt-2">{trend.label}</p>
+              <p className="mt-2 break-words text-xs text-textMuted font-sans">{trend.label}</p>
             )}
           </div>
         </div>

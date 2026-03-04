@@ -135,9 +135,9 @@ export function DataTable<T extends Record<string, any>>({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 md:gap-4">
+      <div className="flex flex-col gap-3 md:gap-4 lg:flex-row lg:items-center">
         {enableSearch && (
-          <div className="flex-1 max-w-md relative">
+          <div className="relative w-full lg:max-w-md lg:flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-textMuted" />
             <Input
               value={searchQuery}
@@ -148,12 +148,12 @@ export function DataTable<T extends Record<string, any>>({
           </div>
         )}
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-shrink-0">
           {enableExport && data.length > 0 && (
             <Button
               variant="outline"
               onClick={handleExport}
-              className="flex items-center gap-2"
+              className="w-full gap-2 lg:w-auto"
             >
               <Download className="w-4 h-4" />
               Export CSV
@@ -162,7 +162,7 @@ export function DataTable<T extends Record<string, any>>({
 
           {enableImport && onImport && (
             <label className="cursor-pointer">
-              <span className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-lg font-sans text-sm font-medium text-textPrimary hover:bg-surfaceAlt transition-colors">
+              <span className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 font-sans text-sm font-medium text-textPrimary transition-colors hover:bg-surfaceAlt lg:w-auto">
                 <Upload className="w-4 h-4" />
                 Import CSV
               </span>
@@ -188,7 +188,7 @@ export function DataTable<T extends Record<string, any>>({
             <div
               key={index}
               onClick={() => onRowClick?.(row)}
-              className={`bg-surface border border-border rounded-lg p-4 space-y-2 ${
+              className={`overflow-hidden bg-surface border border-border rounded-lg p-4 space-y-2 ${
                 onRowClick ? 'cursor-pointer hover:border-accent active:bg-surfaceAlt' : ''
               }`}
             >
@@ -206,7 +206,7 @@ export function DataTable<T extends Record<string, any>>({
               {secondaryColumns.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {secondaryColumns.map((column) => (
-                    <div key={column.key} className="min-w-0 rounded-lg bg-surfaceAlt p-3">
+                    <div key={column.key} className="min-w-0 overflow-hidden rounded-lg bg-surfaceAlt p-3">
                       <span className="mb-1 block text-[11px] font-mono uppercase tracking-wider text-textMuted">
                         {column.label}
                       </span>
@@ -282,7 +282,7 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Footer Stats */}
       {filteredAndSortedData.length > 0 && (
-        <div className="flex items-center justify-between text-sm text-textMuted font-sans">
+        <div className="flex flex-col gap-2 text-sm text-textMuted font-sans sm:flex-row sm:items-center sm:justify-between">
           <span>
             Showing {filteredAndSortedData.length} of {data.length} entries
           </span>

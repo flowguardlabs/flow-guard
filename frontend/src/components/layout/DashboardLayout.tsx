@@ -1,4 +1,5 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { WalletDropdown } from '../ui/WalletDropdown';
@@ -19,6 +20,8 @@ interface DashboardLayoutProps {
  * - Sidebar state persisted in localStorage
  */
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+  const location = useLocation();
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
   // Initialize sidebar state from localStorage, default to true
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('flowguard-sidebar-open');
@@ -31,6 +34,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   useEffect(() => {
     localStorage.setItem('flowguard-sidebar-open', JSON.stringify(sidebarOpen));
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [location.pathname, location.search]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -56,19 +63,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       >
         {/* Top Bar */}
         <header className="sticky top-0 z-40 border-b border-border/60 bg-surface/90 px-3 py-3 backdrop-blur-md md:px-6 md:py-4">
-          <div className="flex items-center justify-between lg:justify-end">
+          <div className="flex min-w-0 items-center justify-between gap-3 lg:justify-end">
             <button
               onClick={() => setIsMobileOpen(true)}
               className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-surfaceAlt text-textSecondary transition-colors"
             >
               <Menu className="w-6 h-6" />
             </button>
-            <WalletDropdown />
+            <div className="min-w-0 shrink-0">
+              <WalletDropdown />
+            </div>
           </div>
         </header>
 
         {/* Scrollable Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main ref={scrollContainerRef} className="flex-1 overflow-y-auto">
           <div className="min-h-full bg-background pb-8 md:pb-10">
             {children}
           </div>

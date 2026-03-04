@@ -433,7 +433,7 @@ export default function StreamsPage() {
   }
 
   return (
-    <div className="min-h-screen pb-20 bg-background">
+    <div className="min-h-screen bg-background pb-28 md:pb-20">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
         {daoContext && (
           <Card className="mb-6 p-5 md:p-6">
@@ -522,7 +522,7 @@ export default function StreamsPage() {
 
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 md:gap-6 mb-6 md:mb-8">
+          <div className="flex flex-col gap-4 md:gap-6 mb-6 md:mb-8 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <h1 className="font-display font-medium text-3xl md:text-5xl lg:text-6xl text-textPrimary mb-3 md:mb-4">
                 Streams
@@ -531,12 +531,13 @@ export default function StreamsPage() {
                 Automated token streaming for salaries, vesting, and recurring payments. View as recipient or sender.
               </p>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:flex xl:flex-wrap">
               {daoContext && (
                 <Button
                   size="lg"
                   variant="outline"
                   onClick={() => navigate('/app/dao')}
+                  className="w-full justify-center xl:w-auto"
                 >
                   Back to DAO
                 </Button>
@@ -547,6 +548,7 @@ export default function StreamsPage() {
                 onClick={() => navigate(daoContext ? '/app/dao/stream-activity' : '/streams/activity', {
                   state: daoContext ? { daoContext } : undefined,
                 })}
+                className="w-full justify-center xl:w-auto"
               >
                 <Clock className="w-4 h-4 mr-2" />
                 Activity Feed
@@ -557,6 +559,7 @@ export default function StreamsPage() {
                 onClick={() => navigate('/streams/shapes', {
                   state: daoContext ? { daoContext } : undefined,
                 })}
+                className="w-full justify-center xl:w-auto"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Browse Shapes
@@ -567,6 +570,7 @@ export default function StreamsPage() {
                 onClick={() => navigate(daoContext ? '/app/dao/stream-batches' : '/streams/batches', {
                   state: daoContext ? { daoContext } : undefined,
                 })}
+                className="w-full justify-center xl:w-auto"
               >
                 <Clock className="w-4 h-4 mr-2" />
                 Batch History
@@ -576,7 +580,7 @@ export default function StreamsPage() {
                 onClick={() => navigate('/streams/create', {
                   state: daoContext ? { daoContext } : undefined,
                 })}
-                className="shadow-lg"
+                className="w-full justify-center shadow-lg xl:w-auto"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Stream
@@ -585,7 +589,7 @@ export default function StreamsPage() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 md:gap-6 mb-6 md:mb-8">
             <StatsCard
               label="Active Streams"
               value={`${totalStreams}`}
@@ -628,11 +632,11 @@ export default function StreamsPage() {
           </div>
 
           {/* Role View Toggle */}
-          <div className="flex flex-wrap items-center gap-2 mb-3 md:mb-4">
+          <div className="grid grid-cols-1 gap-2 mb-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center md:mb-4">
             <Button
               variant={roleView === 'recipient' ? 'primary' : 'outline'}
               onClick={() => setRoleView('recipient')}
-              className="flex items-center gap-2"
+              className="flex w-full items-center justify-center gap-2 lg:w-auto"
             >
               <Inbox className="w-4 h-4" />
               As Recipient
@@ -640,7 +644,7 @@ export default function StreamsPage() {
             <Button
               variant={roleView === 'sender' ? 'primary' : 'outline'}
               onClick={() => setRoleView('sender')}
-              className="flex items-center gap-2"
+              className="flex w-full items-center justify-center gap-2 lg:w-auto"
             >
               <Send className="w-4 h-4" />
               As Sender
@@ -648,13 +652,14 @@ export default function StreamsPage() {
             <Button
               variant={roleView === 'all' ? 'primary' : 'outline'}
               onClick={() => setRoleView('all')}
+              className="w-full justify-center lg:w-auto"
             >
               All Streams
             </Button>
           </div>
 
           {/* Status Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm text-textMuted font-sans">Status:</span>
             {(['all', 'active', 'completed'] as const).map((status) => (
               <button

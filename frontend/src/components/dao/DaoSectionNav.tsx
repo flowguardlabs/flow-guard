@@ -6,7 +6,7 @@ export function DaoSectionNav() {
 
   return (
     <div className="mb-8 space-y-3">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
         <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-[11px] font-mono uppercase tracking-[0.24em] text-accent">
           DAO Beta
         </span>
@@ -15,7 +15,7 @@ export function DaoSectionNav() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:flex md:overflow-x-auto md:pb-2">
+      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
         {daoNavSections.map((section) => {
           const active = location.pathname === section.path;
 
@@ -23,7 +23,7 @@ export function DaoSectionNav() {
             <Link
               key={section.path}
               to={section.path}
-              className={`min-w-0 rounded-2xl border p-3.5 transition-all md:min-w-[220px] md:p-4 ${
+              className={`min-w-[240px] snap-start rounded-2xl border p-3.5 transition-all sm:min-w-[260px] lg:min-w-0 lg:p-4 ${
                 active
                   ? 'border-accent bg-accent/5 shadow-sm'
                   : 'border-border/40 bg-surface hover:border-borderHover hover:bg-surfaceAlt'

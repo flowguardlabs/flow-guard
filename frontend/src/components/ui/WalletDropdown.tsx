@@ -75,11 +75,11 @@ export const WalletDropdown = () => {
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 bg-white border border-border rounded-lg hover:bg-surfaceAlt transition-colors"
+        className="flex max-w-[min(17rem,calc(100vw-5rem))] items-center gap-2 rounded-lg border border-border bg-white px-2.5 py-2 transition-colors hover:bg-surfaceAlt sm:max-w-[min(20rem,calc(100vw-6rem))] md:gap-3 md:px-4"
       >
         {/* Balance */}
         {wallet.balance !== null && (
-          <div className="hidden sm:flex flex-col items-end">
+          <div className="hidden min-w-0 flex-col items-end sm:flex">
             <span className="text-xs text-textMuted">Balance</span>
             <span className="text-sm font-mono font-medium text-textPrimary">
               {wallet.balance.bch.toFixed(4)} BCH
@@ -88,11 +88,11 @@ export const WalletDropdown = () => {
         )}
 
         {/* Wallet Icon & Address */}
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <div className="p-2 bg-primary/10 rounded-full">
             <Wallet className="w-4 h-4 text-primary" />
           </div>
-          <span className="font-mono text-sm text-textPrimary hidden md:inline">
+          <span className="hidden truncate font-mono text-sm text-textPrimary md:inline">
             {formatAddress(wallet.address)}
           </span>
         </div>
@@ -107,7 +107,7 @@ export const WalletDropdown = () => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 md:w-80 bg-white border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+        <div className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-white shadow-xl md:w-80">
           {/* Header */}
           <div className="px-4 py-3 bg-surfaceAlt border-b border-border">
             <div className="flex items-center justify-between">

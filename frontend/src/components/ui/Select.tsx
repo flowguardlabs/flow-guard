@@ -30,9 +30,9 @@ export const Select: React.FC<SelectProps> = ({
         </label>
       )}
       <select
-        className={`w-full px-4 py-2 rounded-md transition-colors
+        className={`w-full min-w-0 rounded-md px-4 py-3 text-base leading-6 transition-colors md:py-2 md:text-sm md:leading-5
           ${error ? 'border-2 border-primary' : 'border border-border'}
-          bg-surface text-textPrimary
+          appearance-none bg-surface text-textPrimary
           focus:ring-2 focus:ring-focusRing focus:border-primary
           disabled:opacity-50 disabled:cursor-not-allowed
           ${className}`}
