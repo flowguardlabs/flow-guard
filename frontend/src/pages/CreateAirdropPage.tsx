@@ -129,7 +129,7 @@ export default function CreateAirdropPage() {
       }
 
       const result = await response.json();
-      navigate(`/airdrops/${result.campaign.id}`);
+      navigate(`/airdrops/${result.campaign.id}`, { state: { freshCreate: true } });
     } catch (error: any) {
       console.error('Failed to create campaign:', error);
       setErrors({ title: error.message || 'Failed to create campaign. Please try again.' });
@@ -143,7 +143,7 @@ export default function CreateAirdropPage() {
     : 0;
 
   return (
-    <div className="p-8">
+    <div className="px-4 py-6 md:p-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -154,7 +154,7 @@ export default function CreateAirdropPage() {
             <ChevronLeft className="w-4 h-4" />
             Back to Airdrops
           </button>
-          <h1 className="text-5xl font-display font-bold text-textPrimary mb-2">
+          <h1 className="text-3xl font-display font-bold text-textPrimary mb-2 sm:text-4xl lg:text-5xl">
             Create Airdrop Campaign
           </h1>
           <p className="text-textMuted font-mono">
@@ -207,11 +207,11 @@ export default function CreateAirdropPage() {
                 <h3 className="text-xl font-display font-bold text-textPrimary mb-1">Token Type</h3>
                 <p className="text-sm text-textMuted font-mono mb-4">Choose what to distribute</p>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => handleChange('tokenType', 'BCH')}
-                    className={`p-4 border-2 rounded-xl transition-all ${
+                    className={`min-w-0 p-4 border-2 rounded-xl transition-all ${
                       formData.tokenType === 'BCH'
                         ? 'border-accent bg-accent/5 shadow-lg'
                         : 'border-border hover:border-accent/50'
@@ -224,7 +224,7 @@ export default function CreateAirdropPage() {
                   <button
                     type="button"
                     onClick={() => handleChange('tokenType', 'FUNGIBLE_TOKEN')}
-                    className={`p-4 border-2 rounded-xl transition-all ${
+                    className={`min-w-0 p-4 border-2 rounded-xl transition-all ${
                       formData.tokenType === 'FUNGIBLE_TOKEN'
                         ? 'border-accent bg-accent/5 shadow-lg'
                         : 'border-border hover:border-accent/50'
@@ -260,7 +260,7 @@ export default function CreateAirdropPage() {
                 <h3 className="text-xl font-display font-bold text-textPrimary mb-1">Distribution Settings</h3>
                 <p className="text-sm text-textMuted font-mono mb-4">Define total pool and claim amounts</p>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Input
                     label={`Total Pool (${formData.tokenType === 'BCH' ? 'BCH' : 'Tokens'})`}
                     type="number"
@@ -313,7 +313,7 @@ export default function CreateAirdropPage() {
                 <h3 className="text-xl font-display font-bold text-textPrimary mb-1">Campaign Duration</h3>
                 <p className="text-sm text-textMuted font-mono mb-4">Set campaign start and end dates</p>
 
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Input
                     label="Start Date"
                     type="date"
@@ -414,11 +414,11 @@ export default function CreateAirdropPage() {
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-4">
-            <Button type="button" variant="secondary" onClick={() => navigate('/airdrops')} disabled={isCreating} className="flex-1">
+          <div className="flex flex-col-reverse gap-4 pt-4 sm:flex-row">
+            <Button type="button" variant="secondary" onClick={() => navigate('/airdrops')} disabled={isCreating} className="w-full flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={isCreating} className="flex-1">
+            <Button type="submit" disabled={isCreating} className="w-full flex-1">
               {isCreating ? 'Creating Campaign...' : 'Create Campaign'}
             </Button>
           </div>

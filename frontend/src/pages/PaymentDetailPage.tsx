@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useWallet } from '../hooks/useWallet';
@@ -27,6 +27,7 @@ import {
   Wallet,
   Download,
   History,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ActivityEvent {
@@ -40,11 +41,22 @@ interface ActivityEvent {
   details?: Record<string, unknown> | null;
 }
 
+type FeedbackTone = 'success' | 'warning' | 'error' | 'info';
+
+interface FeedbackState {
+  tone: FeedbackTone;
+  title: string;
+  description?: string;
+  txHash?: string;
+}
+
 export default function PaymentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const wallet = useWallet();
   const network = useNetwork();
+  const routeState = location.state as { freshCreate?: boolean } | null;
   const [payment, setPayment] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,25 +64,67 @@ export default function PaymentDetailPage() {
   const [claimableIntervals, setClaimableIntervals] = useState(0);
   const [claimableAmount, setClaimableAmount] = useState(0);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(
+    routeState?.freshCreate
+      ? {
+          tone: 'info',
+          title: 'Payment created. Funding is the next step.',
+          description: 'The payment record is ready. Fund the contract from this page to activate recurring claims.',
+        }
+      : null,
+  );
+  const [isFundingSyncing, setIsFundingSyncing] = useState(false);
+
+  const refreshPayment = useCallback(async () => {
+    if (!id) return null;
+    const response = await fetch(`/api/payments/${id}`);
+    const data = await response.json();
+    setPayment(data.payment);
+    setHistory(data.history || []);
+    setEvents(data.events || []);
+    return data.payment;
+  }, [id]);
+
+  const pollForPaymentStatus = useCallback(
+    async (targetStatuses: string[], attempts = 8, delayMs = 1500) => {
+      setIsFundingSyncing(true);
+      try {
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          const latestPayment = await refreshPayment();
+          if (latestPayment && targetStatuses.includes(latestPayment.status)) {
+            return latestPayment;
+          }
+          if (attempt < attempts) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+        }
+        return null;
+      } finally {
+        setIsFundingSyncing(false);
+      }
+    },
+    [refreshPayment],
+  );
 
   useEffect(() => {
     const fetchPayment = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/payments/${id}`);
-        const data = await response.json();
-        setPayment(data.payment);
-        setHistory(data.history || []);
-        setEvents(data.events || []);
+        await refreshPayment();
       } catch (error) {
         console.error('Failed to fetch payment:', error);
+        setFeedback({
+          tone: 'error',
+          title: 'Failed to load payment details.',
+          description: error instanceof Error ? error.message : 'Try refreshing the page.',
+        });
       } finally {
         setLoading(false);
       }
     };
 
     if (id) fetchPayment();
-  }, [id]);
+  }, [id, refreshPayment]);
 
   // RecurringPaymentCovenant.pay() permits exactly one interval per transaction.
   useEffect(() => {
@@ -98,20 +152,30 @@ export default function PaymentDetailPage() {
 
   const handlePause = async () => {
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can pause this payment.',
+      });
       return;
     }
     setActionLoading('pause');
     try {
       const txHash = await pausePaymentOnChain(wallet, id!);
-      alert(`Payment paused on-chain.\n\nTransaction: ${txHash}`);
-      const response = await fetch(`/api/payments/${id}`);
-      const data = await response.json();
-      setPayment(data.payment);
-      setEvents(data.events || []);
+      await refreshPayment();
+      setFeedback({
+        tone: 'success',
+        title: 'Payment paused on-chain.',
+        description: 'No further claims will execute until the payment is resumed.',
+        txHash,
+      });
     } catch (error: any) {
       console.error('Failed to pause payment:', error);
-      alert(`Failed to pause payment: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to pause payment.',
+        description: error.message,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -119,20 +183,30 @@ export default function PaymentDetailPage() {
 
   const handleResume = async () => {
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can resume this payment.',
+      });
       return;
     }
     setActionLoading('resume');
     try {
       const txHash = await resumePaymentOnChain(wallet, id!);
-      alert(`Payment resumed on-chain.\n\nTransaction: ${txHash}`);
-      const response = await fetch(`/api/payments/${id}`);
-      const data = await response.json();
-      setPayment(data.payment);
-      setEvents(data.events || []);
+      await refreshPayment();
+      setFeedback({
+        tone: 'success',
+        title: 'Payment resumed on-chain.',
+        description: 'Recurring claims can continue from the updated schedule.',
+        txHash,
+      });
     } catch (error: any) {
       console.error('Failed to resume payment:', error);
-      alert(`Failed to resume payment: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to resume payment.',
+        description: error.message,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -143,41 +217,88 @@ export default function PaymentDetailPage() {
       return;
     }
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can cancel this payment.',
+      });
       return;
     }
 
     setActionLoading('cancel');
     try {
       const txHash = await cancelPaymentOnChain(wallet, id!);
-      alert(`Payment cancelled on-chain.\n\nTransaction: ${txHash}`);
+      setFeedback({
+        tone: 'success',
+        title: 'Payment cancelled on-chain.',
+        description: 'The recurring payment has been closed and any remainder has been handled by the contract flow.',
+        txHash,
+      });
       navigate('/payments');
     } catch (error: any) {
       console.error('Failed to cancel payment:', error);
-      alert(`Failed to cancel payment: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to cancel payment.',
+        description: error.message,
+      });
       setActionLoading(null);
     }
   };
 
   const handleFund = async () => {
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can fund this payment.',
+      });
       return;
     }
 
     setActionLoading('fund');
     try {
-      const txHash = await fundPaymentContract(wallet, id!);
-      alert(`Payment funded successfully!\n\nTransaction: ${txHash}`);
+      const result = await fundPaymentContract(wallet, id!);
+      await refreshPayment();
 
-      // Refresh payment data
-      const response = await fetch(`/api/payments/${id}`);
-      const data = await response.json();
-      setPayment(data.payment);
-      setEvents(data.events || []);
+      if (result.confirmation === 'confirmed') {
+        setFeedback({
+          tone: 'success',
+          title: 'Payment funded successfully.',
+          description: 'The recurring payment contract is active and ready for scheduled claims.',
+          txHash: result.txHash,
+        });
+      } else {
+        setFeedback({
+          tone: 'warning',
+          title: 'Funding transaction broadcast. Waiting for backend confirmation.',
+          description:
+            result.detail ||
+            'The payment funding transaction is on-chain, but the backend has not marked it active yet. This page will keep checking.',
+          txHash: result.txHash,
+        });
+      }
+
+      const activatedPayment =
+        result.confirmation === 'confirmed'
+          ? await refreshPayment()
+          : await pollForPaymentStatus(['ACTIVE', 'PAUSED', 'COMPLETED']);
+
+      if (activatedPayment?.status === 'ACTIVE') {
+        setFeedback({
+          tone: 'success',
+          title: 'Payment is now active.',
+          description: 'The funding output has been indexed and the schedule is ready to execute.',
+          txHash: result.txHash,
+        });
+      }
     } catch (error: any) {
       console.error('Failed to fund payment:', error);
-      alert(`Failed to fund payment: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to fund payment.',
+        description: error.message,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -185,29 +306,40 @@ export default function PaymentDetailPage() {
 
   const handleClaim = async () => {
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can claim.',
+      });
       return;
     }
 
     if (claimableAmount <= 0) {
-      alert('No payment intervals available to claim yet');
+      setFeedback({
+        tone: 'warning',
+        title: 'No payment intervals are available to claim yet.',
+        description: 'Wait for the next scheduled payout window or refresh the page after the next interval unlocks.',
+      });
       return;
     }
 
     setActionLoading('claim');
     try {
       const txHash = await claimPaymentFunds(wallet, id!);
-      alert(`Claimed ${claimableAmount.toFixed(4)} BCH successfully!\n\nTransaction: ${txHash}`);
-
-      // Refresh payment data
-      const response = await fetch(`/api/payments/${id}`);
-      const data = await response.json();
-      setPayment(data.payment);
-      setHistory(data.history || []);
-      setEvents(data.events || []);
+      await refreshPayment();
+      setFeedback({
+        tone: 'success',
+        title: `Claimed ${claimableAmount.toFixed(4)} BCH successfully.`,
+        description: 'The payment history and schedule state have been refreshed.',
+        txHash,
+      });
     } catch (error: any) {
       console.error('Failed to claim payment:', error);
-      alert(`Failed to claim payment: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to claim payment.',
+        description: error.message,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -239,6 +371,12 @@ export default function PaymentDetailPage() {
   const isSender = wallet.address === payment.sender;
   const isRecipient = wallet.address === payment.recipient;
   const daysUntilNext = Math.ceil((payment.next_payment_date - Math.floor(Date.now() / 1000)) / 86400);
+  const feedbackToneClasses: Record<FeedbackTone, string> = {
+    success: 'border-primary/30 bg-primary/5 text-primary',
+    warning: 'border-secondary/30 bg-secondary/5 text-secondary',
+    error: 'border-error/30 bg-error/5 text-error',
+    info: 'border-border bg-surfaceAlt text-textPrimary',
+  };
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8">
@@ -333,6 +471,39 @@ export default function PaymentDetailPage() {
             </div>
           </div>
         </div>
+
+        {feedback && (
+          <Card
+            padding="lg"
+            className={`mb-6 border ${feedbackToneClasses[feedback.tone]}`}
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{feedback.title}</p>
+                {feedback.description && (
+                  <p className="mt-1 text-sm leading-6 text-textSecondary">{feedback.description}</p>
+                )}
+                {feedback.txHash && (
+                  <a
+                    href={getExplorerTxUrl(feedback.txHash, network)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primaryHover"
+                  >
+                    View transaction
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+                {actionLoading === 'fund' || isFundingSyncing ? (
+                  <p className="mt-3 text-xs font-mono uppercase tracking-[0.18em] text-textMuted">
+                    Syncing payment status…
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Claimable Amount Banner for Recipient */}
         {isRecipient && payment.status === 'ACTIVE' && claimableIntervals > 0 && (

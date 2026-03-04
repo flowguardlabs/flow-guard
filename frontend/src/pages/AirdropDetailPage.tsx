@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useWallet } from '../hooks/useWallet';
@@ -27,6 +27,7 @@ import {
   Wallet,
   Download,
   History,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ActivityEvent {
@@ -40,11 +41,22 @@ interface ActivityEvent {
   details?: Record<string, unknown> | null;
 }
 
+type FeedbackTone = 'success' | 'warning' | 'error' | 'info';
+
+interface FeedbackState {
+  tone: FeedbackTone;
+  title: string;
+  description?: string;
+  txHash?: string;
+}
+
 export default function AirdropDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const wallet = useWallet();
   const network = useNetwork();
+  const routeState = location.state as { freshCreate?: boolean } | null;
   const [campaign, setCampaign] = useState<any>(null);
   const [claims, setClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,25 +64,69 @@ export default function AirdropDetailPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [userEligibility, setUserEligibility] = useState<{ eligible: boolean; amount: number; alreadyClaimed: boolean } | null>(null);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(
+    routeState?.freshCreate
+      ? {
+          tone: 'info',
+          title: 'Campaign created. Funding is the next step.',
+          description: 'The campaign record is live now. Fund the contract from this page to activate claims.',
+        }
+      : null,
+  );
+  const [isFundingSyncing, setIsFundingSyncing] = useState(false);
+
+  const refreshCampaign = useCallback(async () => {
+    if (!id) return null;
+    const response = await fetch(`/api/airdrops/${id}`);
+    const data = await response.json();
+    setCampaign(data.campaign);
+    setClaims(data.claims || []);
+    setEvents(data.events || []);
+    return data.campaign;
+  }, [id]);
+
+  const pollForCampaignStatus = useCallback(
+    async (targetStatuses: string[], attempts = 8, delayMs = 1500) => {
+      setIsFundingSyncing(true);
+      try {
+        for (let attempt = 1; attempt <= attempts; attempt += 1) {
+          const latestCampaign = await refreshCampaign();
+          if (latestCampaign && targetStatuses.includes(latestCampaign.status)) {
+            return latestCampaign;
+          }
+
+          if (attempt < attempts) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+        }
+
+        return null;
+      } finally {
+        setIsFundingSyncing(false);
+      }
+    },
+    [refreshCampaign],
+  );
 
   useEffect(() => {
     const fetchCampaign = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/airdrops/${id}`);
-        const data = await response.json();
-        setCampaign(data.campaign);
-        setClaims(data.claims || []);
-        setEvents(data.events || []);
+        await refreshCampaign();
       } catch (error) {
         console.error('Failed to fetch campaign:', error);
+        setFeedback({
+          tone: 'error',
+          title: 'Failed to load campaign details.',
+          description: error instanceof Error ? error.message : 'Try refreshing the page.',
+        });
       } finally {
         setLoading(false);
       }
     };
 
     if (id) fetchCampaign();
-  }, [id]);
+  }, [id, refreshCampaign]);
 
   // Check if user is eligible to claim
   useEffect(() => {
@@ -118,20 +174,30 @@ export default function AirdropDetailPage() {
 
   const handlePause = async () => {
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can pause this campaign.',
+      });
       return;
     }
     setActionLoading('pause');
     try {
       const txHash = await pauseAirdropOnChain(wallet, id!);
-      alert(`Campaign paused on-chain.\n\nTransaction: ${txHash}`);
-      const response = await fetch(`/api/airdrops/${id}`);
-      const data = await response.json();
-      setCampaign(data.campaign);
-      setEvents(data.events || []);
+      await refreshCampaign();
+      setFeedback({
+        tone: 'success',
+        title: 'Campaign paused on-chain.',
+        description: 'Claims are now paused until the campaign is resumed.',
+        txHash,
+      });
     } catch (error: any) {
       console.error('Failed to pause campaign:', error);
-      alert(`Failed to pause campaign: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to pause campaign.',
+        description: error.message,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -148,34 +214,77 @@ export default function AirdropDetailPage() {
         throw new Error('Please connect your wallet first');
       }
       const txHash = await cancelAirdropOnChain(wallet, id!);
-      alert(`Campaign cancelled on-chain.\n\nTransaction: ${txHash}`);
+      setFeedback({
+        tone: 'success',
+        title: 'Campaign cancelled on-chain.',
+        description: 'Remaining funds were returned according to the cancellation flow.',
+        txHash,
+      });
       navigate('/airdrops');
     } catch (error: any) {
       console.error('Failed to cancel campaign:', error);
-      alert(`Failed to cancel campaign: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to cancel campaign.',
+        description: error.message,
+      });
       setActionLoading(null);
     }
   };
 
   const handleFund = async () => {
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can fund this campaign.',
+      });
       return;
     }
 
     setActionLoading('fund');
     try {
-      const txHash = await fundAirdropContract(wallet, id!);
-      alert(`Airdrop funded successfully!\n\nTransaction: ${txHash}`);
+      const result = await fundAirdropContract(wallet, id!);
+      await refreshCampaign();
 
-      // Refresh campaign data
-      const response = await fetch(`/api/airdrops/${id}`);
-      const data = await response.json();
-      setCampaign(data.campaign);
-      setEvents(data.events || []);
+      if (result.confirmation === 'confirmed') {
+        setFeedback({
+          tone: 'success',
+          title: 'Airdrop funded successfully.',
+          description: 'The contract output is confirmed and the campaign is ready for claims.',
+          txHash: result.txHash,
+        });
+      } else {
+        setFeedback({
+          tone: 'warning',
+          title: 'Funding transaction broadcast. Waiting for backend confirmation.',
+          description:
+            result.detail ||
+            'The contract transaction is on-chain, but the backend has not marked the campaign active yet. This page will keep checking.',
+          txHash: result.txHash,
+        });
+      }
+
+      const activatedCampaign =
+        result.confirmation === 'confirmed'
+          ? await refreshCampaign()
+          : await pollForCampaignStatus(['ACTIVE', 'PAUSED', 'CANCELLED']);
+
+      if (activatedCampaign?.status === 'ACTIVE') {
+        setFeedback({
+          tone: 'success',
+          title: 'Airdrop is now active.',
+          description: 'The funding output has been indexed and claims can begin.',
+          txHash: result.txHash,
+        });
+      }
     } catch (error: any) {
       console.error('Failed to fund airdrop:', error);
-      alert(`Failed to fund airdrop: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to fund airdrop.',
+        description: error.message,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -183,29 +292,40 @@ export default function AirdropDetailPage() {
 
   const handleClaim = async () => {
     if (!wallet.isConnected) {
-      alert('Please connect your wallet first');
+      setFeedback({
+        tone: 'info',
+        title: 'Connect your wallet first.',
+        description: 'Wallet access is required before you can claim.',
+      });
       return;
     }
 
     if (!userEligibility?.eligible) {
-      alert('You are not eligible for this airdrop');
+      setFeedback({
+        tone: 'warning',
+        title: 'This wallet is not eligible to claim.',
+        description: 'Check the eligibility list or use the wallet that received the campaign allocation.',
+      });
       return;
     }
 
     setActionLoading('claim');
     try {
       const txHash = await claimAirdropFunds(wallet, id!);
-      alert(`Claimed ${userEligibility.amount.toFixed(4)} BCH successfully!\n\nTransaction: ${txHash}`);
-
-      // Refresh campaign data
-      const response = await fetch(`/api/airdrops/${id}`);
-      const data = await response.json();
-      setCampaign(data.campaign);
-      setClaims(data.claims || []);
-      setEvents(data.events || []);
+      await refreshCampaign();
+      setFeedback({
+        tone: 'success',
+        title: `Claimed ${userEligibility.amount.toFixed(4)} BCH successfully.`,
+        description: 'The claim transaction was submitted and your campaign history has been refreshed.',
+        txHash,
+      });
     } catch (error: any) {
       console.error('Failed to claim airdrop:', error);
-      alert(`Failed to claim airdrop: ${error.message}`);
+      setFeedback({
+        tone: 'error',
+        title: 'Failed to claim airdrop.',
+        description: error.message,
+      });
     } finally {
       setActionLoading(null);
     }
@@ -236,6 +356,12 @@ export default function AirdropDetailPage() {
 
   const isCreator = String(wallet.address || '').toLowerCase() === String(campaign.creator || '').toLowerCase();
   const claimProgress = (campaign.claimed_count / campaign.total_recipients) * 100;
+  const feedbackToneClasses: Record<FeedbackTone, string> = {
+    success: 'border-primary/30 bg-primary/5 text-primary',
+    warning: 'border-secondary/30 bg-secondary/5 text-secondary',
+    error: 'border-error/30 bg-error/5 text-error',
+    info: 'border-border bg-surfaceAlt text-textPrimary',
+  };
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8">
@@ -327,6 +453,39 @@ export default function AirdropDetailPage() {
             </div>
           </div>
         </div>
+
+        {feedback && (
+          <Card
+            padding="lg"
+            className={`mb-6 border ${feedbackToneClasses[feedback.tone]}`}
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{feedback.title}</p>
+                {feedback.description && (
+                  <p className="mt-1 text-sm leading-6 text-textSecondary">{feedback.description}</p>
+                )}
+                {feedback.txHash && (
+                  <a
+                    href={getExplorerTxUrl(feedback.txHash, network)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primaryHover"
+                  >
+                    View transaction
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+                {actionLoading === 'fund' || isFundingSyncing ? (
+                  <p className="mt-3 text-xs font-mono uppercase tracking-[0.18em] text-textMuted">
+                    Syncing campaign status…
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Eligibility Banner */}
         {wallet.isConnected && !isCreator && campaign.status === 'ACTIVE' && (

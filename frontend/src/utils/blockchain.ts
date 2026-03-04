@@ -1281,7 +1281,7 @@ export async function transferStreamOnChain(
 export async function fundPaymentContract(
   wallet: WalletInterface,
   paymentId: string
-): Promise<string> {
+): Promise<{ txHash: string; confirmation: 'confirmed' | 'pending'; detail?: string | null }> {
   let preparationTxId: string | null = null;
   try {
     if (!wallet.address) {
@@ -1359,11 +1359,18 @@ export async function fundPaymentContract(
     }
 
     if (confirmError) {
-      publishTransactionNotice(txId, wallet, 'Payment funding broadcast');
-      throw new Error(`Transaction broadcast (${txId}) but confirmation failed: ${confirmError}`);
+      return {
+        txHash: publishTransactionNotice(txId, wallet, 'Payment funding broadcast'),
+        confirmation: 'pending',
+        detail: confirmError,
+      };
     }
 
-    return publishTransactionNotice(txId, wallet, 'Payment funded');
+    return {
+      txHash: publishTransactionNotice(txId, wallet, 'Payment funded'),
+      confirmation: 'confirmed',
+      detail: null,
+    };
   } catch (error: any) {
     console.error('Failed to fund payment:', error);
 
@@ -1731,7 +1738,7 @@ export async function cancelAirdropOnChain(
 export async function fundAirdropContract(
   wallet: WalletInterface,
   airdropId: string
-): Promise<string> {
+): Promise<{ txHash: string; confirmation: 'confirmed' | 'pending'; detail?: string | null }> {
   let preparationTxId: string | null = null;
   try {
     if (!wallet.address) {
@@ -1809,11 +1816,18 @@ export async function fundAirdropContract(
     }
 
     if (confirmError) {
-      publishTransactionNotice(txId, wallet, 'Airdrop funding broadcast');
-      throw new Error(`Transaction broadcast (${txId}) but confirmation failed: ${confirmError}`);
+      return {
+        txHash: publishTransactionNotice(txId, wallet, 'Airdrop funding broadcast'),
+        confirmation: 'pending',
+        detail: confirmError,
+      };
     }
 
-    return publishTransactionNotice(txId, wallet, 'Airdrop funded');
+    return {
+      txHash: publishTransactionNotice(txId, wallet, 'Airdrop funded'),
+      confirmation: 'confirmed',
+      detail: null,
+    };
   } catch (error: any) {
     console.error('Failed to fund airdrop:', error);
 
