@@ -240,12 +240,13 @@ export class FlowGuardExecutor {
       `proposals WHERE is_spent = FALSE AND status = '${ProposalStatus.EXECUTABLE}'`,
     );
 
+    const automaticExecutionAvailable = false;
     const status =
       this.lastError && this.consecutiveFailures >= 3
         ? 'critical'
         : this.consecutiveFailures > 0
           ? 'degraded'
-          : this.config.executorPrivateKey
+          : automaticExecutionAvailable
             ? 'healthy'
             : 'manual';
 
@@ -287,6 +288,7 @@ export class FlowGuardExecutor {
         canBroadcast: false,
         canExecuteSchedulesAutomatically: false,
         canExecuteProposalsAutomatically: false,
+        executionMode: 'manual',
       },
       resources: {
         memoryRssMB: Number((process.memoryUsage().rss / 1024 / 1024).toFixed(2)),

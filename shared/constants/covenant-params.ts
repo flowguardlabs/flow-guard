@@ -1,84 +1,42 @@
 /**
  * Shared Covenant Parameters
  *
- * Constants for covenant validation limits
- * Used by: contracts, frontend, backend, indexer, executor, SDK
+ * Current FlowGuard-wide constants used by contracts, frontend, backend,
+ * indexer, executor, and SDK layers.
  *
- * CRITICAL: These values MUST be determined via benchmarking
- * See: contracts/tests/benchmarks/
- *
- * Run benchmarking suite:
- * - npm run benchmark:signers  (determines MAX_SIGNERS_PRE_LAYLA)
- * - npm run benchmark:votes    (determines MAX_VOTES_PRE_LAYLA)
- * - npm run benchmark:recipients (determines MAX_RECIPIENTS_PRE_LAYLA)
+ * These are implementation limits for the contracts currently shipped in the
+ * product. They do not automatically expand when the BCH network activates new
+ * VM features.
  */
 
 /**
  * MAX_SIGNERS_PRE_LAYLA
  *
- * Maximum M-of-N signers supportable pre-Layla upgrade
- *
- * CONSTRAINT: Hardcoded M-of-N validation in VaultCovenant
- * - Script size grows linearly with N
- * - Limited by P2SH32 script size and tx relay rules
- *
- * BENCHMARKING: See contracts/tests/benchmarks/signers-benchmark.js
- * - Tests 2-of-3, 3-of-5, 5-of-7, 7-of-10, 10-of-15, 15-of-20, 20-of-30
- * - Measures bytecode size, tx construction, relay success
- * - Expected result: 5 to 10 (conservative estimate)
- *
- * POST-LAYLA (May 15, 2026): Arbitrary M-of-N via Loops CHIP
+ * Current treasury/proposal contracts compile exactly three signer slots.
  */
-export const MAX_SIGNERS_PRE_LAYLA = 7; // TBD via benchmarking (placeholder: 7)
+export const MAX_SIGNERS_PRE_LAYLA = 3;
 
 /**
  * MAX_VOTES_PRE_LAYLA
  *
- * Maximum votes aggregatable trustlessly on-chain pre-Layla
- *
- * CONSTRAINT: Hardcoded input validation in TallyCommitmentCovenant
- * - Each vote input validated separately
- * - Limited by tx size (100KB) and opcode count
- *
- * BENCHMARKING: See contracts/tests/benchmarks/votes-benchmark.js
- * - Tests 5, 10, 20, 30, 50, 100 vote inputs
- * - Measures tx size, validation time, relay success
- * - Expected result: 10 to 30 (conservative estimate)
- *
- * FALLBACK: For proposals with >MAX_VOTES_PRE_LAYLA voters:
- * - Use M-of-N attested tally (HYBRID enforceability)
- * - Off-chain tally computation + on-chain M-of-N attestation
- * - Independent validators verify tally (social consensus)
- *
- * POST-LAYLA (May 15, 2026): Arbitrary vote count via Loops CHIP
+ * Current fixed-max tally covenant supports three direct votes.
  */
-export const MAX_VOTES_PRE_LAYLA = 20; // TBD via benchmarking (placeholder: 20)
+export const MAX_VOTES_PRE_LAYLA = 3;
 
 /**
  * MAX_RECIPIENTS_PRE_LAYLA
  *
- * Maximum payout recipients per transaction pre-Layla
- *
- * CONSTRAINT: Hardcoded recipient validation in GuardrailChecks
- * - Each recipient validated for caps, allowlist, category
- * - Limited by tx size (100KB) and guardrail bytecode size
- *
- * BENCHMARKING: See contracts/tests/benchmarks/recipients-benchmark.js
- * - Tests 5, 10, 20, 50, 100, 200, 500 recipients
- * - Measures tx size, guardrail overhead
- * - Expected result: 50 to 200 (likely larger than signers/votes)
- *
- * POST-LAYLA (May 15, 2026): Arbitrary recipients via Loops CHIP
+ * Current treasury proposal execution targets one payout recipient.
  */
-export const MAX_RECIPIENTS_PRE_LAYLA = 100; // TBD via benchmarking (placeholder: 100)
+export const MAX_RECIPIENTS_PRE_LAYLA = 1;
 
 /**
  * MAX_ALLOWLIST_SIZE
  *
  * Maximum addresses in recipient allowlist
- * Same constraints as MAX_RECIPIENTS_PRE_LAYLA
+ * Current treasury allowlist compiles three explicit address slots.
  */
-export const MAX_ALLOWLIST_SIZE = MAX_RECIPIENTS_PRE_LAYLA;
+export const MAX_ALLOWLIST_SIZE = 3;
 
 /**
  * MAX_CATEGORY_COUNT
@@ -128,54 +86,37 @@ export const P2PKH_OUTPUT_SIZE = 34; // Bytes (8 value + 26 script)
 export const P2SH32_MAX_SCRIPT_SIZE = 10000; // Conservative estimate (TBD)
 
 /**
- * Layla Upgrade Date
+ * BCH VM Upgrade Context
  *
- * May 15, 2026 - Loops, Functions, Bitwise, P2SH32 CHIPs activate
+ * The BCH 2026 upgrade may expand what future FlowGuard covenants can do, but
+ * these constants remain tied to the contracts currently deployed by FlowGuard.
  */
-export const LAYLA_ACTIVATION_TIMESTAMP = 1778947200n; // May 15, 2026 00:00:00 UTC
+export const LAYLA_ACTIVATION_TIMESTAMP = 1778990400n; // May 15, 2026 12:00:00 UTC
 
 /**
- * Check if Layla upgrade is active
+ * Check whether the BCH 2026 VM upgrade is active on the network.
  */
 export function isLaylaActive(currentTimestamp: bigint): boolean {
   return currentTimestamp >= LAYLA_ACTIVATION_TIMESTAMP;
 }
 
 /**
- * Get max voters for current time
- *
- * Pre-Layla: MAX_VOTES_PRE_LAYLA (trustless)
- * Post-Layla: Unlimited (Loops CHIP)
+ * Get max voters for the current FlowGuard implementation.
  */
-export function getMaxVoters(currentTimestamp: bigint): number | null {
-  if (isLaylaActive(currentTimestamp)) {
-    return null; // Unlimited
-  }
+export function getMaxVoters(_currentTimestamp: bigint): number {
   return MAX_VOTES_PRE_LAYLA;
 }
 
 /**
- * Get max signers for current time
- *
- * Pre-Layla: MAX_SIGNERS_PRE_LAYLA (hardcoded)
- * Post-Layla: Unlimited (Loops CHIP)
+ * Get max signers for the current FlowGuard implementation.
  */
-export function getMaxSigners(currentTimestamp: bigint): number | null {
-  if (isLaylaActive(currentTimestamp)) {
-    return null; // Unlimited
-  }
+export function getMaxSigners(_currentTimestamp: bigint): number {
   return MAX_SIGNERS_PRE_LAYLA;
 }
 
 /**
- * Get max recipients for current time
- *
- * Pre-Layla: MAX_RECIPIENTS_PRE_LAYLA (hardcoded)
- * Post-Layla: Unlimited (Loops CHIP)
+ * Get max recipients for the current FlowGuard implementation.
  */
-export function getMaxRecipients(currentTimestamp: bigint): number | null {
-  if (isLaylaActive(currentTimestamp)) {
-    return null; // Unlimited
-  }
+export function getMaxRecipients(_currentTimestamp: bigint): number {
   return MAX_RECIPIENTS_PRE_LAYLA;
 }

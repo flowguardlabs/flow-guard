@@ -256,6 +256,7 @@ export class FlowGuardIndexer {
         lastError: this.lastError,
       },
       workload: {
+        indexingMode: 'monitored_addresses',
         monitoredAddresses: this.config.vaultAddresses.length,
         blocksIndexed: this.blocksIndexed,
         covenantUtxosProcessed: this.covenantUtxosProcessed,

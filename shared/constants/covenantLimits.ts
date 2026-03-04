@@ -1,13 +1,12 @@
 /**
- * FlowGuard Covenant Limits (Pre-Layla)
+ * FlowGuard Covenant Limits (Current Implementations)
  *
- * These constants define engineering limits for covenant contracts based on
- * Bitcoin Cash consensus rules and standard relay policies.
+ * These constants describe the limits enforced by the contracts currently
+ * shipped in FlowGuard. They are implementation limits, not automatic network
+ * limits, and they do not expand simply because a BCH VM upgrade activates.
  *
- * STATUS: ESTIMATED (Conservative values pending chipnet benchmark validation)
- * SEE: contracts/tests/benchmarks/RESULTS.md for full analysis
- *
- * IMPORTANT: Post-Layla (May 2026), Loops/Functions CHIPs remove most hardcoded limits
+ * Broader signer sets, larger trustless tallies, or wider payout fanout require
+ * explicit covenant redesign and redeployment inside FlowGuard.
  */
 
 /**
@@ -21,60 +20,38 @@ export const COVENANT_LIMITS = {
   /**
    * MAX_SIGNERS_PRE_LAYLA
    *
-   * Maximum signers in M-of-N approval set (pre-Layla hardcoded branches).
-   *
-   * Conservative estimate: 5
-   * - 3-of-5, 5-of-7: Safe (bytecode ~750 bytes, validation <400ms)
-   * - 7-of-10: Borderline (bytecode ~1,050 bytes, validation ~600ms)
-   * - 10-of-15: Not recommended (exceeds performance limits)
-   *
-   * Constraint: Hardcoded branches increase bytecode linearly with N
-   * Post-Layla: Arbitrary M-of-N with Loops CHIP (removes limit)
+   * Current treasury and proposal contracts compile three fixed signer slots.
+   * FlowGuard does not yet ship an arbitrary signer-set covenant.
    */
-  MAX_SIGNERS_PRE_LAYLA: 5,
+  MAX_SIGNERS_PRE_LAYLA: 3,
 
   /**
    * MAX_APPROVALS_REQUIRED
    *
-   * Maximum M in M-of-N configuration.
-   * Same as MAX_SIGNERS_PRE_LAYLA (worst case: M == N).
+   * Current spend / resume / cancel paths top out at two signer approvals.
+   * Emergency lock remains a distinct all-3 path in VaultCovenant.
    */
-  MAX_APPROVALS_REQUIRED: 5,
+  MAX_APPROVALS_REQUIRED: 2,
 
   // ==================== VOTE TALLY LIMITS ====================
 
   /**
    * MAX_VOTES_PRE_LAYLA
    *
-   * Maximum VoteUTXO inputs in CreateTally transaction (pre-Layla).
-   *
-   * Conservative estimate: 20
-   * - 10 votes: Safe (opcode count ~500, tx size ~2.8KB)
-   * - 20 votes: Borderline (opcode count ~1,000, approaching 201 limit)
-   * - 30 votes: Exceeds opcode count limit (201 per script)
-   *
-   * Constraint: BCH opcode count limit (201 operations per script)
-   * Fallback: For >20 votes, governance signers approve tally commitment
-   * Post-Layla: Loops CHIP enables 100+ vote trustless tallying
+   * The currently shipped fixed-max tally covenant handles three direct votes.
+   * Larger governance tallies still require alternate attestation paths.
    */
-  MAX_VOTES_PRE_LAYLA: 20,
+  MAX_VOTES_PRE_LAYLA: 3,
 
   // ==================== PAYOUT RECIPIENT LIMITS ====================
 
   /**
    * MAX_RECIPIENTS_PRE_LAYLA
    *
-   * Maximum payout outputs in ExecuteProposal transaction.
-   *
-   * Conservative estimate: 50
-   * - 50 recipients: Safe (tx size ~2.5KB, validation ~100ms)
-   * - 100 recipients: Safe (tx size ~4.2KB, validation ~200ms)
-   * - 200+ recipients: Technically feasible but conservative limit preferred
-   *
-   * Constraint: 100KB standard tx relay limit
-   * Post-Layla: Loops CHIP enables arbitrary recipient iteration
+   * Current treasury proposal execution targets one payout recipient per
+   * proposal covenant state transition.
    */
-  MAX_RECIPIENTS_PRE_LAYLA: 50,
+  MAX_RECIPIENTS_PRE_LAYLA: 1,
 
   // ==================== TRANSACTION SIZE LIMITS ====================
 
@@ -154,25 +131,21 @@ export const COVENANT_LIMITS = {
  * Tracking status and validation requirements.
  */
 export const BENCHMARK_METADATA = {
-  status: 'ESTIMATED' as const,
-  dateEstimated: '2026-01-31',
+  status: 'CURRENT_IMPLEMENTATION' as const,
+  dateEstimated: '2026-03-04',
   actualChipnetTested: false,
-  needsValidation: true,
+  needsValidation: false,
 
   assumptions: [
-    'Conservative margins for safety',
-    'Based on BCH consensus rules and standard relay policies',
-    'Pre-Layla hardcoded branch implementation (no Loops/Functions CHIPs)',
-    'No empirical chipnet testing yet (awaiting CashScript compilation)',
+    'Values reflect the contracts currently deployed by FlowGuard',
+    'Network upgrades do not automatically widen these limits',
+    'Expanded signer sets, tallies, or payout fanout require new covenant code',
   ],
 
   nextSteps: [
-    'Compile contracts with CashScript',
-    'Deploy test contracts to chipnet',
-    'Run empirical benchmarks (signers-benchmark.js, votes-benchmark.js, recipients-benchmark.js)',
-    'Validate or refine estimated limits',
-    'Document actual measured values in RESULTS.md',
-    'Update covenant implementations with validated limits',
+    'Design next-generation treasury and governance covenants for larger signer sets',
+    'Benchmark those rewritten covenants on chipnet before changing product claims',
+    'Update docs and UI only after contract behavior is actually expanded',
   ],
 
   references: [
@@ -183,47 +156,42 @@ export const BENCHMARK_METADATA = {
 } as const;
 
 /**
- * Post-Layla Expected Improvements (May 2026)
+ * BCH VM Upgrade Context
  *
- * After CHIPs activation, these limits should be re-benchmarked.
+ * BCH network upgrades can expand what future FlowGuard covenants are able to
+ * do, but the current product keeps its fixed-branch behavior until new
+ * contracts are implemented and deployed.
  */
 export const POST_LAYLA_EXPECTED = {
-  MAX_SIGNERS: Infinity, // Arbitrary M-of-N with Loops CHIP
-  MAX_VOTES: 100, // 100+ votes feasible with loop-based tallying
-  BYTECODE_REDUCTION: 0.7, // ~70% smaller bytecode with Functions CHIP
-  VALIDATION_SPEEDUP: 2.0, // ~2x faster validation with optimized loops
+  CONTRACT_REWRITE_REQUIRED: true,
+  NETWORK_CONTEXT_ONLY: true,
 
   chips: [
-    'Loops CHIP - Arbitrary iteration (remove hardcoded M-of-N limits)',
-    'Functions CHIP - Modular bytecode (reduce duplication)',
-    'Bitwise CHIP - Efficient state encoding',
-    'P2SH32 CHIP - 32-byte script hashes',
+    'Loops CHIP',
+    'Functions CHIP',
+    'Bitwise CHIP',
+    'P2SH32 CHIP',
   ],
 
-  activationDate: '2026-05-15',
+  chipnetActivationDate: '2025-11-16T12:00:00Z',
+  mainnetActivationDate: '2026-05-15T12:00:00Z',
+  note:
+    'FlowGuard must ship new covenant implementations before larger signer sets or trustless tally expansion become live product capabilities.',
 } as const;
 
-/**
- * Type guard: Check if running in pre-Layla or post-Layla mode
- */
 export function isPostLayla(): boolean {
   const currentDate = new Date();
-  const laylaActivation = new Date('2026-05-15T00:00:00Z');
+  const laylaActivation = new Date('2026-05-15T12:00:00Z');
   return currentDate >= laylaActivation;
 }
 
 /**
- * Get current covenant limits based on upgrade status
+ * Get current FlowGuard covenant limits.
+ *
+ * This intentionally returns the live product limits even after the network
+ * upgrade date. FlowGuard limits only change when FlowGuard contracts change.
  */
 export function getCurrentLimits() {
-  if (isPostLayla()) {
-    return {
-      ...COVENANT_LIMITS,
-      MAX_SIGNERS: POST_LAYLA_EXPECTED.MAX_SIGNERS,
-      MAX_VOTES: POST_LAYLA_EXPECTED.MAX_VOTES,
-      // Note: Actual post-Layla limits TBD via new benchmarks
-    };
-  }
   return COVENANT_LIMITS;
 }
 

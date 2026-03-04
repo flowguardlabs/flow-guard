@@ -16,7 +16,7 @@ All parameters are compiled into the P2SH32 bytecode at deployment. They are imm
 | Parameter | Type | Description |
 |-|-|-|
 | `vaultId` | `bytes32` | Unique vault identifier. Non-zero required. |
-| `requiredApprovals` | `int` | Governance threshold metadata (used by proposal layer; spend path here is 2-signer) |
+| `requiredApprovals` | `int` | Governance threshold metadata. The current spend path itself is fixed to two distinct signer approvals. |
 | `signer1Hash` | `bytes20` | `hash160(pubkey)` of signer 1 |
 | `signer2Hash` | `bytes20` | `hash160(pubkey)` of signer 2 |
 | `signer3Hash` | `bytes20` | `hash160(pubkey)` of signer 3 |
@@ -73,8 +73,12 @@ Execute a spending proposal. Requires two distinct registered signers.
 - `outputs[1]`: Updated vault UTXO with new NFT state
 
 <Note>
-`requiredApprovals` is not directly used inside `spend()` in this contract version. The spend path itself is hardcoded to two distinct signer signatures.
+`requiredApprovals` is not directly used inside `spend()` in this contract version. FlowGuard currently ships a fixed three-signer vault with a two-signer spend path, single-signer pause/unlockPeriod path, and all-three emergency lock path.
 </Note>
+
+<Warning>
+The BCH 2026 VM upgrade expands what future covenant designs may be able to express, but it does not automatically widen this contract. Larger signer sets require a new VaultCovenant implementation and redeployment inside FlowGuard.
+</Warning>
 
 ### `unlockPeriod(sig authSig, pubkey authPubkey, int newPeriodId, int newSpent)`
 

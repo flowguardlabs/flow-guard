@@ -34,8 +34,13 @@
  *   allowedAddr2      — allowlist address 2
  *   allowedAddr3      — allowlist address 3
  *
- * PRE-LAYLA: Hardcoded max 3-of-3
- * POST-LAYLA: Loops CHIP enables arbitrary M-of-N
+ * CURRENT FLOWGUARD IMPLEMENTATION:
+ * - Fixed three-signer vault design
+ * - Two-signer spend/resume paths
+ * - Three-signer emergency lock path
+ *
+ * Future BCH VM upgrades can support richer designs, but those require
+ * explicit FlowGuard contract rewrites rather than automatic network changes.
  */
 
 pragma cashscript ^0.13.0;

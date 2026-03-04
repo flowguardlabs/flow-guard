@@ -1,6 +1,6 @@
 ---
 title: "Vaults"
-description: "The primary treasury primitive in FlowGuard. M-of-N multisig enforcement with period spending caps, recipient allowlists, and emergency lock."
+description: "The primary treasury primitive in FlowGuard. Current vault contracts use a fixed three-signer design with period spending caps, recipient allowlists, and emergency lock."
 icon: "vault"
 ---
 
@@ -25,7 +25,7 @@ flowchart TD
 | Parameter | Type | Description |
 |-|-|-|
 | `vaultId` | `bytes32` | Unique identifier linking covenants to this vault |
-| `requiredApprovals` | `int` | M in M-of-N (currently max 2-of-3 pre-Loops CHIP) |
+| `requiredApprovals` | `int` | Approval metadata for the vault. Current shipped spend/resume paths operate within a fixed three-signer design. |
 | `signer1Hash` | `bytes20` | `hash160` of signer 1 pubkey |
 | `signer2Hash` | `bytes20` | `hash160` of signer 2 pubkey |
 | `signer3Hash` | `bytes20` | `hash160` of signer 3 pubkey |
@@ -33,7 +33,7 @@ flowchart TD
 | `periodCap` | `int` | Max satoshis spendable per period (0 = unlimited) |
 | `recipientCap` | `int` | Max satoshis per single spend (0 = unlimited) |
 | `allowlistEnabled` | `int` | 1 = only `allowedAddr1/2/3` can receive funds |
-| `allowedAddr1/2/3` | `bytes20` | Recipient allowlist (up to 3 addresses pre-Loops CHIP) |
+| `allowedAddr1/2/3` | `bytes20` | Recipient allowlist slots in the current three-address implementation |
 
 ## NFT State Layout (32 bytes)
 
@@ -82,10 +82,10 @@ Bytes 25-31: reserved
 | Who | Can Do |
 |-|-|
 | Any single signer | `pause()`, `unlockPeriod()` |
-| M-of-N signers | `spend()`, `resume()` |
-| All N signers | `emergencyLock()` |
+| Two distinct registered signers | `spend()`, `resume()` |
+| All three registered signers | `emergencyLock()` |
 | No one | Override covenant math, skip period cap |
 
 <Note>
-Pre-Loops CHIP, the vault hardcodes a maximum of 3 signers. Post-Loops CHIP activation will allow arbitrary N via dynamic signer arrays.
+Current FlowGuard vault contracts hardcode three signer slots and three allowlist slots. BCH network upgrades can expand what future FlowGuard covenants may support, but larger signer sets still require explicit contract rewrites and redeployment in FlowGuard.
 </Note>

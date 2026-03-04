@@ -17,7 +17,7 @@ icon: "file-contract"
 | `signer1Hash` | `bytes20` | Vault signer 1 |
 | `signer2Hash` | `bytes20` | Vault signer 2 |
 | `signer3Hash` | `bytes20` | Vault signer 3 |
-| `requiredApprovals` | `int` | M in M-of-N |
+| `requiredApprovals` | `int` | Approval threshold metadata within the current fixed three-signer proposal design |
 
 ## NFT State (40 bytes)
 
@@ -86,6 +86,10 @@ Two distinct registered signer signatures required.
 <Note>
 In this contract version, `cancel()` is hardcoded to require two distinct signers. It does not directly use `requiredApprovals`.
 </Note>
+
+<Warning>
+FlowGuard's current proposal covenant is still built around three explicit signer slots and a three-bit approval mask. BCH network upgrades can enable future redesigns, but larger signer sets or arbitrary vote counts still require new FlowGuard contract implementations.
+</Warning>
 
 ### `expire()`
 

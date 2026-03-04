@@ -176,6 +176,7 @@ export default function IndexerStatusPage() {
         status: status.services.indexer.status,
         content: status.services.indexer.data ? (
           <div className="space-y-1">
+            <DetailRow label="Indexing Mode" value={status.services.indexer.data.workload?.indexingMode === 'monitored_addresses' ? 'Monitored covenant addresses' : status.services.indexer.data.workload?.indexingMode} />
             <DetailRow label="Indexed Height" value={status.services.indexer.data.chain?.currentIndexedHeight} />
             <DetailRow label="Blocks Behind" value={status.services.indexer.data.chain?.blocksBehind} />
             <DetailRow label="Monitored Addresses" value={status.services.indexer.data.workload?.monitoredAddresses} />
@@ -197,7 +198,9 @@ export default function IndexerStatusPage() {
         status: status.services.executor.status,
         content: status.services.executor.data ? (
           <div className="space-y-1">
-            <DetailRow label="Automatic Signing" value={status.services.executor.data.capabilities?.automaticSigningConfigured ? 'Configured' : 'Not Configured'} />
+            <DetailRow label="Execution Mode" value={status.services.executor.data.capabilities?.executionMode === 'manual' ? 'Manual follow-up required' : status.services.executor.data.capabilities?.executionMode} />
+            <DetailRow label="Automatic Signing Key" value={status.services.executor.data.capabilities?.automaticSigningConfigured ? 'Configured' : 'Not Configured'} />
+            <DetailRow label="Can Broadcast Automatically" value={status.services.executor.data.capabilities?.canBroadcast ? 'Yes' : 'No'} />
             <DetailRow label="Queue Ready" value={`${status.services.executor.data.queue?.executableSchedules ?? 0} schedules / ${status.services.executor.data.queue?.executableProposals ?? 0} proposals`} />
             <DetailRow label="Tasks Seen" value={status.services.executor.data.queue?.tasksSeen} />
             <DetailRow label="Manual Required" value={status.services.executor.data.queue?.manualExecutionsRequired} />
@@ -229,7 +232,7 @@ export default function IndexerStatusPage() {
               <p className="text-xs font-mono uppercase tracking-[0.24em] text-textMuted">Operators</p>
               <h1 className="mt-2 text-3xl font-display font-bold text-textPrimary md:text-5xl">System Status</h1>
               <p className="mt-2 max-w-2xl text-sm text-textMuted md:text-base">
-                Real-time health for the backend API, indexer, and executor. This page uses service endpoints, not synthetic SQLite estimates.
+                Operational health for the backend API and supporting workers. This page reports the current implementation as shipped, including monitored-address indexing and manual executor mode where automatic execution is not yet available.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -305,6 +308,15 @@ export default function IndexerStatusPage() {
                   </div>
                 </Card>
               </div>
+
+              <Card className="border-warning/20 bg-warning/5 p-5">
+                <div className="space-y-2">
+                  <p className="text-xs font-mono uppercase tracking-[0.24em] text-warning">Operator Note</p>
+                  <p className="text-sm text-textSecondary">
+                    The indexer currently tracks configured covenant addresses rather than serving as a full general-purpose BCH chain indexer. The executor still requires manual follow-up for live transaction execution, even when a signing key is configured.
+                  </p>
+                </div>
+              </Card>
 
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
                 {serviceCards.map(({ key, title, icon: Icon, status: serviceStatus, content }) => (
