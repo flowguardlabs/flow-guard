@@ -758,7 +758,7 @@ router.post('/streams/create', async (req: Request, res: Response) => {
         cancelable, transferable, refillable, status, schedule_template, launch_source, launch_title,
         launch_description, preferred_lane, description, created_at, updated_at, contract_address,
         constructor_params, nft_commitment, nft_capability)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, streamId, vaultId || null, sender, recipient,
       normalizedTokenType === 'BCH' ? 'BCH' : 'CASHTOKENS',
@@ -2232,7 +2232,7 @@ router.post('/treasuries/:vaultId/batch-create', async (req: Request, res: Respo
         cancelable, transferable, refillable, status, schedule_template, launch_source, launch_title,
         launch_description, preferred_lane, description, created_at, updated_at, contract_address,
         constructor_params, nft_commitment, nft_capability)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     db!.transaction(() => {
