@@ -35,14 +35,17 @@
       "permanent": false
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "https://api.flowguard.cash/api/:path*"
+      "src": "/api/(.*)",
+      "dest": "https://api.flowguard.cash/api/$1"
     },
     {
-      "source": "/((?!api/)(?!assets/)(?!images/)(?!.*\\.).*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
   ]
 }
