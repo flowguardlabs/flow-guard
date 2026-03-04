@@ -4,6 +4,7 @@ import { Wallet, LogOut, Menu, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useWallet } from '../../hooks/useWallet';
 import { useWalletModal } from '../../hooks/useWalletModal';
+import { APP_SITE_URL, DOCS_SITE_URL } from '../../utils/publicUrls';
 
 /**
  * Header component with FlowGuard branding and navigation
@@ -36,22 +37,22 @@ export const Header: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
-            <Link
-              to="/app"
+            <a
+              href={APP_SITE_URL}
               className={`text-xs uppercase tracking-widest font-medium transition-colors ${isActive('/app') || isActive('/vaults') ? 'text-primary' : 'text-textSecondary hover:text-primary'
                 }`}
             >
               Launch App
-            </Link>
-            <Link
-              to="/proposals"
+            </a>
+            <a
+              href={`${APP_SITE_URL}/proposals`}
               className={`text-xs uppercase tracking-widest font-medium transition-colors ${isActive('/proposals') ? 'text-primary' : 'text-textSecondary hover:text-primary'
                 }`}
             >
               Proposals
-            </Link>
+            </a>
             <a
-              href="https://docs.flowguard.cash"
+              href={DOCS_SITE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs uppercase tracking-widest font-medium text-textSecondary hover:text-primary transition-colors"
@@ -117,22 +118,22 @@ export const Header: React.FC = () => {
       {mobileMenuOpen && (
         <div className="md:hidden py-4 border-t border-border bg-surface absolute w-full left-0 shadow-lg">
           <nav className="flex flex-col space-y-4 px-6">
-            <Link
-              to="/app"
+            <a
+              href={APP_SITE_URL}
               className="text-xs uppercase tracking-widest font-medium text-textSecondary hover:text-primary transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
               Launch App
-            </Link>
-            <Link
-              to="/proposals"
+            </a>
+            <a
+              href={`${APP_SITE_URL}/proposals`}
               className="text-xs uppercase tracking-widest font-medium text-textSecondary hover:text-primary transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
               Proposals
-            </Link>
+            </a>
             <a
-              href="https://docs.flowguard.cash"
+              href={DOCS_SITE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs uppercase tracking-widest font-medium text-textSecondary hover:text-primary transition-colors py-2"

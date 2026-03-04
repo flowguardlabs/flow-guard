@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async';
+import { getCurrentSiteOrigin, MAIN_SITE_URL } from '../../utils/publicUrls';
 
 interface PageMetaProps {
   title: string;
@@ -10,16 +11,16 @@ interface PageMetaProps {
 }
 
 const SITE_NAME = 'FlowGuard';
-const SITE_URL = 'https://flowguard.cash';
-const DEFAULT_IMAGE = `${SITE_URL}/og-default.png`;
+const DEFAULT_IMAGE = `${MAIN_SITE_URL}/images/FlowGuard%20Preview.png`;
 const DEFAULT_IMAGE_ALT = 'FlowGuard social preview card';
 
 function resolveAbsoluteUrl(pathOrUrl?: string) {
+  const siteUrl = getCurrentSiteOrigin();
   if (!pathOrUrl) return undefined;
   if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
     return pathOrUrl;
   }
-  return `${SITE_URL}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`;
+  return `${siteUrl}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`;
 }
 
 export function PageMeta({
@@ -30,7 +31,7 @@ export function PageMeta({
   imageAlt = DEFAULT_IMAGE_ALT,
   type = 'website',
 }: PageMetaProps) {
-  const canonicalUrl = resolveAbsoluteUrl(path) || SITE_URL;
+  const canonicalUrl = resolveAbsoluteUrl(path) || getCurrentSiteOrigin();
   const imageUrl = resolveAbsoluteUrl(image) || DEFAULT_IMAGE;
   const fullTitle = title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
 

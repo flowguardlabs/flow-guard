@@ -26,6 +26,7 @@ import { MobileMenu } from '../components/layout/MobileMenu';
 import Hero3D from '../components/hero/Hero3D';
 import { NoiseBackground } from '../components/ui/NoiseBackground';
 import { PageMeta } from '../components/seo/PageMeta';
+import { APP_SITE_URL } from '../utils/publicUrls';
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60 },
@@ -77,7 +78,7 @@ export default function Home() {
               Security
             </a>
             <ResourcesDropdown />
-            <Link to="/app">
+            <a href={APP_SITE_URL}>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -85,7 +86,7 @@ export default function Home() {
               >
                 Launch App
               </motion.button>
-            </Link>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -166,7 +167,7 @@ export default function Home() {
                 transition={{ delay: 0.3, duration: 0.6 }}
                 className="flex flex-col sm:flex-row gap-4"
               >
-                <Link to="/app">
+                <a href={APP_SITE_URL}>
                   <motion.button
                     whileHover={{ scale: 1.02, y: -2 }}
                     whileTap={{ scale: 0.98 }}
@@ -175,7 +176,7 @@ export default function Home() {
                     Launch App
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </motion.button>
-                </Link>
+                </a>
                 <a
                   href="#features"
                   onClick={(e) => {
@@ -766,10 +767,10 @@ export default function Home() {
                   Alpha Integration Phase
                 </p>
                 <p className="text-textSecondary leading-relaxed">
-                  Basic multisig and guardrails operational on Chipnet. Advanced features
-                  (governance tallying, arbitrary M-of-N) scheduled for{' '}
-                  <strong className="text-textPrimary">May 15, 2026</strong> following BCHN Layla
-                  upgrade.
+                  Current treasury and governance contracts run on Chipnet with fixed
+                  three-signer covenant paths. The BCH 2026 VM upgrade expands what future
+                  FlowGuard contracts can target, but larger signer sets and trustless tally
+                  expansion still require explicit contract rewrites in FlowGuard.
                 </p>
               </div>
             </motion.div>
@@ -780,12 +781,13 @@ export default function Home() {
               viewport={{ once: true }}
             >
               <h2 className="font-display text-5xl mb-8 text-textPrimary leading-tight">
-                Engineered for Layla CHIPs
+                Building toward the 2026 BCH VM upgrade
               </h2>
               <p className="text-lg text-textSecondary mb-8 leading-relaxed">
-                FlowGuard uses modular covenants for efficient state encoding and predictable
-                execution. Post-May 2026, Loops, Functions, and Bitwise CHIPs enable trustless vote
-                tallying and arbitrary M-of-N.
+                FlowGuard already uses BCH-native covenants today. Upcoming BCH VM features like
+                Loops, Functions, Bitwise operations, and P2SH32 can support richer future
+                covenant families, but those capabilities only become live in FlowGuard after new
+                contract implementations ship.
               </p>
               <div className="space-y-3 font-mono text-sm text-textMuted">
                 <div className="flex items-center gap-3">
@@ -842,7 +844,7 @@ export default function Home() {
               },
               {
                 q: 'What happens if a signer loses access?',
-                a: 'If you set up a 3-of-5 multisig, you can lose 2 signers and still operate. Choose your approval threshold carefully based on your security needs.',
+                a: 'Current treasury contracts use a fixed three-signer design. Choose thresholds and emergency procedures carefully, because larger signer sets require a newer covenant implementation than the one FlowGuard ships today.',
               },
               {
                 q: 'Is this production-ready?',
@@ -921,7 +923,7 @@ export default function Home() {
             <p className="text-xl mb-10 text-textSecondary leading-relaxed max-w-2xl mx-auto">
               Deploy your first non-custodial treasury with predictable budget automation
             </p>
-            <Link to="/app">
+            <a href={APP_SITE_URL}>
               <motion.button
                 whileHover={{ scale: 1.05, y: -4 }}
                 whileTap={{ scale: 0.95 }}
@@ -930,7 +932,7 @@ export default function Home() {
                 Launch App
                 <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
               </motion.button>
-            </Link>
+            </a>
           </motion.div>
         </div>
       </section>

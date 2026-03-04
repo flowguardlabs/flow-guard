@@ -24,7 +24,7 @@
   "topbarLinks": [
     {
       "name": "Explorer",
-      "url": "https://app.flowguard.cash/explorer"
+      "url": "https://explorer.flowguard.cash"
     }
   ],
   "topbarCtaButton": {
@@ -58,7 +58,12 @@
     {
       "name": "Explorer",
       "icon": "magnifying-glass",
-      "url": "https://app.flowguard.cash/explorer"
+      "url": "https://explorer.flowguard.cash"
+    },
+    {
+      "name": "YouTube",
+      "icon": "youtube",
+      "url": "https://www.youtube.com/@flowguard_cash"
     }
   ],
   "navigation": [
@@ -213,6 +218,7 @@
     "github": "https://github.com/winsznx/flow-guard",
     "x": "https://x.com/flowguard_",
     "telegram": "https://t.me/flowguard_cash",
-    "linkedin": "https://www.linkedin.com/company/flowguard-labs/"
+    "linkedin": "https://www.linkedin.com/company/flowguard-labs/",
+    "youtube": "https://www.youtube.com/@flowguard_cash"
   }
 }

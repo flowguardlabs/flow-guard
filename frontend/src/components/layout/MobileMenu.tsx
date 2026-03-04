@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { APP_SITE_URL } from '../../utils/publicUrls';
 import { Link } from 'react-router-dom';
 import { X, ChevronDown, ChevronRight, Coins, Users, PieChart, Gift, Vote, BookOpen, HelpCircle } from 'lucide-react';
 
@@ -239,14 +240,14 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                                 </div>
 
                                 <div className="pt-6 mt-6 border-t border-border">
-                                    <Link to="/app" onClick={onClose}>
+                                    <a href={APP_SITE_URL} onClick={onClose}>
                                         <motion.button
                                             whileTap={{ scale: 0.95 }}
                                             className="w-full bg-primary text-white px-6 py-3 rounded-xl text-base font-semibold shadow-lg"
                                         >
                                             Launch App
                                         </motion.button>
-                                    </Link>
+                                    </a>
                                 </div>
                             </div>
                         </div>

@@ -249,7 +249,7 @@ Goals:
 
 The team creates a vault with:
 
-- 3-of-5 approval threshold
+- a fixed three-signer treasury and a 2-of-3 spend threshold
 - 30-day cycle duration
 - 10 BCH unlock per cycle
 - 3 BCH per-transaction cap
@@ -1816,8 +1816,8 @@ Next, we'll break down how FlowGuard handles airdrops using Merkle roots and on-
 Multisig is often treated as the final answer to treasury control.
 
 Require 2-of-3 signatures.
-Or 3-of-5.
-Or 4-of-7.
+Use a fixed three-signer treasury design.
+Add pause, caps, and allowlists on top.
 
 But multisig only answers one question:
 
@@ -2585,7 +2585,7 @@ If you're building on BCH and managing real funds, ask yourself:
 
 If the answer is "in chat," it might be time to move them on-chain.
 
-[Launch App](/vaults)
+[Launch App](https://app.flowguard.cash)
     `,
   },
   'alpha-launch-chipnet': {
@@ -2638,7 +2638,7 @@ We're focused on gathering feedback from early users and preparing for mainnet l
 
 Connect your BCH wallet and create your first treasury on Chipnet. We recommend using Paytaca wallet for the best experience.
 
-[Launch App](/vaults)
+[Launch App](https://app.flowguard.cash)
     `,
   },
   'treasury-automation-explained': {

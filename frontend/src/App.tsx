@@ -53,16 +53,19 @@ import { DaoRolesPage } from './pages/dao/DaoRolesPage';
 import { DaoTreasuryPolicyPage } from './pages/dao/DaoTreasuryPolicyPage';
 import { DaoStreamsPage } from './pages/dao/DaoStreamsPage';
 import { SplitLoginScreen } from './pages/SplitLoginScreen';
+import { isAppHost, isExplorerHost } from './utils/publicUrls';
 
 function App() {
   const wallet = useWallet();
   const { isOpen, closeModal } = useWalletModal();
   const navigate = useNavigate();
   const location = useLocation();
+  const onAppHost = isAppHost();
+  const onExplorerHost = isExplorerHost();
 
   // Redirect to /app when wallet connects, if currently on public landing pages
   useEffect(() => {
-    if (wallet.isConnected && !wallet.isConnecting) {
+    if (wallet.isConnected && !wallet.isConnecting && !onAppHost && !onExplorerHost) {
       const isPublicLandingPage =
         location.pathname === '/' ||
         location.pathname === '/vesting' ||
@@ -75,12 +78,14 @@ function App() {
         navigate('/app');
       }
     }
-  }, [wallet.isConnected, wallet.isConnecting, location.pathname, navigate]);
+  }, [wallet.isConnected, wallet.isConnecting, location.pathname, navigate, onAppHost, onExplorerHost]);
 
   // Scroll to top on route change
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [location.pathname]);
+    if (!location.pathname.startsWith('/app') && !location.pathname.startsWith('/streams') && !location.pathname.startsWith('/vaults') && !location.pathname.startsWith('/payments') && !location.pathname.startsWith('/airdrops') && !location.pathname.startsWith('/proposals') && !location.pathname.startsWith('/budgets') && !location.pathname.startsWith('/governance') && location.pathname !== '/explorer' && location.pathname !== '/status') {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [location.pathname, location.search]);
 
   return (
     <div className="bg-background min-h-screen flex flex-col">
@@ -88,13 +93,34 @@ function App() {
       <main className="flex-grow">
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={
+              onExplorerHost ? (
+                <ExplorerPage />
+              ) : onAppHost ? (
+                wallet.isConnected ? (
+                  <ProtectedRoute>
+                    <DashboardLayout>
+                      <AppShellPage />
+                    </DashboardLayout>
+                  </ProtectedRoute>
+                ) : (
+                  <SplitLoginScreen />
+                )
+              ) : (
+                <Home />
+              )
+            }
+          />
 
           {/* New App Shell Route with Conditional Disconnected Login Screen */}
           <Route
             path="/app"
             element={
-              wallet.isConnected ? (
+              onAppHost ? (
+                <Navigate to="/" replace />
+              ) : wallet.isConnected ? (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <AppShellPage />
@@ -370,7 +396,7 @@ function App() {
           <Route path="/claim/:token" element={<ClaimLinkPage />} />
 
           {/* Public Explorer (no auth required) */}
-          <Route path="/explorer" element={<ExplorerPage />} />
+          <Route path="/explorer" element={onExplorerHost ? <Navigate to="/" replace /> : <ExplorerPage />} />
 
           {/* Public Status Page (standalone) */}
           <Route path="/status" element={<IndexerStatusPage />} />

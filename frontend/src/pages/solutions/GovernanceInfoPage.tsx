@@ -5,6 +5,7 @@ import { Footer } from '../../components/layout/Footer';
 import { SolutionsDropdown } from '../../components/ui/SolutionsDropdown';
 import { NoiseBackground } from '../../components/ui/NoiseBackground';
 import { PageMeta } from '../../components/seo/PageMeta';
+import { APP_SITE_URL } from '../../utils/publicUrls';
 
 export default function GovernanceInfoPage() {
   return (
@@ -31,12 +32,12 @@ export default function GovernanceInfoPage() {
             <a href="https://docs.flowguard.cash/security" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-textSecondary hover:text-textPrimary transition-colors">
               Security
             </a>
-            <Link to="/app">
+            <a href={APP_SITE_URL}>
               <button className="group bg-primary text-white px-8 py-4 rounded-full text-base font-semibold hover:bg-primaryHover transition-all shadow-2xl hover:shadow-accent/20 flex items-center gap-3">
                 Launch App
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -78,12 +79,12 @@ export default function GovernanceInfoPage() {
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <Link to="/app">
+            <a href={`${APP_SITE_URL}/governance`}>
               <button className="group bg-primary text-white px-8 py-4 rounded-full text-base font-semibold hover:bg-primaryHover transition-all shadow-2xl hover:shadow-accent/20 flex items-center gap-3">
                 View Treasury Governance
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-            </Link>
+            </a>
             <a href="https://docs.flowguard.cash/concepts/governance" target="_blank" rel="noopener noreferrer">
               <button className="border-2 border-border text-textPrimary px-8 py-4 rounded-full text-base font-semibold hover:border-primary hover:bg-surfaceAlt/30 transition-all">
                 Learn About Approvals
@@ -97,7 +98,7 @@ export default function GovernanceInfoPage() {
       <section className="relative bg-surfaceAlt/30 overflow-hidden">
         <div className="py-12 md:py-20">
           {[
-            { icon: Users, title: 'Multiple approvals required', description: 'Set how many signers must approve before funds can be spent.', detail: '2-of-3, 3-of-5, whatever you need.' },
+            { icon: Users, title: 'Multiple approvals required', description: 'Current treasury contracts require multiple signers before funds can be spent.', detail: 'Today this ships as a fixed three-signer design with two-signer spend approvals.' },
             { icon: Shield, title: 'No single point of control', description: 'No one person can drain the treasury.', detail: 'Spending requires group consensus.' },
             { icon: Eye, title: 'See who approved', description: 'Every approval is recorded.', detail: 'See exactly which signers approved each proposal.' },
             { icon: CheckCircle, title: 'Thresholds locked in', description: 'Approval requirements are set at treasury creation.', detail: "They can't be changed later." },
@@ -184,8 +185,8 @@ export default function GovernanceInfoPage() {
           <div className="space-y-6">
             {[
               {
-                title: '3-of-5 multisig',
-                description: 'Five co-founders. Any three must approve before spending. Balances security with speed.',
+                title: 'Current 2-of-3 treasury approvals',
+                description: 'Three vault signers. Two approve spend and resume actions, while a single signer can pause for incident response.',
               },
               {
                 title: '2-of-3 with timelock',

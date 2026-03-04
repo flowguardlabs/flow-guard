@@ -1,5 +1,29 @@
 {
   "installCommand": "pnpm install --no-frozen-lockfile",
+  "redirects": [
+    {
+      "source": "/app/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "app.flowguard.cash"
+        }
+      ],
+      "destination": "/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/explorer/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "explorer.flowguard.cash"
+        }
+      ],
+      "destination": "/:path*",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",

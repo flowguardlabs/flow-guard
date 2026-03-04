@@ -72,7 +72,7 @@
           "CashTokens",
           "Chipnet Live",
           "Covenants",
-          "Layla CHIPs",
+          "BCH VM Upgrade",
           "Open Source"
         ]
       }
@@ -127,7 +127,7 @@
           {
             "icon": "users",
             "title": "Multi-Signature Approval",
-            "description": "Set M-of-N thresholds (2-of-3, 3-of-5, etc.). No single party can drain the vault. Different actions can require different thresholds."
+            "description": "Current treasury contracts use fixed three-signer vaults with two-signer spend approvals. No single party can drain the vault, and broader signer-set support remains a future contract upgrade."
           },
           {
             "icon": "shield",
@@ -344,24 +344,24 @@
       "id": "covenant_tech",
       "type": "technical_section",
       "content": {
-        "headline": "Powered by Layla Covenant Technology",
-        "description": "FlowGuard leverages Bitcoin Cash's advanced covenant features to create efficient, modular treasury logic.",
+        "headline": "Powered by BCH Covenant Primitives",
+        "description": "FlowGuard uses BCH covenant features available today and tracks the 2026 VM upgrade for future contract families. Larger signer sets and trustless tally expansion require new FlowGuard covenant implementations, not just network activation.",
         "technologies": [
           {
             "name": "Loops",
-            "description": "Enables bounded iteration for validating signer sets, approval proofs, and policy checks."
+            "description": "A BCH VM feature the team is tracking for future covenant rewrites that need bounded iteration."
           },
           {
             "name": "P2S (Pay-to-Script)",
-            "description": "Safer and more scalable covenant deployments with improved standard handling."
+            "description": "A BCH output primitive that improves covenant deployment ergonomics and standard handling."
           },
           {
             "name": "Bitwise Operations",
-            "description": "Efficient state encoding and policy flags for compact on-chain representation."
+            "description": "A BCH VM feature that can help future FlowGuard contracts pack state and policy flags more efficiently."
           },
           {
             "name": "Functions",
-            "description": "Modular, reusable covenant logic for maintainability and auditability."
+            "description": "A BCH VM feature that can support more modular covenant code in future FlowGuard releases."
           }
         ]
       }
@@ -435,6 +435,10 @@
               {
                 "label": "Warpcast",
                 "href": "https://warpcast.com/flowguard"
+              },
+              {
+                "label": "YouTube",
+                "href": "https://www.youtube.com/@flowguard_cash"
               }
             ]
           }

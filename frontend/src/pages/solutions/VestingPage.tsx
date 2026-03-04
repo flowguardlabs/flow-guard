@@ -5,6 +5,7 @@ import { Footer } from '../../components/layout/Footer';
 import { SolutionsDropdown } from '../../components/ui/SolutionsDropdown';
 import { NoiseBackground } from '../../components/ui/NoiseBackground';
 import { PageMeta } from '../../components/seo/PageMeta';
+import { APP_SITE_URL } from '../../utils/publicUrls';
 
 export default function VestingPage() {
   return (
@@ -31,7 +32,7 @@ export default function VestingPage() {
             <a href="https://docs.flowguard.cash/security" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-textSecondary hover:text-textPrimary transition-colors">
               Security
             </a>
-            <Link to="/vaults">
+            <a href={APP_SITE_URL}>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -39,7 +40,7 @@ export default function VestingPage() {
               >
                 Launch App
               </motion.button>
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -81,12 +82,12 @@ export default function VestingPage() {
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <Link to="/app">
+            <a href={APP_SITE_URL}>
               <button className="group bg-primary text-white px-8 py-4 rounded-full text-base font-semibold hover:bg-primaryHover transition-all shadow-2xl hover:shadow-accent/20 flex items-center gap-3">
                 Launch App
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-            </Link>
+            </a>
             <a href="https://docs.flowguard.cash/concepts/vesting" target="_blank" rel="noopener noreferrer">
               <button className="border-2 border-border text-textPrimary px-8 py-4 rounded-full text-base font-semibold hover:border-primary hover:bg-surfaceAlt/30 transition-all">
                 Explore the Protocol
