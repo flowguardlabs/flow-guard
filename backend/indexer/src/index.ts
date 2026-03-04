@@ -55,6 +55,52 @@ interface IndexerConfig {
   vaultAddresses: string[]; // Array of vault covenant addresses
 }
 
+interface IndexerStatusSnapshot {
+  service: {
+    name: string;
+    kind: 'indexer';
+    status: 'healthy' | 'degraded' | 'critical';
+    running: boolean;
+    startedAt: string;
+    uptimeSeconds: number;
+  };
+  chain: {
+    network: 'mainnet' | 'chipnet';
+    electrumServer: string;
+    currentIndexedHeight: number;
+    lastNetworkHeight: number | null;
+    blocksBehind: number | null;
+    confirmations: number;
+  };
+  runtime: {
+    pollIntervalMs: number;
+    pollCount: number;
+    idlePolls: number;
+    consecutiveFailures: number;
+    lastPollStartedAt: string | null;
+    lastPollCompletedAt: string | null;
+    lastSuccessfulIndexAt: string | null;
+    lastError: string | null;
+  };
+  workload: {
+    monitoredAddresses: number;
+    blocksIndexed: number;
+    covenantUtxosProcessed: number;
+  };
+  database: {
+    blocks: number;
+    vaults: number;
+    proposals: number;
+    schedules: number;
+  };
+  resources: {
+    memoryRssMB: number;
+    heapUsedMB: number;
+    nodeVersion: string;
+  };
+  timestamp: string;
+}
+
 /**
  * Indexer Service
  */
@@ -168,7 +214,7 @@ export class FlowGuardIndexer {
     console.log(`[Indexer] Status server listening on :${port}`);
   }
 
-  async getStatusSnapshot(): Promise<Record<string, unknown>> {
+  async getStatusSnapshot(): Promise<IndexerStatusSnapshot> {
     const blockCount = await this.safeCount('blocks');
     const vaultCount = await this.safeCount('vaults');
     const proposalCount = await this.safeCount('proposals');

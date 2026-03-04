@@ -56,6 +56,53 @@ interface ExecutorConfig {
   executorPrivateKey?: string; // WIF format (optional, for automated execution)
 }
 
+interface ExecutorStatusSnapshot {
+  service: {
+    name: string;
+    kind: 'executor';
+    status: 'healthy' | 'degraded' | 'critical' | 'manual';
+    running: boolean;
+    startedAt: string;
+    uptimeSeconds: number;
+  };
+  chain: {
+    network: 'mainnet' | 'chipnet';
+    electrumServer: string;
+    lastNetworkHeight: number | null;
+  };
+  runtime: {
+    pollIntervalMs: number;
+    pollCount: number;
+    idlePolls: number;
+    consecutiveFailures: number;
+    lastPollStartedAt: string | null;
+    lastPollCompletedAt: string | null;
+    lastTaskAt: string | null;
+    lastError: string | null;
+  };
+  queue: {
+    knownSchedules: number;
+    knownProposals: number;
+    executableSchedules: number;
+    executableProposals: number;
+    tasksSeen: number;
+    tasksExecuted: number;
+    manualExecutionsRequired: number;
+  };
+  capabilities: {
+    automaticSigningConfigured: boolean;
+    canBroadcast: boolean;
+    canExecuteSchedulesAutomatically: boolean;
+    canExecuteProposalsAutomatically: boolean;
+  };
+  resources: {
+    memoryRssMB: number;
+    heapUsedMB: number;
+    nodeVersion: string;
+  };
+  timestamp: string;
+}
+
 /**
  * Executable Task
  */
@@ -183,7 +230,7 @@ export class FlowGuardExecutor {
     console.log(`[Executor] Status server listening on :${port}`);
   }
 
-  async getStatusSnapshot(): Promise<Record<string, unknown>> {
+  async getStatusSnapshot(): Promise<ExecutorStatusSnapshot> {
     const schedules = await this.safeCount('schedules');
     const proposals = await this.safeCount('proposals');
     const executableSchedules = await this.safeCount(
