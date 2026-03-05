@@ -833,7 +833,6 @@ export async function unlockCycleOnChain(
     throw new Error('Wallet not connected');
   }
 
-  // Get the unsigned transaction from backend
   const apiUrl = '/api';
   const response = await fetch(`${apiUrl}/vaults/${vaultId}/unlock-onchain`, {
     method: 'POST',
@@ -855,12 +854,36 @@ export async function unlockCycleOnChain(
     return `policy-unlock:${vaultId}:${cycleNumber}:${Date.now()}`;
   }
 
-  return signFromBackendPayload(wallet, payload, {
-    txType: 'unlock',
-    vaultId,
-    ...metadata,
-    fromAddress: wallet.address || undefined,
+  if (!payload?.wcTransaction) {
+    throw new Error('Backend did not return cycle unlock transaction');
+  }
+
+  const initialPayload = payload as { wcTransaction: SerializedWcTransaction };
+  const { confirm } = await runLifecycleAction({
+    wallet,
+    actionLabel: 'Cycle unlocked',
+    signContext: 'Cycle unlock signing failed',
+    metadata: {
+      txType: 'unlock',
+      vaultId,
+      ...metadata,
+      fromAddress: wallet.address || undefined,
+    },
+    build: async () => ({
+      wcTransaction: initialPayload.wcTransaction,
+      payload: initialPayload,
+    }),
+    confirm: ({ txHash, signerAddress }) => fetch(`${apiUrl}/vaults/${vaultId}/confirm-unlock-onchain`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-address': signerAddress,
+      },
+      body: JSON.stringify({ cycleNumber, txHash }),
+    }),
   });
+
+  return confirm.txHash;
 }
 
 /**

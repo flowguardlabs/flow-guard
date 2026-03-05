@@ -4,6 +4,7 @@ import { getCycleUnlockScheduler } from '../services/cycle-unlock-scheduler.js';
 import { StateService } from '../services/state-service.js';
 import { VaultService } from '../services/vaultService.js';
 import { serializeWcTransaction } from '../utils/wcSerializer.js';
+import { transactionExists } from '../utils/txVerification.js';
 
 const router = Router();
 
@@ -133,9 +134,6 @@ router.post('/vaults/:vaultId/unlock-onchain', async (req, res) => {
     const scheduler = getCycleUnlockScheduler();
     const built = await scheduler.createUnlockTransaction(vaultId, cycleNumber, undefined);
 
-    const newState = StateService.setCycleUnlocked(vault.state || 0, cycleNumber);
-    VaultService.updateVaultState(vaultId, newState);
-
     return res.json({
       success: true,
       onChain: true,
@@ -147,6 +145,65 @@ router.post('/vaults/:vaultId/unlock-onchain', async (req, res) => {
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Failed to process cycle unlock' });
+  }
+});
+
+// Confirm on-chain unlock and persist state transition only after tx is indexed
+router.post('/vaults/:vaultId/confirm-unlock-onchain', async (req, res) => {
+  try {
+    const vaultId = req.params.vaultId;
+    const { cycleNumber, txHash } = req.body;
+    const userAddress = req.headers['x-user-address'] as string || 'unknown';
+
+    if (cycleNumber === undefined) {
+      return res.status(400).json({ error: 'cycleNumber is required' });
+    }
+    if (!txHash || typeof txHash !== 'string') {
+      return res.status(400).json({ error: 'txHash is required' });
+    }
+
+    const vault = VaultService.getVaultByVaultId(vaultId);
+    if (!vault) {
+      return res.status(404).json({ error: 'Vault not found' });
+    }
+    if (!VaultService.isSigner(vault, userAddress)) {
+      return res.status(403).json({ error: 'Only signers can confirm cycle unlocks' });
+    }
+
+    if (!(await transactionExists(txHash, 'chipnet'))) {
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
+    }
+
+    const currentState = vault.state || 0;
+    const alreadyUnlocked = StateService.isCycleUnlocked(currentState, Number(cycleNumber));
+
+    if (!alreadyUnlocked) {
+      const newState = StateService.setCycleUnlocked(currentState, Number(cycleNumber));
+      VaultService.updateVaultState(vaultId, newState);
+    }
+
+    return res.json({
+      success: true,
+      status: 'UNLOCKED',
+      state: 'confirmed',
+      retryable: false,
+      txHash,
+      vaultId,
+      cycleNumber: Number(cycleNumber),
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: error?.message || 'Failed to confirm cycle unlock',
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
