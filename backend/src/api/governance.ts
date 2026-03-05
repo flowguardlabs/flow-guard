@@ -220,7 +220,13 @@ router.post('/governance/:proposalId/confirm-lock', async (req, res) => {
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const hasExpectedLockOutput = await transactionHasExpectedOutput(
@@ -275,10 +281,19 @@ router.post('/governance/:proposalId/confirm-lock', async (req, res) => {
       message: 'Vote locked and recorded',
       txHash,
       voteWeight,
+      state: 'confirmed',
+      retryable: false,
+      status: String(proposal.status || 'active'),
     });
   } catch (error: any) {
     console.error(`POST /governance/${req.params.proposalId}/confirm-lock error:`, error);
-    res.status(500).json({ error: 'Failed to confirm vote lock', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm vote lock',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -368,7 +383,13 @@ router.post('/governance/:proposalId/confirm-unlock', async (req, res) => {
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const voteRecord = db!.prepare(
@@ -404,10 +425,19 @@ router.post('/governance/:proposalId/confirm-unlock', async (req, res) => {
       success: true,
       message: 'Token unlock confirmed',
       txHash,
+      state: 'confirmed',
+      retryable: false,
+      status: 'UNLOCKED',
     });
   } catch (error: any) {
     console.error(`POST /governance/${req.params.proposalId}/confirm-unlock error:`, error);
-    res.status(500).json({ error: 'Failed to confirm unlock', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm unlock',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 

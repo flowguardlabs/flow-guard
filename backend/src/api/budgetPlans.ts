@@ -253,7 +253,13 @@ router.post('/budget-plans/:id/confirm-funding', async (req, res) => {
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const plan = db!.prepare('SELECT * FROM budget_plans WHERE id = ?').get(id) as any;
@@ -306,10 +312,19 @@ router.post('/budget-plans/:id/confirm-funding', async (req, res) => {
       success: true,
       message: 'Budget funding confirmed',
       txHash,
+      status: 'ACTIVE',
+      state: 'confirmed',
+      retryable: false,
     });
   } catch (error: any) {
     console.error(`POST /budget-plans/${req.params.id}/confirm-funding error:`, error);
-    res.status(500).json({ error: 'Failed to confirm funding', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm funding',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -409,7 +424,13 @@ router.post('/budget-plans/:id/confirm-release', async (req, res) => {
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const plan = db!.prepare('SELECT * FROM budget_plans WHERE id = ?').get(id) as any;
@@ -468,10 +489,19 @@ router.post('/budget-plans/:id/confirm-release', async (req, res) => {
       txHash,
       totalReleased: newReleasedAmount,
       currentMilestone: newMilestoneIndex,
+      status: String(plan.status || 'ACTIVE'),
+      state: 'confirmed',
+      retryable: false,
     });
   } catch (error: any) {
     console.error(`POST /budget-plans/${req.params.id}/confirm-release error:`, error);
-    res.status(500).json({ error: 'Failed to confirm release', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm release',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -585,7 +615,13 @@ router.post('/budget-plans/:id/confirm-pause', async (req, res) => {
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const plan = db!.prepare('SELECT * FROM budget_plans WHERE id = ?').get(id) as any;
@@ -624,10 +660,16 @@ router.post('/budget-plans/:id/confirm-pause', async (req, res) => {
     db!.prepare('UPDATE budget_plans SET status = ?, updated_at = ? WHERE id = ?')
       .run('PAUSED', now, id);
 
-    res.json({ success: true, txHash, status: 'PAUSED' });
+    res.json({ success: true, txHash, status: 'PAUSED', state: 'confirmed', retryable: false });
   } catch (error: any) {
     console.error(`POST /budget-plans/${req.params.id}/confirm-pause error:`, error);
-    res.status(500).json({ error: 'Failed to confirm pause', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm pause',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -722,7 +764,13 @@ router.post('/budget-plans/:id/confirm-cancel', async (req, res) => {
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const plan = db!.prepare('SELECT * FROM budget_plans WHERE id = ?').get(id) as any;
@@ -761,10 +809,16 @@ router.post('/budget-plans/:id/confirm-cancel', async (req, res) => {
     db!.prepare('UPDATE budget_plans SET status = ?, updated_at = ? WHERE id = ?')
       .run('CANCELLED', now, id);
 
-    res.json({ success: true, txHash, status: 'CANCELLED' });
+    res.json({ success: true, txHash, status: 'CANCELLED', state: 'confirmed', retryable: false });
   } catch (error: any) {
     console.error(`POST /budget-plans/${req.params.id}/confirm-cancel error:`, error);
-    res.status(500).json({ error: 'Failed to confirm cancel', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm cancel',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 

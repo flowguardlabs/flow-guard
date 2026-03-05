@@ -419,7 +419,13 @@ router.post('/payments/:id/confirm-pause', async (req: Request, res: Response) =
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const payment = db!.prepare('SELECT * FROM payments WHERE id = ?').get(id) as any;
@@ -457,10 +463,16 @@ router.post('/payments/:id/confirm-pause', async (req: Request, res: Response) =
       createdAt: now,
     });
 
-    res.json({ success: true, txHash, status: 'PAUSED' });
+    res.json({ success: true, txHash, status: 'PAUSED', state: 'confirmed', retryable: false });
   } catch (error: any) {
     console.error(`POST /payments/${req.params.id}/confirm-pause error:`, error);
-    res.status(500).json({ error: 'Failed to confirm pause', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm pause',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -476,7 +488,13 @@ router.post('/payments/:id/confirm-resume', async (req: Request, res: Response) 
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const payment = db!.prepare('SELECT * FROM payments WHERE id = ?').get(id) as any;
@@ -515,10 +533,16 @@ router.post('/payments/:id/confirm-resume', async (req: Request, res: Response) 
       createdAt: now,
     });
 
-    res.json({ success: true, txHash, status: 'ACTIVE' });
+    res.json({ success: true, txHash, status: 'ACTIVE', state: 'confirmed', retryable: false });
   } catch (error: any) {
     console.error(`POST /payments/${req.params.id}/confirm-resume error:`, error);
-    res.status(500).json({ error: 'Failed to confirm resume', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm resume',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -534,7 +558,13 @@ router.post('/payments/:id/confirm-cancel', async (req: Request, res: Response) 
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const payment = db!.prepare('SELECT * FROM payments WHERE id = ?').get(id) as any;
@@ -589,10 +619,16 @@ router.post('/payments/:id/confirm-cancel', async (req: Request, res: Response) 
       createdAt: now,
     });
 
-    res.json({ success: true, txHash, status: 'CANCELLED' });
+    res.json({ success: true, txHash, status: 'CANCELLED', state: 'confirmed', retryable: false });
   } catch (error: any) {
     console.error(`POST /payments/${req.params.id}/confirm-cancel error:`, error);
-    res.status(500).json({ error: 'Failed to confirm cancel', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm cancel',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -679,7 +715,13 @@ router.post('/payments/:id/confirm-funding', async (req: Request, res: Response)
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const payment = db!.prepare('SELECT * FROM payments WHERE id = ?').get(id) as any;
@@ -748,10 +790,19 @@ router.post('/payments/:id/confirm-funding', async (req: Request, res: Response)
       success: true,
       message: 'Payment funding confirmed',
       txHash,
+      status: 'ACTIVE',
+      state: 'confirmed',
+      retryable: false,
     });
   } catch (error: any) {
     console.error(`POST /payments/${req.params.id}/confirm-funding error:`, error);
-    res.status(500).json({ error: 'Failed to confirm funding', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm funding',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -845,7 +896,13 @@ router.post('/payments/:id/confirm-claim', async (req: Request, res: Response) =
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const payment = db!.prepare('SELECT * FROM payments WHERE id = ?').get(id) as any;
@@ -923,10 +980,19 @@ router.post('/payments/:id/confirm-claim', async (req: Request, res: Response) =
       totalPaid: newTotalPaid,
       paymentCount: newPaymentCount,
       intervalsClaimed: normalizedIntervals,
+      status: String(payment.status || 'ACTIVE'),
+      state: 'confirmed',
+      retryable: false,
     });
   } catch (error: any) {
     console.error(`POST /payments/${req.params.id}/confirm-claim error:`, error);
-    res.status(500).json({ error: 'Failed to confirm claim', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm claim',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 

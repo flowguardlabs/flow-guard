@@ -919,7 +919,13 @@ router.post('/streams/:id/confirm-funding', async (req: Request, res: Response) 
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
@@ -995,10 +1001,19 @@ router.post('/streams/:id/confirm-funding', async (req: Request, res: Response) 
       message: 'Stream funded successfully',
       stream,
       txHash,
+      state: 'confirmed',
+      retryable: false,
+      status: stream.status,
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/confirm-funding error:`, error);
-    res.status(500).json({ error: 'Failed to confirm funding', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm funding',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -1120,7 +1135,27 @@ router.post('/streams/:id/claim', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/claim error:`, error);
-    res.status(500).json({ error: 'Failed to build claim transaction', message: error.message });
+    const message = typeof error?.message === 'string' ? error.message : 'Unknown claim builder error';
+
+    if (message.includes('No UTXOs found for stream contract')) {
+      return res.status(409).json({
+        error: 'Stream state is pending confirmation',
+        message:
+          'The stream contract UTXO is currently unavailable (often due to an unconfirmed pause/resume/cancel/fund tx). ' +
+          'Wait for confirmation, refresh, and retry claim.',
+      });
+    }
+
+    if (message.includes('Insufficient contract balance to preserve stream state UTXO')) {
+      return res.status(409).json({
+        error: 'Insufficient fee reserve in stream contract',
+        message:
+          'This stream does not currently hold enough BCH to preserve covenant state after claim. ' +
+          'Refill the stream with a small BCH reserve and retry.',
+      });
+    }
+
+    return res.status(500).json({ error: 'Failed to build claim transaction', message });
   }
 });
 
@@ -1138,7 +1173,13 @@ router.post('/streams/:id/confirm-claim', async (req: Request, res: Response) =>
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
@@ -1217,10 +1258,20 @@ router.post('/streams/:id/confirm-claim', async (req: Request, res: Response) =>
       success: true,
       message: 'Claim confirmed',
       stream,
+      txHash,
+      state: 'confirmed',
+      retryable: false,
+      status: stream.status,
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/confirm-claim error:`, error);
-    res.status(500).json({ error: 'Failed to confirm claim', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm claim',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -1422,7 +1473,13 @@ router.post('/streams/:id/confirm-pause', async (req: Request, res: Response) =>
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
@@ -1481,10 +1538,19 @@ router.post('/streams/:id/confirm-pause', async (req: Request, res: Response) =>
       message: 'Stream pause confirmed',
       txHash,
       stream,
+      state: 'confirmed',
+      retryable: false,
+      status: stream.status,
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/confirm-pause error:`, error);
-    return res.status(500).json({ error: 'Failed to confirm stream pause', message: error.message });
+    return res.status(500).json({
+      error: 'Failed to confirm stream pause',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -1557,7 +1623,13 @@ router.post('/streams/:id/confirm-resume', async (req: Request, res: Response) =
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
@@ -1616,10 +1688,19 @@ router.post('/streams/:id/confirm-resume', async (req: Request, res: Response) =
       message: 'Stream resume confirmed',
       txHash,
       stream,
+      state: 'confirmed',
+      retryable: false,
+      status: stream.status,
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/confirm-resume error:`, error);
-    return res.status(500).json({ error: 'Failed to confirm stream resume', message: error.message });
+    return res.status(500).json({
+      error: 'Failed to confirm stream resume',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -1719,7 +1800,13 @@ router.post('/streams/:id/confirm-refill', async (req: Request, res: Response) =
       return res.status(400).json({ error: 'Refill amount must be greater than zero' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
@@ -1790,10 +1877,19 @@ router.post('/streams/:id/confirm-refill', async (req: Request, res: Response) =
       message: 'Recurring stream refill confirmed',
       txHash,
       stream,
+      state: 'confirmed',
+      retryable: false,
+      status: stream.status,
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/confirm-refill error:`, error);
-    return res.status(500).json({ error: 'Failed to confirm refill', message: error.message });
+    return res.status(500).json({
+      error: 'Failed to confirm refill',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -1887,7 +1983,13 @@ router.post('/streams/:id/confirm-transfer', async (req: Request, res: Response)
       return res.status(400).json({ error: 'Transaction hash and new recipient address are required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
@@ -1956,10 +2058,19 @@ router.post('/streams/:id/confirm-transfer', async (req: Request, res: Response)
       message: 'Stream transfer confirmed',
       txHash,
       stream,
+      state: 'confirmed',
+      retryable: false,
+      status: stream.status,
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/confirm-transfer error:`, error);
-    return res.status(500).json({ error: 'Failed to confirm stream transfer', message: error.message });
+    return res.status(500).json({
+      error: 'Failed to confirm stream transfer',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -2009,6 +2120,7 @@ router.post('/streams/:id/cancel', async (req: Request, res: Response) => {
       currentTime: Math.floor(Date.now() / 1000),
       tokenType: row.token_type === 'CASHTOKENS' ? 'FUNGIBLE_TOKEN' : 'BCH',
       tokenCategory: row.token_category || undefined,
+      feePayerAddress: signerAddress,
       constructorParams,
       currentCommitment,
     });
@@ -2056,7 +2168,13 @@ router.post('/streams/:id/confirm-cancel', async (req: Request, res: Response) =
       return res.status(400).json({ error: 'Transaction hash is required' });
     }
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const row = db!.prepare('SELECT * FROM streams WHERE id = ?').get(id) as any;
@@ -2110,10 +2228,19 @@ router.post('/streams/:id/confirm-cancel', async (req: Request, res: Response) =
       message: 'Stream cancellation confirmed',
       txHash,
       stream,
+      state: 'confirmed',
+      retryable: false,
+      status: stream.status,
     });
   } catch (error: any) {
     console.error(`POST /streams/${req.params.id}/confirm-cancel error:`, error);
-    return res.status(500).json({ error: 'Failed to confirm stream cancel', message: error.message });
+    return res.status(500).json({
+      error: 'Failed to confirm stream cancel',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -2354,7 +2481,13 @@ router.post('/treasuries/:vaultId/batch-create/confirm', async (req: Request, re
     }
 
     if (!(await transactionExists(txHash, 'chipnet'))) {
-      return res.status(400).json({ error: 'Transaction hash not found on chipnet' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on chipnet',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const placeholders = streamIds.map(() => '?').join(', ');
@@ -2469,10 +2602,19 @@ router.post('/treasuries/:vaultId/batch-create/confirm', async (req: Request, re
       txHash,
       batchId: (batchId as string | undefined) || uniqueBatchIds[0] || null,
       streams: updatedRows.map((row) => streamService.enrichStream(rowToStream(row))),
+      state: 'confirmed',
+      retryable: false,
+      status: 'ACTIVE',
     });
   } catch (error: any) {
     console.error(`POST /treasuries/${req.params.vaultId}/batch-create/confirm error:`, error);
-    res.status(500).json({ error: 'Failed to confirm batch funding', message: error.message });
+    res.status(500).json({
+      error: 'Failed to confirm batch funding',
+      message: error.message,
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 

@@ -219,7 +219,13 @@ router.post('/:id/confirm-create', async (req, res) => {
 
     const network = (process.env.BCH_NETWORK as 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet') || 'chipnet';
     if (!(await transactionExists(txHash, network))) {
-      return res.status(400).json({ error: 'Transaction hash not found on blockchain' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on blockchain',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const hasExpectedOutput = await transactionHasExpectedOutput(
@@ -253,10 +259,22 @@ router.post('/:id/confirm-create', async (req, res) => {
     });
 
     const updated = ProposalService.getProposalById(proposalId);
-    return res.json({ success: true, proposal: updated, txHash });
+    return res.json({
+      success: true,
+      proposal: updated,
+      txHash,
+      state: 'confirmed',
+      retryable: false,
+      status: updated?.status || 'pending',
+    });
   } catch (error: any) {
     console.error('POST /proposals/:id/confirm-create error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to confirm proposal creation' });
+    return res.status(500).json({
+      error: error.message || 'Failed to confirm proposal creation',
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
@@ -282,7 +300,13 @@ router.post('/:id/confirm-approval', async (req, res) => {
 
     const network = (process.env.BCH_NETWORK as 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet') || 'chipnet';
     if (!(await transactionExists(txHash, network))) {
-      return res.status(400).json({ error: 'Transaction hash not found on blockchain' });
+      return res.status(409).json({
+        error: 'Transaction hash not found on blockchain',
+        message: 'Transaction is not indexed yet. Retry confirmation shortly.',
+        state: 'pending',
+        retryable: true,
+        errorCode: 'TX_NOT_FOUND',
+      });
     }
 
     const hasExpectedOutput = await transactionHasExpectedOutput(
@@ -322,10 +346,18 @@ router.post('/:id/confirm-approval', async (req, res) => {
       success: true,
       proposal: updatedProposal,
       txHash,
+      state: 'confirmed',
+      retryable: false,
+      status: updatedProposal.status,
     });
   } catch (error: any) {
     console.error('POST /proposals/:id/confirm-approval error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to confirm approval transaction' });
+    return res.status(500).json({
+      error: error.message || 'Failed to confirm approval transaction',
+      state: 'failed',
+      retryable: false,
+      errorCode: 'CONFIRM_FAILED',
+    });
   }
 });
 
