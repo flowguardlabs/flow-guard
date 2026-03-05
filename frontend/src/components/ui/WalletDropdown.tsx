@@ -10,6 +10,7 @@ import { getExplorerAddressUrl } from '../../utils/blockchain';
 export const WalletDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const wallet = useWallet();
 
@@ -39,8 +40,16 @@ export const WalletDropdown = () => {
   };
 
   const handleDisconnect = async () => {
-    await wallet.disconnect();
-    setIsOpen(false);
+    if (isDisconnecting) return;
+    setIsDisconnecting(true);
+    try {
+      await wallet.disconnect();
+      setIsOpen(false);
+    } catch (error) {
+      console.error('[WalletDropdown] Disconnect failed:', error);
+    } finally {
+      setIsDisconnecting(false);
+    }
   };
 
   const formatAddress = (address: string | null) => {
@@ -191,10 +200,11 @@ export const WalletDropdown = () => {
             )}
             <button
               onClick={handleDisconnect}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+              disabled={isDisconnecting}
+              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <LogOut className="w-4 h-4" />
-              Disconnect
+              {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
             </button>
           </div>
         </div>

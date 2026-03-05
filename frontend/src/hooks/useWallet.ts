@@ -17,6 +17,10 @@ import {
 } from '../types/wallet';
 import { createWalletConnector, MainnetConnector } from '../connectors';
 
+let activeEventConnector: IWalletConnector | null = null;
+let activeAddressChangedHandler: ((data?: any) => void) | null = null;
+let activeDisconnectHandler: ((data?: any) => void) | null = null;
+
 // Global state store using Zustand
 interface WalletStore extends WalletState {
   connector: IWalletConnector | null;
@@ -150,10 +154,20 @@ const useWalletStore = create<WalletStore>((set, get) => ({
 
   disconnect: async () => {
     const state = get();
+    const connector = state.connector;
 
-    if (state.connector) {
-      await state.connector.disconnect();
+    if (
+      activeEventConnector
+      && activeEventConnector.off
+      && activeAddressChangedHandler
+      && activeDisconnectHandler
+    ) {
+      activeEventConnector.off('addressChanged', activeAddressChangedHandler);
+      activeEventConnector.off('disconnect', activeDisconnectHandler);
     }
+    activeEventConnector = null;
+    activeAddressChangedHandler = null;
+    activeDisconnectHandler = null;
 
     set({
       walletType: null,
@@ -165,12 +179,27 @@ const useWalletStore = create<WalletStore>((set, get) => ({
       network: 'chipnet',
       error: null,
       connector: null,
+      isConnectingRef: false,
     });
 
-    // Clear localStorage
     localStorage.removeItem('wallet_type');
     localStorage.removeItem('wallet_address');
     localStorage.removeItem('wallet_publickey');
+
+    if (!connector) {
+      return;
+    }
+
+    try {
+      await Promise.race([
+        connector.disconnect(),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error('Wallet disconnect timed out')), 5000);
+        }),
+      ]);
+    } catch (disconnectError) {
+      console.warn('[useWallet] Connector disconnect failed after local state reset:', disconnectError);
+    }
   },
 
   signTransaction: async (tx: Transaction) => {
@@ -335,28 +364,51 @@ export function useWallet() {
    * Listen for wallet events (address changes, disconnection)
    */
   useEffect(() => {
-    if (!connector) return;
+    const detachActiveConnector = () => {
+      if (
+        activeEventConnector
+        && activeEventConnector.off
+        && activeAddressChangedHandler
+        && activeDisconnectHandler
+      ) {
+        activeEventConnector.off('addressChanged', activeAddressChangedHandler);
+        activeEventConnector.off('disconnect', activeDisconnectHandler);
+      }
+      activeEventConnector = null;
+      activeAddressChangedHandler = null;
+      activeDisconnectHandler = null;
+    };
 
-    // Set up event listeners if connector supports them
+    if (!connector) {
+      detachActiveConnector();
+      return;
+    }
+
+    if (activeEventConnector === connector) {
+      return;
+    }
+
+    detachActiveConnector();
+
     if (connector.on) {
-      const handleAddressChange = (newAddress: string) => {
-        setState({ address: newAddress });
-        localStorage.setItem('wallet_address', newAddress);
+      const handleAddressChange = (nextAddress?: any) => {
+        if (typeof nextAddress !== 'string' || nextAddress.length === 0) {
+          return;
+        }
+        setState({ address: nextAddress });
+        localStorage.setItem('wallet_address', nextAddress);
       };
 
       const handleDisconnect = () => {
-        disconnect();
+        void disconnect();
       };
 
       connector.on('addressChanged', handleAddressChange);
       connector.on('disconnect', handleDisconnect);
 
-      return () => {
-        if (connector.off) {
-          connector.off('addressChanged', handleAddressChange);
-          connector.off('disconnect', handleDisconnect);
-        }
-      };
+      activeEventConnector = connector;
+      activeAddressChangedHandler = handleAddressChange;
+      activeDisconnectHandler = handleDisconnect;
     }
   }, [connector, setState, disconnect]);
 
