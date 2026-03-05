@@ -759,12 +759,10 @@ export async function executePayoutOnChain(
     body: JSON.stringify({ metadata }),
   });
 
+  const payload = await parseJsonSafe(response);
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to create payout transaction');
+    throw new Error(getApiErrorMessage(payload, 'Failed to create payout transaction'));
   }
-
-  const payload = await response.json();
   if (!payload?.wcTransaction || !payload?.sessionId) {
     throw new Error('Backend did not return execute signing session data');
   }
@@ -772,6 +770,19 @@ export async function executePayoutOnChain(
   const signOptions = deserializeWcSignOptions(payload.wcTransaction as SerializedWcTransaction);
   signOptions.broadcast = false;
   const signResult = await wallet.signCashScriptTransaction(signOptions);
+  const signedTxHash = await resolveTxHashFromSignResult(
+    signResult,
+    signOptions,
+    'Proposal execute signing failed',
+    {
+      txType: 'payout',
+      proposalId,
+      vaultId: metadata?.vaultId,
+      amount: metadata?.amount,
+      fromAddress: wallet.address || undefined,
+      toAddress: metadata?.toAddress,
+    },
+  );
 
   const submitResponse = await fetch(`${apiUrl}/proposals/${proposalId}/execute-signature`, {
     method: 'POST',
@@ -785,13 +796,12 @@ export async function executePayoutOnChain(
     }),
   });
 
+  const submitResult = await parseJsonSafe(submitResponse);
   if (!submitResponse.ok) {
-    const error = await submitResponse.json();
-    throw new Error(error.error || 'Failed to submit execute signature');
+    throw new Error(getApiErrorMessage(submitResult, 'Failed to submit execute signature'));
   }
 
-  const submitResult = await submitResponse.json();
-  if (submitResult.pending) {
+  if (submitResult.pending || submitResult.state === 'pending') {
     return {
       status: 'pending',
       sessionId: payload.sessionId,
@@ -807,7 +817,7 @@ export async function executePayoutOnChain(
     signaturesCollected: submitResult.signaturesCollected ?? 2,
     requiredSignatures: submitResult.requiredSignatures ?? 2,
     txid: publishTransactionNotice(
-      submitResult.txid || signResult.signedTransactionHash,
+      submitResult.txid || submitResult.txHash || signedTxHash,
       wallet,
       'Payout executed',
     ),

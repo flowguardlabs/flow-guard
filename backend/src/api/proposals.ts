@@ -511,12 +511,22 @@ router.post('/:id/execute-signature', async (req, res) => {
     ).get(sessionId, proposalId) as ProposalExecutionSessionRow | undefined;
 
     if (!session) {
-      return res.status(404).json({ error: 'Active execute signing session not found' });
+      return res.status(404).json({
+        error: 'Active execute signing session not found',
+        state: 'failed',
+        retryable: false,
+        errorCode: 'EXECUTION_SESSION_NOT_FOUND',
+      });
     }
 
     const requiredSignerAddresses = parseJsonArray<string>(session.signer_addresses);
     if (!requiredSignerAddresses.some((addr) => addr.toLowerCase() === signerAddress.toLowerCase())) {
-      return res.status(403).json({ error: 'Signer is not part of this execute session' });
+      return res.status(403).json({
+        error: 'Signer is not part of this execute session',
+        state: 'failed',
+        retryable: false,
+        errorCode: 'EXECUTION_SIGNER_NOT_ALLOWED',
+      });
     }
 
     const signedBy = parseJsonArray<string>(session.signed_by);
@@ -525,6 +535,9 @@ router.post('/:id/execute-signature', async (req, res) => {
         error: 'This signer already submitted a signature for the current session',
         signaturesCollected: signedBy.length,
         requiredSignatures: session.required_signatures,
+        state: 'failed',
+        retryable: false,
+        errorCode: 'SIGNATURE_ALREADY_SUBMITTED',
       });
     }
 
@@ -544,6 +557,8 @@ router.post('/:id/execute-signature', async (req, res) => {
       return res.json({
         success: true,
         pending: true,
+        state: 'pending',
+        retryable: false,
         sessionId,
         signaturesCollected,
         requiredSignatures: session.required_signatures,
@@ -565,13 +580,21 @@ router.post('/:id/execute-signature', async (req, res) => {
     return res.json({
       success: true,
       pending: false,
+      state: 'confirmed',
+      retryable: false,
       txid,
+      txHash: txid,
       signaturesCollected,
       requiredSignatures: session.required_signatures,
     });
   } catch (error: any) {
     console.error('POST /proposals/:id/execute-signature error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to submit execute signature' });
+    return res.status(500).json({
+      error: error.message || 'Failed to submit execute signature',
+      state: 'failed',
+      retryable: false,
+      errorCode: 'EXECUTE_SIGNATURE_FAILED',
+    });
   }
 });
 
