@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -58,27 +58,9 @@ import { isAppHost, isExplorerHost } from './utils/publicUrls';
 function App() {
   const wallet = useWallet();
   const { isOpen, closeModal } = useWalletModal();
-  const navigate = useNavigate();
   const location = useLocation();
   const onAppHost = isAppHost();
   const onExplorerHost = isExplorerHost();
-
-  // Redirect to /app when wallet connects, if currently on public landing pages
-  useEffect(() => {
-    if (wallet.isConnected && !wallet.isConnecting && !onAppHost && !onExplorerHost) {
-      const isPublicLandingPage =
-        location.pathname === '/' ||
-        location.pathname === '/vesting' ||
-        location.pathname === '/payroll' ||
-        location.pathname === '/budgeting' ||
-        location.pathname === '/grants' ||
-        location.pathname === '/governance-info';
-
-      if (isPublicLandingPage) {
-        navigate('/app');
-      }
-    }
-  }, [wallet.isConnected, wallet.isConnecting, location.pathname, navigate, onAppHost, onExplorerHost]);
 
   // Scroll to top on route change
   useEffect(() => {
