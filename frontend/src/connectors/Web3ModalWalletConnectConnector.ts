@@ -42,6 +42,7 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
   private web3Modal: Web3Modal | null = null;
   private currentAddress: string | null = null;
   private eventListeners: Map<string, Function[]> = new Map();
+  private clientEventsSubscribed = false;
 
   private _isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
@@ -244,10 +245,21 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
       // Check for existing sessions
       const existingSessions = this.client.session.getAll();
       if (existingSessions.length > 0) {
-        console.log('[Web3ModalWC] Found existing session, reusing...');
-        this.session = existingSessions[existingSessions.length - 1];
         await this._subscribeToEvents();
-        return await this._getSessionInfo();
+        console.log('[Web3ModalWC] Found existing session(s), validating...');
+
+        const sortedSessions = [...existingSessions].sort((a, b) => (b.expiry || 0) - (a.expiry || 0));
+        for (const candidate of sortedSessions) {
+          this.session = candidate;
+          const isUsable = await this._validateSession(candidate);
+          if (isUsable) {
+            console.log('[Web3ModalWC] Reusing active WalletConnect session');
+            return await this._getSessionInfo();
+          }
+        }
+
+        console.warn('[Web3ModalWC] Existing WalletConnect sessions are stale; creating a new session');
+        this.session = null;
       }
 
       // Create new session
@@ -284,6 +296,52 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
       }
 
       throw new Error(`WalletConnect connection failed: ${message}`);
+    }
+  }
+
+  private async _validateSession(session: SessionTypes.Struct): Promise<boolean> {
+    if (!this.client) return false;
+
+    // WalletConnect expiry is in seconds.
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if ((session.expiry || 0) <= nowSeconds + 5) {
+      return false;
+    }
+
+    const primaryChain = this._getPrimaryChain();
+    const namespace = session.namespaces?.bch;
+    if (!namespace || !Array.isArray(namespace.accounts) || namespace.accounts.length === 0) {
+      return false;
+    }
+    if (!Array.isArray(namespace.methods) || !namespace.methods.includes('bch_signTransaction')) {
+      return false;
+    }
+    if (!namespace.accounts.some((account) => account.startsWith(`${primaryChain}:`))) {
+      return false;
+    }
+
+    try {
+      const result = await this._withRequestTimeout(
+        this._requestWithoutRedirect(() =>
+          this.client!.request({
+            topic: session.topic,
+            chainId: primaryChain,
+            request: {
+              method: 'bch_getAddresses',
+              params: {},
+            },
+          })
+        ),
+        'WalletConnect session validation request'
+      );
+
+      const address = this._extractAddress(result);
+      if (!address) return false;
+      this.currentAddress = address;
+      return true;
+    } catch (error) {
+      console.warn('[Web3ModalWC] Session validation failed:', error);
+      return false;
     }
   }
 
@@ -352,6 +410,7 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
    */
   private async _subscribeToEvents(): Promise<void> {
     if (!this.client) return;
+    if (this.clientEventsSubscribed) return;
 
     console.log('[Web3ModalWC] Subscribing to events...');
 
@@ -398,6 +457,8 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
       // Clean up
       this._reset();
     });
+
+    this.clientEventsSubscribed = true;
   }
 
   /**
@@ -454,6 +515,7 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
     this.session = null;
     this.currentAddress = null;
     this.eventListeners.clear();
+    this.clientEventsSubscribed = false;
 
     // Clear localStorage WC2 entries
     if (typeof window !== 'undefined') {
@@ -702,7 +764,10 @@ export class Web3ModalWalletConnectConnector implements IWalletConnector {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
-    this.eventListeners.get(event)!.push(callback);
+    const listeners = this.eventListeners.get(event)!;
+    if (!listeners.includes(callback)) {
+      listeners.push(callback);
+    }
 
     console.log(`[Web3ModalWC] Event listener registered: ${event}`);
   }
