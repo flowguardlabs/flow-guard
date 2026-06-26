@@ -1,0 +1,368 @@
+/**
+ * FtVestingCovenant — two-UTXO fungible-token vesting
+ *
+ * ENFORCEABILITY: [ENFORCEABLE-NOW]
+ *
+ * PURPOSE: Vest an ARBITRARY CashToken the sender merely holds — no minting
+ *          authority required. The streamed token and the covenant's own state
+ *          NFT live in TWO separate UTXOs at the same covenant address, because
+ *          one CashToken UTXO carries exactly one category:
+ *
+ *            input[0] / output[1]  STATE NFT  — category = stateCategory
+ *                                  (a FlowGuard genesis NFT, mutable, no FT)
+ *            input[1] / output[2]  FT VAULT   — category = ftCategory
+ *                                  (the streamed token amount, no NFT)
+ *
+ *          Both categories are compiled into the address, so neither UTXO can be
+ *          spent except in a paired transaction that presents the real state NFT
+ *          and the real vault — an attacker cannot attach a forged "state" NFT to
+ *          the open P2SH32 address and drain the vault.
+ *
+ * NFT COMMITMENT (40 bytes — identical layout to VestingCovenant):
+ *   [0]:     status (0=ACTIVE, 1=PAUSED, 2=CANCELLED, 3=COMPLETED)
+ *   [1]:     flags (bit0=cancelable, bit1=transferable)
+ *   [2-9]:   total_released (uint64)
+ *   [10-14]: cursor (5 bytes, pause-adjusted start)
+ *   [15-19]: pause_start (5 bytes; 0 if not paused)
+ *   [20-39]: recipient_hash (bytes20)
+ *
+ * The vault's live balance is read from input[1].tokenAmount, so the commitment
+ * does not track it.
+ */
+
+pragma cashscript ^0.13.0;
+
+contract FtVestingCovenant(
+    bytes32 vaultId,
+    bytes20 senderHash,
+    int scheduleType,
+    int totalAmount,
+    int startTimestamp,
+    int endTimestamp,
+    int cliffTimestamp,
+    int stepInterval,
+    int stepAmount,
+    bytes32 stateCategory,
+    bytes32 ftCategory
+) {
+    /**
+     * claim() — recipient claims vested tokens from the vault.
+     *
+     * inputs:  [0]=state NFT, [1]=FT vault   (both at this covenant)
+     * outputs: [0]=claimable FT -> recipient
+     *          [1]=advanced state NFT -> covenant
+     *          [2]=remaining FT vault -> covenant  (only while remaining > 0)
+     */
+    function claim(sig recipientSig, pubkey recipientPubkey) {
+        require(tx.inputs.length == 2);
+        require(tx.outputs.length <= 3);
+        require(tx.time >= 500000000);
+        require(tx.locktime >= 500000000);
+
+        // Bind the two covenant UTXOs to their compiled categories.
+        require(tx.inputs[0].tokenCategory.split(32)[0] == stateCategory);
+        require(tx.inputs[1].tokenCategory.split(32)[0] == ftCategory);
+        require(tx.inputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        bytes c = tx.inputs[0].nftCommitment;
+        int status        = int(c.split(1)[0]);
+        bytes1 flagsByte  = c.split(1)[1].split(1)[0];
+        int totalReleased = int(c.split(2)[1].split(8)[0]);
+        int cursor        = int(c.split(10)[1].split(5)[0]);
+        bytes20 recipient = c.split(20)[1].split(20)[0];
+
+        require(hash160(recipientPubkey) == recipient);
+        require(checkSig(recipientSig, recipientPubkey));
+        require(status == 0); // ACTIVE
+
+        if (cliffTimestamp > 0) { require(tx.locktime >= cliffTimestamp); }
+
+        int elapsed  = tx.locktime - cursor;
+        int duration = endTimestamp - startTimestamp;
+        int vestedTotal = 0;
+
+        if (scheduleType == 1) {
+            if (elapsed >= duration) {
+                vestedTotal = totalAmount;
+            } else {
+                vestedTotal = (totalAmount * elapsed) / duration;
+            }
+        }
+
+        if (scheduleType == 2) {
+            int completedSteps = elapsed / stepInterval;
+            vestedTotal = completedSteps * stepAmount;
+            if (vestedTotal > totalAmount) { vestedTotal = totalAmount; }
+        }
+
+        int claimable = vestedTotal - totalReleased;
+        require(claimable > 0);
+
+        int vaultAmount = tx.inputs[1].tokenAmount;
+        require(claimable <= vaultAmount);
+        int remaining = vaultAmount - claimable;
+
+        // output[0]: claimable FT to the recipient (vault category preserved).
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipient));
+        require(tx.outputs[0].tokenCategory == tx.inputs[1].tokenCategory);
+        require(tx.outputs[0].tokenAmount == claimable);
+
+        // output[1]: advanced state NFT back to the covenant.
+        int newTotalReleased = totalReleased + claimable;
+        int newStatus = 0;
+        if (newTotalReleased >= totalAmount) { newStatus = 3; } // COMPLETED
+
+        bytes newCommitment =
+            toPaddedBytes(newStatus, 1) +
+            flagsByte +
+            toPaddedBytes(newTotalReleased, 8) +
+            toPaddedBytes(cursor, 5) +
+            0x0000000000 +
+            recipient;
+
+        require(tx.outputs[1].nftCommitment == newCommitment);
+        require(tx.outputs[1].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        // output[2]: remaining FT back to the covenant, unless this empties it.
+        if (remaining > 0) {
+            require(tx.outputs.length == 3);
+            require(tx.outputs[2].tokenCategory == tx.inputs[1].tokenCategory);
+            require(tx.outputs[2].tokenAmount == remaining);
+            require(tx.outputs[2].lockingBytecode == tx.inputs[1].lockingBytecode);
+            int feeFull = tx.inputs[0].value + tx.inputs[1].value
+                - tx.outputs[0].value - tx.outputs[1].value - tx.outputs[2].value;
+            require(feeFull >= 0 && feeFull <= 8000);
+        } else {
+            require(tx.outputs.length == 2);
+            int feeLast = tx.inputs[0].value + tx.inputs[1].value
+                - tx.outputs[0].value - tx.outputs[1].value;
+            require(feeLast >= 0 && feeLast <= 8000);
+        }
+    }
+
+    /**
+     * complete() — permissionless cleanup after end; remaining vault to recipient.
+     *
+     * inputs:  [0]=state NFT, [1]=FT vault
+     * outputs: [0]=remaining FT -> recipient, [1]=COMPLETED state NFT -> covenant
+     */
+    function complete() {
+        require(tx.inputs.length == 2);
+        require(tx.outputs.length == 2);
+        require(tx.time >= 500000000);
+        require(tx.locktime >= 500000000);
+
+        require(tx.inputs[0].tokenCategory.split(32)[0] == stateCategory);
+        require(tx.inputs[1].tokenCategory.split(32)[0] == ftCategory);
+        require(tx.inputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        bytes c = tx.inputs[0].nftCommitment;
+        int status        = int(c.split(1)[0]);
+        bytes1 flagsByte  = c.split(1)[1].split(1)[0];
+        int totalReleased = int(c.split(2)[1].split(8)[0]);
+        int cursor        = int(c.split(10)[1].split(5)[0]);
+        bytes20 recipient = c.split(20)[1].split(20)[0];
+
+        require(status == 0 || status == 1); // ACTIVE or PAUSED
+        require(tx.locktime >= endTimestamp);
+        require(vaultId != 0x0000000000000000000000000000000000000000000000000000000000000000);
+
+        int remaining = tx.inputs[1].tokenAmount;
+        require(remaining > 0);
+
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipient));
+        require(tx.outputs[0].tokenCategory == tx.inputs[1].tokenCategory);
+        require(tx.outputs[0].tokenAmount == remaining);
+
+        bytes newCommitment =
+            0x03 +
+            flagsByte +
+            toPaddedBytes(totalReleased + remaining, 8) +
+            toPaddedBytes(cursor, 5) +
+            0x0000000000 +
+            recipient;
+
+        require(tx.outputs[1].nftCommitment == newCommitment);
+        require(tx.outputs[1].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        int completeFee = tx.inputs[0].value + tx.inputs[1].value
+            - tx.outputs[0].value - tx.outputs[1].value;
+        require(completeFee >= 0 && completeFee <= 5000);
+    }
+
+    /**
+     * cancel() — sender splits vested(recipient)/unvested(sender); burns state NFT.
+     *
+     * inputs:  [0]=state NFT, [1]=FT vault
+     * outputs: vested FT -> recipient and/or unvested FT -> sender (no state NFT)
+     */
+    function cancel(sig senderSig, pubkey senderPubkey) {
+        require(tx.inputs.length == 2);
+        require(tx.outputs.length <= 2);
+        require(tx.time >= 500000000);
+        require(tx.locktime >= 500000000);
+
+        require(tx.inputs[0].tokenCategory.split(32)[0] == stateCategory);
+        require(tx.inputs[1].tokenCategory.split(32)[0] == ftCategory);
+        require(tx.inputs[1].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        bytes c = tx.inputs[0].nftCommitment;
+        int status        = int(c.split(1)[0]);
+        bytes1 flagsByte  = c.split(1)[1].split(1)[0];
+        int totalReleased = int(c.split(2)[1].split(8)[0]);
+        int cursor        = int(c.split(10)[1].split(5)[0]);
+        bytes20 recipient = c.split(20)[1].split(20)[0];
+
+        require(hash160(senderPubkey) == senderHash);
+        require(checkSig(senderSig, senderPubkey));
+        require((flagsByte & 0x01) == 0x01);
+        require(status == 0 || status == 1);
+
+        int elapsed  = tx.locktime - cursor;
+        int duration = endTimestamp - startTimestamp;
+        int vestedAtCancel = 0;
+
+        if (scheduleType == 1) {
+            if (elapsed >= duration) {
+                vestedAtCancel = totalAmount;
+            } else {
+                vestedAtCancel = (totalAmount * elapsed) / duration;
+            }
+        }
+
+        if (scheduleType == 2) {
+            int completedSteps = elapsed / stepInterval;
+            vestedAtCancel = completedSteps * stepAmount;
+            if (vestedAtCancel > totalAmount) { vestedAtCancel = totalAmount; }
+        }
+
+        int claimableNow = vestedAtCancel - totalReleased;
+        int vaultAmount = tx.inputs[1].tokenAmount;
+        int unvested = vaultAmount - claimableNow;
+
+        if (claimableNow > 0 && unvested > 0) {
+            require(tx.outputs.length == 2);
+            require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipient));
+            require(tx.outputs[0].tokenCategory == tx.inputs[1].tokenCategory);
+            require(tx.outputs[0].tokenAmount == claimableNow);
+            require(tx.outputs[1].lockingBytecode == new LockingBytecodeP2PKH(senderHash));
+            require(tx.outputs[1].tokenCategory == tx.inputs[1].tokenCategory);
+            require(tx.outputs[1].tokenAmount == unvested);
+        } else if (claimableNow > 0) {
+            require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipient));
+            require(tx.outputs[0].tokenCategory == tx.inputs[1].tokenCategory);
+            require(tx.outputs[0].tokenAmount == claimableNow);
+        } else {
+            require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(senderHash));
+            require(tx.outputs[0].tokenCategory == tx.inputs[1].tokenCategory);
+            require(tx.outputs[0].tokenAmount == unvested);
+        }
+    }
+
+    /**
+     * pause() — sender pauses; touches ONLY the state NFT (vault untouched).
+     */
+    function pause(sig senderSig, pubkey senderPubkey) {
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 1);
+        require(tx.time >= 500000000);
+        require(tx.locktime >= 500000000);
+
+        require(tx.inputs[0].tokenCategory.split(32)[0] == stateCategory);
+
+        bytes c = tx.inputs[0].nftCommitment;
+        int status       = int(c.split(1)[0]);
+        bytes1 flagsByte = c.split(1)[1].split(1)[0];
+
+        require(hash160(senderPubkey) == senderHash);
+        require(checkSig(senderSig, senderPubkey));
+        require((flagsByte & 0x01) == 0x01);
+        require(status == 0); // ACTIVE
+
+        bytes newCommitment =
+            0x01 +
+            flagsByte +
+            c.split(2)[1].split(8)[0] +
+            c.split(10)[1].split(5)[0] +
+            toPaddedBytes(tx.locktime, 5) +
+            c.split(20)[1].split(20)[0];
+
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        int pauseFee = tx.inputs[0].value - tx.outputs[0].value;
+        require(pauseFee >= 0 && pauseFee <= 5000);
+    }
+
+    /**
+     * resume() — sender resumes; advances cursor by the pause duration.
+     */
+    function resume(sig senderSig, pubkey senderPubkey) {
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 1);
+        require(tx.time >= 500000000);
+        require(tx.locktime >= 500000000);
+
+        require(tx.inputs[0].tokenCategory.split(32)[0] == stateCategory);
+
+        bytes c = tx.inputs[0].nftCommitment;
+        int status      = int(c.split(1)[0]);
+        bytes1 flagsByte = c.split(1)[1].split(1)[0];
+        int cursor      = int(c.split(10)[1].split(5)[0]);
+        int pauseStart  = int(c.split(15)[1].split(5)[0]);
+
+        require(hash160(senderPubkey) == senderHash);
+        require(checkSig(senderSig, senderPubkey));
+        require(status == 1); // PAUSED
+        require(pauseStart > 0);
+        require(tx.locktime > pauseStart);
+
+        int newCursor = cursor + (tx.locktime - pauseStart);
+
+        bytes newCommitment =
+            0x00 +
+            flagsByte +
+            c.split(2)[1].split(8)[0] +
+            toPaddedBytes(newCursor, 5) +
+            0x0000000000 +
+            c.split(20)[1].split(20)[0];
+
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        int resumeFee = tx.inputs[0].value - tx.outputs[0].value;
+        require(resumeFee >= 0 && resumeFee <= 5000);
+    }
+
+    /**
+     * transfer() — recipient reassigns the stream; touches ONLY the state NFT.
+     */
+    function transfer(sig recipientSig, pubkey recipientPubkey, bytes20 newRecipientHash) {
+        require(tx.inputs.length == 1);
+        require(tx.outputs.length == 1);
+
+        require(tx.inputs[0].tokenCategory.split(32)[0] == stateCategory);
+
+        bytes c = tx.inputs[0].nftCommitment;
+        int status       = int(c.split(1)[0]);
+        bytes1 flagsByte = c.split(1)[1].split(1)[0];
+        bytes20 current  = c.split(20)[1].split(20)[0];
+
+        require(hash160(recipientPubkey) == current);
+        require(checkSig(recipientSig, recipientPubkey));
+        require((flagsByte & 0x02) == 0x02); // transferable
+        require(status == 0); // ACTIVE
+
+        bytes newCommitment = c.split(20)[0] + newRecipientHash;
+        require(tx.outputs[0].nftCommitment == newCommitment);
+        require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+        require(tx.outputs[0].lockingBytecode == tx.inputs[0].lockingBytecode);
+
+        int transferFee = tx.inputs[0].value - tx.outputs[0].value;
+        require(transferFee >= 0 && transferFee <= 5000);
+    }
+}
