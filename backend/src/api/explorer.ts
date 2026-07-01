@@ -90,7 +90,12 @@ router.get('/explorer/activity', async (req, res) => {
     // Sort all by created_at desc
     results.sort((a, b) => b.created_at - a.created_at);
 
-    const totalVolume = results.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    // BCH-denominated volume only: CashToken total_amount is in token units and
+    // must not be summed into a BCH figure (see token_type per row).
+    const totalVolume = results.reduce(
+      (sum, r) => sum + ((r.token_type ?? 'BCH') === 'BCH' ? (r.total_amount || 0) : 0),
+      0,
+    );
     const activeCount = results.filter(r => r.status === 'ACTIVE').length;
     const completedCount = results.filter(r => r.status === 'COMPLETED').length;
 

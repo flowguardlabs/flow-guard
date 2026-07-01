@@ -32,7 +32,10 @@ router.get('/explorer/stats', async (req, res) => {
 
     // Volume calculations
     const totalVaultValue = (await db!.prepare('SELECT SUM(total_deposit) as s FROM vaults').get() as any)?.s || 0;
-    const totalStreamVolume = (await db!.prepare('SELECT SUM(total_amount) as s FROM streams').get() as any)?.s || 0;
+    // BCH-denominated volume must exclude CashToken streams: their total_amount is
+    // in token units, not BCH, and summing them mixes incomparable units.
+    const totalStreamVolume = (await db!.prepare("SELECT SUM(total_amount) as s FROM streams WHERE COALESCE(token_type, 'BCH') = 'BCH'").get() as any)?.s || 0;
+    const tokenStreamCount = (await db!.prepare("SELECT COUNT(*) as n FROM streams WHERE COALESCE(token_type, 'BCH') <> 'BCH'").get() as any)?.n || 0;
     const totalProposalAmount = (await db!.prepare('SELECT SUM(amount) as s FROM proposals').get() as any)?.s || 0;
 
     // Recent activity (24h) — vaults/proposals use TIMESTAMPTZ, streams uses BIGINT epoch seconds
@@ -57,6 +60,7 @@ router.get('/explorer/stats', async (req, res) => {
           total: streamCount,
           active: activeStreams,
           totalVolume: totalStreamVolume,
+          tokenStreams: tokenStreamCount,
           recent24h: recentStreams,
         },
         proposals: {
@@ -422,9 +426,11 @@ router.get('/explorer/address/:address', async (req, res) => {
     // Get proposals (created + received)
     const proposalsReceived = await db!.prepare('SELECT * FROM proposals WHERE recipient = ? ORDER BY created_at DESC').all(address) as any[];
 
-    // Calculate totals
-    const totalSent = streamsSent.reduce((sum, s) => sum + s.total_amount, 0);
-    const totalReceived = streamsReceived.reduce((sum, s) => sum + s.total_amount, 0);
+    // Calculate totals — BCH only; CashToken total_amount is in token units and
+    // cannot be summed into a BCH figure.
+    const isBchStream = (s: any) => (s.token_type ?? 'BCH') === 'BCH';
+    const totalSent = streamsSent.filter(isBchStream).reduce((sum, s) => sum + s.total_amount, 0);
+    const totalReceived = streamsReceived.filter(isBchStream).reduce((sum, s) => sum + s.total_amount, 0);
     const totalProposed = proposalsReceived.reduce((sum, p) => sum + p.amount, 0);
 
     res.json({

@@ -215,10 +215,16 @@ export default function StreamBatchHistoryPage() {
     () => batches.reduce((sum, batch) => sum + Number(batch.stream_count || 0), 0),
     [batches],
   );
-  const totalValueInView = useMemo(
-    () => batches.reduce((sum, batch) => sum + Number(batch.total_amount || 0), 0),
-    [batches],
-  );
+  // Only sum batches of the SAME asset the card is labeled with (batches[0]);
+  // BCH and CashToken amounts are different units and must not be added together.
+  const totalValueInView = useMemo(() => {
+    const head = batches[0];
+    if (!head) return 0;
+    const headType = head.token_type ?? 'BCH';
+    return batches
+      .filter((batch) => (batch.token_type ?? 'BCH') === headType)
+      .reduce((sum, batch) => sum + Number(batch.total_amount || 0), 0);
+  }, [batches]);
   const completedRuns = useMemo(
     () => batches.filter((batch) => batch.status === 'COMPLETED').length,
     [batches],
