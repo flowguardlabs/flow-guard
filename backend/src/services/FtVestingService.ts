@@ -275,7 +275,15 @@ export class FtVestingService {
     return { builder, claimable, remaining, locktime };
   }
 
-  /** Serialize constructor params (9 schedule + stateCategory + ftCategory) for DB storage. */
+  /**
+   * Serialize constructor params for DB STORAGE order: 9 schedule + ftCategory
+   * (index 9) + stateCategory (index 10). This MUST match deployFtVestingStream
+   * (create: index 9 = ftCategory) and parseFtVestingRow (read: index 9 =
+   * ftCategory, index 10 = stateCategory) so repeated funding-info calls stay
+   * consistent. NOTE: this is the DB serialization order, independent of the
+   * covenant constructor order — deriveContract() takes stateCategory/ftCategory
+   * as explicit args and always emits the covenant's [stateCategory, ftCategory].
+   */
   constructorParams(
     args: FtScheduleArgs,
     stateCategory: string,
@@ -291,8 +299,8 @@ export class FtVestingService {
       { type: 'bigint', value: args.cliffTimestamp.toString() },
       { type: 'bigint', value: args.stepInterval.toString() },
       { type: 'bigint', value: args.stepAmount.toString() },
-      { type: 'bytes', value: stateCategory },
       { type: 'bytes', value: ftCategory },
+      { type: 'bytes', value: stateCategory },
     ];
   }
 
@@ -311,6 +319,7 @@ export class FtVestingService {
     recipient: string;
     cancelable: boolean;
     transferable: boolean;
+    existingStateCategory?: string | null;
   }): Promise<{
     contractAddress: string;
     stateCategory: string;
@@ -323,7 +332,11 @@ export class FtVestingService {
   }> {
     const utxos = await this.provider.getUtxos(params.senderAddress);
     const bchUtxos = utxos.filter((u) => !u.token);
-    const anchor = bchUtxos.find((u) => u.vout === 0);
+    // Idempotency: if a prior funding-info already chose an anchor and it's still
+    // unspent, reuse it so the address doesn't drift on retries/reloads.
+    const anchor = (params.existingStateCategory
+      && bchUtxos.find((u) => u.vout === 0 && u.txid === params.existingStateCategory))
+      || bchUtxos.find((u) => u.vout === 0);
     if (!anchor) {
       throw new Error('Sender wallet needs a spendable BCH UTXO with output index 0 to mint the stream state NFT.');
     }

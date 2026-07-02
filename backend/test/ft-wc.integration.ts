@@ -49,6 +49,9 @@ async function main() {
 
   check('funding finalizes a contract address', funding.contractAddress.startsWith('bchtest:p'), funding.contractAddress);
   check('constructor params include stateCategory + ftCategory (11)', funding.constructorParams.length === 11);
+  // Storage order must match parseFtVestingRow: cp[9]=ftCategory, cp[10]=stateCategory.
+  check('cp[9] is ftCategory (store/parse order match)', funding.constructorParams[9].value === ftCategory, funding.constructorParams[9].value.slice(0, 10));
+  check('cp[10] is stateCategory (store/parse order match)', funding.constructorParams[10].value === funding.stateCategory, funding.constructorParams[10].value.slice(0, 10));
   check('funding output[0] is the state NFT (genesis category, nft)', Boolean((funding.outputs[0] as any).token?.nft) && (funding.outputs[0] as any).token.category === funding.stateCategory);
   check('funding output[1] is the FT vault (ftCategory, no nft)', (funding.outputs[1] as any).token?.category === ftCategory && !(funding.outputs[1] as any).token?.nft);
   check('funding vault carries the full token amount', String((funding.outputs[1] as any).token.amount) === args.totalAmount.toString());

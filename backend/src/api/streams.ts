@@ -918,6 +918,7 @@ router.get('/streams/:id/funding-info', async (req: Request, res: Response) => {
         recipient: row.recipient,
         cancelable: row.cancelable === 1,
         transferable: row.transferable === 1,
+        existingStateCategory: ftRow.stateCategory,
       });
       await db!.prepare('UPDATE streams SET contract_address = ?, constructor_params = ?, nft_commitment = ? WHERE id = ?')
         .run(funding.contractAddress, JSON.stringify(funding.constructorParams), funding.initialCommitment, id);
