@@ -2196,6 +2196,19 @@ router.post('/streams/:id/transfer', requireWalletAuth, async (req: Request, res
       || row.nft_commitment
       || '00'.repeat(40);
 
+    const ftTransferRow = parseFtVestingRow(row);
+    if (ftTransferRow && ftTransferRow.stateCategory) {
+      const ftService = new FtVestingService(resolveBchNetwork());
+      const transfer = await ftService.buildTransferWc({
+        args: ftTransferRow.args,
+        stateCategory: ftTransferRow.stateCategory,
+        ftCategory: ftTransferRow.ftCategory,
+        currentCommitment: hexToBin(currentCommitment),
+        newRecipientAddress,
+      });
+      return res.json({ success: true, message: 'Transfer transaction ready', wcTransaction: serializeWcTransaction(transfer.wcTransaction) });
+    }
+
     const controlService = new StreamControlService(resolveBchNetwork());
     const transferTx = await controlService.buildTransferTransaction({
       streamType: row.stream_type as 'LINEAR' | 'STEP' | 'TRANCHE' | 'HYBRID',

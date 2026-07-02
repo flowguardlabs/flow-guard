@@ -598,6 +598,35 @@ export class FtVestingService {
       wcTransaction: finalizeWcTransactionSequences(builder.generateWcTransactionObject({ broadcast: true, userPrompt: 'Cancel stream' })),
     };
   }
+
+  /** Transfer: current recipient reassigns the stream to a new recipient (state NFT only). */
+  async buildTransferWc(params: {
+    args: FtScheduleArgs;
+    stateCategory: string;
+    ftCategory: string;
+    currentCommitment: Uint8Array;
+    newRecipientAddress: string;
+  }): Promise<{ wcTransaction: WcTransactionObject }> {
+    const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
+    const stateUtxo = (await this.provider.getUtxos(contract.tokenAddress))
+      .find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
+    if (!stateUtxo) throw new Error('Stream state NFT not found on-chain');
+    const c = params.currentCommitment;
+    if (c[0] !== 0) throw new Error('Stream must be ACTIVE to transfer');
+    const newRecipientHash = addressToHash160(params.newRecipientAddress);
+    const newCommitment = new Uint8Array(40);
+    newCommitment.set(c.slice(0, 20), 0); // covenant keeps status/flags/released/cursor/pause
+    newCommitment.set(newRecipientHash, 20);
+    const stateOut = toBigInt(stateUtxo.satoshis) - 2000n;
+    const builder = new TransactionBuilder({ provider: this.provider })
+      .addInput(
+        stateUtxo,
+        contract.unlock.transfer(placeholderSignature(), placeholderPublicKey(), binToHex(newRecipientHash)),
+        { sequence: NON_FINAL_SEQUENCE },
+      )
+      .addOutput({ to: contract.tokenAddress, amount: stateOut, token: { category: params.stateCategory, amount: 0n, nft: { capability: 'mutable', commitment: binToHex(newCommitment) } } });
+    return { wcTransaction: finalizeWcTransactionSequences(builder.generateWcTransactionObject({ broadcast: true, userPrompt: 'Transfer stream' })) };
+  }
 }
 
 interface FundingSourceOutput {
