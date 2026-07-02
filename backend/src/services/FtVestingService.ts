@@ -16,8 +16,11 @@ import {
   Contract,
   TransactionBuilder,
   SignatureTemplate,
-  type ElectrumNetworkProvider,
+  ElectrumNetworkProvider,
+  placeholderSignature,
+  placeholderPublicKey,
   type Utxo,
+  type WcTransactionObject,
 } from 'cashscript';
 import {
   hash160,
@@ -25,8 +28,11 @@ import {
   hexToBin,
   cashAddressToLockingBytecode,
   decodeCashAddress,
+  encodeCashAddress,
 } from '@bitauth/libauth';
 import { ContractFactory } from './ContractFactory.js';
+import { buildFundingWcTransaction } from '../utils/wcFundingBuilder.js';
+import { finalizeWcTransactionSequences } from './txFinality.js';
 
 const NON_FINAL_SEQUENCE = 0xfffffffe;
 const CLAIM_LOCKTIME_BUFFER = 7200; // set nLockTime below MTP so the spend is immediately mineable
@@ -94,17 +100,23 @@ export function addressToHash160(address: string): Uint8Array {
   return b.slice(3, 23);
 }
 
-/** Token-aware P2PKH address (same locking bytecode, required for token outputs). */
+/** Token-aware address (same locking bytecode) — required for CashToken outputs. */
 export function toTokenAwareAddress(address: string): string {
   const decoded = decodeCashAddress(address);
   if (typeof decoded === 'string') throw new Error(decoded);
-  const isTokenAware = decoded.type === 'p2pkhWithTokens' || decoded.type === 'p2shWithTokens';
-  if (isTokenAware) return address;
-  return address; // caller passes a token-aware address for token outputs
+  if (decoded.type === 'p2pkhWithTokens' || decoded.type === 'p2shWithTokens') return address;
+  const tokenType = decoded.type === 'p2sh' ? 'p2shWithTokens' : 'p2pkhWithTokens';
+  return encodeCashAddress({ prefix: decoded.prefix, type: tokenType, payload: decoded.payload }).address;
 }
 
 export class FtVestingService {
-  constructor(private readonly provider: ElectrumNetworkProvider) {}
+  private readonly provider: ElectrumNetworkProvider;
+
+  constructor(providerOrNetwork: ElectrumNetworkProvider | 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet' = 'chipnet') {
+    this.provider = typeof providerOrNetwork === 'string'
+      ? new ElectrumNetworkProvider(providerOrNetwork)
+      : providerOrNetwork;
+  }
 
   /**
    * Derive the covenant. stateCategory = the genesis anchor's txid; ftCategory =
@@ -262,6 +274,228 @@ export class FtVestingService {
 
     return { builder, claimable, remaining, locktime };
   }
+
+  /** Serialize constructor params (9 schedule + stateCategory + ftCategory) for DB storage. */
+  constructorParams(
+    args: FtScheduleArgs,
+    stateCategory: string,
+    ftCategory: string,
+  ): Array<{ type: 'bytes' | 'bigint'; value: string }> {
+    return [
+      { type: 'bytes', value: args.vaultId },
+      { type: 'bytes', value: args.senderHash },
+      { type: 'bigint', value: String(args.scheduleType) },
+      { type: 'bigint', value: args.totalAmount.toString() },
+      { type: 'bigint', value: args.startTimestamp.toString() },
+      { type: 'bigint', value: args.endTimestamp.toString() },
+      { type: 'bigint', value: args.cliffTimestamp.toString() },
+      { type: 'bigint', value: args.stepInterval.toString() },
+      { type: 'bigint', value: args.stepAmount.toString() },
+      { type: 'bytes', value: stateCategory },
+      { type: 'bytes', value: ftCategory },
+    ];
+  }
+
+  /**
+   * Build the two-UTXO funding transaction the SENDER signs via WalletConnect.
+   * Picks a vout-0 anchor (stateCategory = its txid), derives the address, and
+   * emits [0] state NFT genesis, [1] FT vault, plus token/BCH change — all from
+   * the sender's P2PKH UTXOs, no minting authority. Returns the finalized address
+   * + constructor params so the stream row can be persisted.
+   */
+  async buildFundingWc(params: {
+    args: FtScheduleArgs;
+    ftCategory: string;
+    tokenAmount: bigint;
+    senderAddress: string;
+    recipient: string;
+    cancelable: boolean;
+    transferable: boolean;
+  }): Promise<{
+    contractAddress: string;
+    stateCategory: string;
+    initialCommitment: string;
+    constructorParams: Array<{ type: 'bytes' | 'bigint'; value: string }>;
+    inputs: FundingSourceOutput[];
+    outputs: FundingOutputSpec[];
+    fee: number;
+    wcTransaction: WcTransactionObject;
+  }> {
+    const utxos = await this.provider.getUtxos(params.senderAddress);
+    const bchUtxos = utxos.filter((u) => !u.token);
+    const anchor = bchUtxos.find((u) => u.vout === 0);
+    if (!anchor) {
+      throw new Error('Sender wallet needs a spendable BCH UTXO with output index 0 to mint the stream state NFT.');
+    }
+    const stateCategory = anchor.txid;
+    const contract = this.deriveContract(params.args, stateCategory, params.ftCategory);
+    const initC = this.initialCommitment(params.args, params.recipient, params.cancelable, params.transferable);
+
+    const ftUtxos = utxos.filter(
+      (u) => u.token?.category === params.ftCategory && !u.token?.nft && toBigInt(u.token?.amount) > 0n,
+    );
+    const selectedFt: Utxo[] = [];
+    let ftSum = 0n;
+    for (const u of ftUtxos) {
+      if (ftSum >= params.tokenAmount) break;
+      selectedFt.push(u);
+      ftSum += toBigInt(u.token?.amount);
+    }
+    if (ftSum < params.tokenAmount) {
+      throw new Error(`Insufficient token balance: need ${params.tokenAmount}, have ${ftSum} of category ${params.ftCategory}`);
+    }
+
+    const FEE = 1500n;
+    const need = STATE_NFT_RESERVE + VAULT_DUST + FEE;
+    const selected: Utxo[] = [anchor, ...selectedFt];
+    let inSats = toBigInt(anchor.satoshis) + selectedFt.reduce((s, u) => s + toBigInt(u.satoshis), 0n);
+    const extraBch = bchUtxos.filter((u) => !(u.txid === anchor.txid && u.vout === anchor.vout));
+    for (const u of extraBch) {
+      if (inSats >= need + 546n) break;
+      selected.push(u);
+      inSats += toBigInt(u.satoshis);
+    }
+    if (inSats < need) throw new Error(`Insufficient BCH to fund the stream: need ${need}, have ${inSats}`);
+
+    const inputs: FundingSourceOutput[] = selected.map((u) => ({
+      txid: u.txid,
+      vout: u.vout,
+      satoshis: Number(toBigInt(u.satoshis)),
+      tokenCategory: u.token?.category,
+      tokenAmount: u.token?.amount !== undefined ? toBigInt(u.token.amount).toString() : undefined,
+      tokenNftCapability: u.token?.nft?.capability,
+      tokenNftCommitment: u.token?.nft?.commitment
+        ? (typeof u.token.nft.commitment === 'string' ? u.token.nft.commitment : binToHex(u.token.nft.commitment))
+        : undefined,
+    }));
+
+    const outputs: FundingOutputSpec[] = [
+      {
+        to: contract.tokenAddress,
+        amount: STATE_NFT_RESERVE.toString(),
+        token: { category: stateCategory, amount: '0', nft: { commitment: binToHex(initC), capability: 'mutable' } },
+      },
+      {
+        to: contract.tokenAddress,
+        amount: VAULT_DUST.toString(),
+        token: { category: params.ftCategory, amount: params.tokenAmount.toString() },
+      },
+    ];
+    const ftChange = ftSum - params.tokenAmount;
+    if (ftChange > 0n) {
+      outputs.push({
+        to: toTokenAwareAddress(params.senderAddress),
+        amount: VAULT_DUST.toString(),
+        token: { category: params.ftCategory, amount: ftChange.toString() },
+      });
+    }
+    const bchChange = inSats - STATE_NFT_RESERVE - VAULT_DUST - (ftChange > 0n ? VAULT_DUST : 0n) - FEE;
+    if (bchChange > 546n) outputs.push({ to: params.senderAddress, amount: bchChange.toString() });
+
+    const wcTransaction = buildFundingWcTransaction({
+      inputOwnerAddress: params.senderAddress,
+      inputs,
+      outputs,
+      userPrompt: `Fund CashToken stream ${contract.address}`,
+      broadcast: false,
+    });
+
+    return {
+      contractAddress: contract.address,
+      stateCategory,
+      initialCommitment: binToHex(initC),
+      constructorParams: this.constructorParams(params.args, stateCategory, params.ftCategory),
+      inputs,
+      outputs,
+      fee: Number(FEE),
+      wcTransaction,
+    };
+  }
+
+  /**
+   * Build the two-input claim the RECIPIENT signs via WalletConnect. Placeholder
+   * signatures on both covenant inputs are filled in by the wallet. The emitted
+   * transaction is structurally identical to buildClaim (VM-proven).
+   */
+  async buildClaimWc(params: {
+    args: FtScheduleArgs;
+    stateCategory: string;
+    ftCategory: string;
+    recipientAddress: string; // token-aware
+    currentCommitment: Uint8Array;
+    nowSeconds: number;
+  }): Promise<{ claimable: bigint; remaining: bigint; wcTransaction: WcTransactionObject }> {
+    const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
+    const utxos = await this.provider.getUtxos(contract.tokenAddress);
+    const stateUtxo = utxos.find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
+    const vaultUtxo = utxos.find((u) => u.token?.category === params.ftCategory && !u.token?.nft);
+    if (!stateUtxo || !vaultUtxo) throw new Error('Stream state NFT or token vault UTXO not found on-chain');
+
+    const cursor = Number(readUint40LE(params.currentCommitment, 10));
+    const totalReleased = new DataView(
+      params.currentCommitment.buffer,
+      params.currentCommitment.byteOffset + 2,
+      8,
+    ).getBigUint64(0, true);
+    const flags = params.currentCommitment[1];
+    const recipientHash = params.currentCommitment.slice(20, 40);
+
+    const locktime = params.nowSeconds - CLAIM_LOCKTIME_BUFFER;
+    const vested = FtVestingService.vestedTotal(params.args, locktime, cursor);
+    const claimable = vested - totalReleased;
+    if (claimable <= 0n) throw new Error('Nothing vested to claim yet');
+    const vaultAmount = toBigInt(vaultUtxo.token?.amount);
+    if (claimable > vaultAmount) throw new Error('claimable exceeds vault balance');
+    const remaining = vaultAmount - claimable;
+
+    const newTotalReleased = totalReleased + claimable;
+    const newStatus = newTotalReleased >= params.args.totalAmount ? 3 : 0;
+    const newCommitment = encodeFtCommitment({ status: newStatus, flags, totalReleased: newTotalReleased, cursor, pauseStart: 0, recipientHash });
+
+    const stateInSats = toBigInt(stateUtxo.satoshis);
+    const vaultInSats = toBigInt(vaultUtxo.satoshis);
+
+    const builder = new TransactionBuilder({ provider: this.provider })
+      .setLocktime(locktime)
+      .addInput(stateUtxo, contract.unlock.claim(placeholderSignature(), placeholderPublicKey()), { sequence: NON_FINAL_SEQUENCE })
+      .addInput(vaultUtxo, contract.unlock.claim(placeholderSignature(), placeholderPublicKey()), { sequence: NON_FINAL_SEQUENCE })
+      .addOutput({ to: toTokenAwareAddress(params.recipientAddress), amount: OUTPUT_DUST, token: { category: params.ftCategory, amount: claimable } });
+
+    if (remaining > 0n) {
+      const stateOut = stateInSats + vaultInSats - OUTPUT_DUST - OUTPUT_DUST - CLAIM_FEE;
+      builder
+        .addOutput({ to: contract.tokenAddress, amount: stateOut, token: { category: params.stateCategory, amount: 0n, nft: { capability: 'mutable', commitment: binToHex(newCommitment) } } })
+        .addOutput({ to: contract.tokenAddress, amount: OUTPUT_DUST, token: { category: params.ftCategory, amount: remaining } });
+    } else {
+      const stateOut = stateInSats + vaultInSats - OUTPUT_DUST - CLAIM_FEE;
+      builder.addOutput({ to: contract.tokenAddress, amount: stateOut, token: { category: params.stateCategory, amount: 0n, nft: { capability: 'mutable', commitment: binToHex(newCommitment) } } });
+    }
+
+    const wcTransaction = finalizeWcTransactionSequences(
+      builder.generateWcTransactionObject({ broadcast: true, userPrompt: 'Claim vested CashTokens' }),
+    );
+    return { claimable, remaining, wcTransaction };
+  }
+}
+
+interface FundingSourceOutput {
+  txid: string;
+  vout: number;
+  satoshis: number;
+  tokenCategory?: string;
+  tokenAmount?: string;
+  tokenNftCapability?: 'none' | 'mutable' | 'minting';
+  tokenNftCommitment?: string;
+}
+
+interface FundingOutputSpec {
+  to: string;
+  amount: string;
+  token?: {
+    category: string;
+    amount: string;
+    nft?: { commitment: string; capability: 'none' | 'mutable' | 'minting' };
+  };
 }
 
 function readUint40LE(buf: Uint8Array, offset: number): number {

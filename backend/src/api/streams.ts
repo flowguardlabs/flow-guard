@@ -11,6 +11,7 @@ import db from '../database/schema.js';
 import { streamService, Stream, StreamClaim } from '../services/streamService.js';
 import { StreamDeploymentService } from '../services/StreamDeploymentService.js';
 import { StreamFundingService } from '../services/StreamFundingService.js';
+import { FtVestingService, type FtScheduleArgs } from '../services/FtVestingService.js';
 import { StreamClaimService } from '../services/StreamClaimService.js';
 import { StreamCancelService } from '../services/StreamCancelService.js';
 import { StreamControlService } from '../services/StreamControlService.js';
@@ -695,11 +696,14 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
       const stepAmountOnChain = Math.floor((totalOnChain + stepCount - 1) / stepCount);
       const stepAmountDisplay = onChainAmountToDisplay(stepAmountOnChain, normalizedTokenType);
       intervalSecondsForRow = explicitStepIntervalSeconds;
-      deployment = await deploymentService.deployVestingStream({
+      const stepParams = {
         ...deploymentParams,
         stepInterval: intervalSecondsForRow,
         stepAmount: stepAmountDisplay,
-      });
+      };
+      deployment = normalizedTokenType === 'FUNGIBLE_TOKEN'
+        ? await deploymentService.deployFtVestingStream(stepParams)
+        : await deploymentService.deployVestingStream(stepParams);
     } else if (streamType === 'TRANCHE') {
       const normalized = normalizeTrancheSchedule({
         trancheSchedule,
@@ -758,7 +762,9 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
         hybridUpfrontAmount: hybridUpfrontAmountDisplayForRow,
       });
     } else {
-      deployment = await deploymentService.deployVestingStream(deploymentParams);
+      deployment = normalizedTokenType === 'FUNGIBLE_TOKEN'
+        ? await deploymentService.deployFtVestingStream(deploymentParams)
+        : await deploymentService.deployVestingStream(deploymentParams);
     }
 
     const countRow = await db!.prepare('SELECT COUNT(*) as cnt FROM streams').get() as any;
@@ -799,7 +805,7 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
       normalizedLaunchContext?.description || null,
       normalizedLaunchContext?.preferredLane || null,
       description || null, now, now,
-      deployment.contractAddress,
+      deployment.contractAddress || null,
       JSON.stringify(deployment.constructorParams),
       deployment.initialCommitment,
       'mutable'
@@ -855,6 +861,31 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
 });
 
 /**
+ * Detect a two-UTXO CashToken vesting stream and parse its schedule from
+ * constructor_params. FT vesting rows carry 10 params before funding (9 schedule
+ * + ftCategory) and 11 after (stateCategory appended). BCH/other rows return null.
+ */
+function parseFtVestingRow(row: any): { args: FtScheduleArgs; ftCategory: string; stateCategory: string | null } | null {
+  if (row?.token_type !== 'CASHTOKENS') return null;
+  if (row.stream_type !== 'LINEAR' && row.stream_type !== 'STEP') return null;
+  let cp: any[];
+  try { cp = JSON.parse(row.constructor_params); } catch { return null; }
+  if (!Array.isArray(cp) || cp.length < 10 || cp[9]?.type !== 'bytes') return null;
+  const args: FtScheduleArgs = {
+    vaultId: cp[0].value,
+    senderHash: cp[1].value,
+    scheduleType: Number(cp[2].value) === 2 ? 2 : 1,
+    totalAmount: BigInt(cp[3].value),
+    startTimestamp: BigInt(cp[4].value),
+    endTimestamp: BigInt(cp[5].value),
+    cliffTimestamp: BigInt(cp[6].value),
+    stepInterval: BigInt(cp[7].value),
+    stepAmount: BigInt(cp[8].value),
+  };
+  return { args, ftCategory: cp[9].value, stateCategory: cp[10]?.value ?? null };
+}
+
+/**
  * GET /api/streams/:id/funding-info
  * Get funding transaction parameters for a pending stream
  */
@@ -871,6 +902,43 @@ router.get('/streams/:id/funding-info', async (req: Request, res: Response) => {
       return res.status(400).json({
         error: 'Stream is not pending',
         message: `Stream status is ${row.status}. Only PENDING streams can be funded.`,
+      });
+    }
+
+    // Two-UTXO CashToken stream: finalize the address from a fresh genesis anchor,
+    // build the mint-authority-free funding tx, and persist the finalized state.
+    const ftRow = parseFtVestingRow(row);
+    if (ftRow) {
+      const ftService = new FtVestingService(resolveBchNetwork());
+      const funding = await ftService.buildFundingWc({
+        args: ftRow.args,
+        ftCategory: ftRow.ftCategory,
+        tokenAmount: ftRow.args.totalAmount,
+        senderAddress: row.sender,
+        recipient: row.recipient,
+        cancelable: row.cancelable === 1,
+        transferable: row.transferable === 1,
+      });
+      await db!.prepare('UPDATE streams SET contract_address = ?, constructor_params = ?, nft_commitment = ? WHERE id = ?')
+        .run(funding.contractAddress, JSON.stringify(funding.constructorParams), funding.initialCommitment, id);
+      return res.json({
+        success: true,
+        fundingInfo: {
+          streamId: row.stream_id,
+          contractAddress: funding.contractAddress,
+          sender: row.sender,
+          recipient: row.recipient,
+          amount: Number(ftRow.args.totalAmount),
+          tokenType: 'CASHTOKENS',
+          tokenCategory: ftRow.ftCategory,
+          tokenAmount: Number(ftRow.args.totalAmount),
+          nftCommitment: funding.initialCommitment,
+          predictedCommitment: funding.initialCommitment,
+          inputs: funding.inputs,
+          outputs: funding.outputs,
+          fee: funding.fee,
+        },
+        wcTransaction: serializeWcTransaction(funding.wcTransaction),
       });
     }
 
@@ -1120,6 +1188,26 @@ router.post('/streams/:id/claim', requireWalletAuth, async (req: Request, res: R
         success: true,
         claimableAmount,
         wcTransaction: serializeWcTransaction(claimTx.wcTransaction),
+      });
+    }
+
+    // Two-UTXO CashToken stream: spend the state NFT + token vault together.
+    const ftClaimRow = parseFtVestingRow(row);
+    if (ftClaimRow && ftClaimRow.stateCategory) {
+      const ftService = new FtVestingService(resolveBchNetwork());
+      const claim = await ftService.buildClaimWc({
+        args: ftClaimRow.args,
+        stateCategory: ftClaimRow.stateCategory,
+        ftCategory: ftClaimRow.ftCategory,
+        recipientAddress: row.recipient,
+        currentCommitment: hexToBin(currentCommitment),
+        nowSeconds: Math.floor(Date.now() / 1000),
+      });
+      const claimableAmount = onChainAmountToDisplay(Number(claim.claimable), row.token_type);
+      return res.json({
+        success: true,
+        claimableAmount,
+        wcTransaction: serializeWcTransaction(claim.wcTransaction),
       });
     }
 
@@ -1401,6 +1489,30 @@ router.get('/streams/:id/claim-info', async (req: Request, res: Response) => {
           wcTransaction: serializeWcTransaction(claimTx.wcTransaction),
         },
       });
+    }
+
+    // Two-UTXO CashToken stream: compute claimable read-only from the state NFT.
+    const ftInfoRow = parseFtVestingRow(row);
+    if (ftInfoRow && ftInfoRow.stateCategory) {
+      const state = parseVestingCommitmentState(currentCommitment);
+      if (state) {
+        const effTime = Math.floor(Date.now() / 1000) - 7200;
+        const vested = FtVestingService.vestedTotal(ftInfoRow.args, effTime, state.cursor);
+        const claimableRaw = vested - BigInt(state.totalReleased);
+        const claimableOnChain = claimableRaw > 0n ? claimableRaw : 0n;
+        return res.json({
+          success: true,
+          claimInfo: {
+            streamId: row.stream_id,
+            contractAddress: row.contract_address,
+            recipient: row.recipient,
+            claimableAmount: onChainAmountToDisplay(Number(claimableOnChain), row.token_type),
+            totalReleased: onChainAmountToDisplay(state.totalReleased, row.token_type),
+            totalAmount: onChainAmountToDisplay(Number(ftInfoRow.args.totalAmount), row.token_type),
+            status: state.status,
+          },
+        });
+      }
     }
 
     const claimService = new StreamClaimService(resolveBchNetwork());
