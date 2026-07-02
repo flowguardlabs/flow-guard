@@ -236,10 +236,10 @@ export class FtVestingService {
     const locktime = params.nowSeconds - CLAIM_LOCKTIME_BUFFER;
     const vested = FtVestingService.vestedTotal(params.args, locktime, cursor);
     const claimable = vested - totalReleased;
-    if (claimable <= 0n) throw new Error('Nothing vested to claim yet');
+    if (claimable <= 0n) throw new Error('Nothing to claim yet — wait for more of the stream to vest, then try again.');
 
     const vaultAmount = toBigInt(params.vaultUtxo.token?.amount);
-    if (claimable > vaultAmount) throw new Error('claimable exceeds vault balance');
+    if (claimable > vaultAmount) throw new Error('The claim amount is more than the tokens the stream currently holds. Refresh and try again.');
     const remaining = vaultAmount - claimable;
 
     const newTotalReleased = totalReleased + claimable;
@@ -338,7 +338,7 @@ export class FtVestingService {
       && bchUtxos.find((u) => u.vout === 0 && u.txid === params.existingStateCategory))
       || bchUtxos.find((u) => u.vout === 0);
     if (!anchor) {
-      throw new Error('Sender wallet needs a spendable BCH UTXO with output index 0 to mint the stream state NFT.');
+      throw new Error('Your wallet needs a little spendable BCH to fund a token stream. Send yourself a small amount of BCH (or receive some), then try funding again.');
     }
     const stateCategory = anchor.txid;
     const contract = this.deriveContract(params.args, stateCategory, params.ftCategory);
@@ -355,7 +355,7 @@ export class FtVestingService {
       ftSum += toBigInt(u.token?.amount);
     }
     if (ftSum < params.tokenAmount) {
-      throw new Error(`Insufficient token balance: need ${params.tokenAmount}, have ${ftSum} of category ${params.ftCategory}`);
+      throw new Error(`Not enough of this token in your wallet: the stream needs ${params.tokenAmount} but you hold ${ftSum}. Lower the amount, or add more of the token to your wallet.`);
     }
 
     const FEE = 1500n;
@@ -368,7 +368,7 @@ export class FtVestingService {
       selected.push(u);
       inSats += toBigInt(u.satoshis);
     }
-    if (inSats < need) throw new Error(`Insufficient BCH to fund the stream: need ${need}, have ${inSats}`);
+    if (inSats < need) throw new Error(`Not enough BCH to cover the stream's on-chain reserve and network fee (need about ${need} sats, your wallet has ${inSats}). Add a little BCH and try again.`);
 
     const inputs: FundingSourceOutput[] = selected.map((u) => ({
       txid: u.txid,
@@ -442,7 +442,7 @@ export class FtVestingService {
     const utxos = await this.provider.getUtxos(contract.tokenAddress);
     const stateUtxo = utxos.find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
     const vaultUtxo = utxos.find((u) => u.token?.category === params.ftCategory && !u.token?.nft);
-    if (!stateUtxo || !vaultUtxo) throw new Error('Stream state NFT or token vault UTXO not found on-chain');
+    if (!stateUtxo || !vaultUtxo) throw new Error('The stream is still confirming on-chain — its state or token vault is not visible yet. Wait a few seconds and try again.');
 
     const cursor = Number(readUint40LE(params.currentCommitment, 10));
     const totalReleased = new DataView(
@@ -456,9 +456,9 @@ export class FtVestingService {
     const locktime = params.nowSeconds - CLAIM_LOCKTIME_BUFFER;
     const vested = FtVestingService.vestedTotal(params.args, locktime, cursor);
     const claimable = vested - totalReleased;
-    if (claimable <= 0n) throw new Error('Nothing vested to claim yet');
+    if (claimable <= 0n) throw new Error('Nothing to claim yet — wait for more of the stream to vest, then try again.');
     const vaultAmount = toBigInt(vaultUtxo.token?.amount);
-    if (claimable > vaultAmount) throw new Error('claimable exceeds vault balance');
+    if (claimable > vaultAmount) throw new Error('The claim amount is more than the tokens the stream currently holds. Refresh and try again.');
     const remaining = vaultAmount - claimable;
 
     const newTotalReleased = totalReleased + claimable;
@@ -501,9 +501,9 @@ export class FtVestingService {
     const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
     const stateUtxo = (await this.provider.getUtxos(contract.tokenAddress))
       .find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
-    if (!stateUtxo) throw new Error('Stream state NFT not found on-chain');
+    if (!stateUtxo) throw new Error('The stream is still confirming on-chain — its state is not visible yet. Wait a few seconds and try again.');
     const c = params.currentCommitment;
-    if (c[0] !== 0) throw new Error('Stream must be ACTIVE to pause');
+    if (c[0] !== 0) throw new Error('This stream can only be paused while it is active.');
     const flags = c[1];
     const totalReleased = new DataView(c.buffer, c.byteOffset + 2, 8).getBigUint64(0, true);
     const cursor = readUint40LE(c, 10);
@@ -529,16 +529,16 @@ export class FtVestingService {
     const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
     const stateUtxo = (await this.provider.getUtxos(contract.tokenAddress))
       .find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
-    if (!stateUtxo) throw new Error('Stream state NFT not found on-chain');
+    if (!stateUtxo) throw new Error('The stream is still confirming on-chain — its state is not visible yet. Wait a few seconds and try again.');
     const c = params.currentCommitment;
-    if (c[0] !== 1) throw new Error('Stream must be PAUSED to resume');
+    if (c[0] !== 1) throw new Error('This stream can only be resumed while it is paused.');
     const flags = c[1];
     const totalReleased = new DataView(c.buffer, c.byteOffset + 2, 8).getBigUint64(0, true);
     const cursor = readUint40LE(c, 10);
     const pauseStart = readUint40LE(c, 15);
     const recipientHash = c.slice(20, 40);
     const locktime = params.nowSeconds - CLAIM_LOCKTIME_BUFFER;
-    if (locktime <= pauseStart) throw new Error('Cannot resume yet (need time past the pause point)');
+    if (locktime <= pauseStart) throw new Error('Please wait a moment before resuming — a little time must pass after pausing.');
     const newCursor = cursor + (locktime - pauseStart);
     const newCommitment = encodeFtCommitment({ status: 0, flags, totalReleased, cursor: newCursor, pauseStart: 0, recipientHash });
     const stateOut = toBigInt(stateUtxo.satoshis) - 2000n;
@@ -563,7 +563,7 @@ export class FtVestingService {
     const utxos = await this.provider.getUtxos(contract.tokenAddress);
     const stateUtxo = utxos.find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
     const vaultUtxo = utxos.find((u) => u.token?.category === params.ftCategory && !u.token?.nft);
-    if (!stateUtxo || !vaultUtxo) throw new Error('Stream state NFT or token vault UTXO not found on-chain');
+    if (!stateUtxo || !vaultUtxo) throw new Error('The stream is still confirming on-chain — its state or token vault is not visible yet. Wait a few seconds and try again.');
     const c = params.currentCommitment;
     const totalReleased = new DataView(c.buffer, c.byteOffset + 2, 8).getBigUint64(0, true);
     const cursor = readUint40LE(c, 10);
@@ -610,9 +610,9 @@ export class FtVestingService {
     const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
     const stateUtxo = (await this.provider.getUtxos(contract.tokenAddress))
       .find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
-    if (!stateUtxo) throw new Error('Stream state NFT not found on-chain');
+    if (!stateUtxo) throw new Error('The stream is still confirming on-chain — its state is not visible yet. Wait a few seconds and try again.');
     const c = params.currentCommitment;
-    if (c[0] !== 0) throw new Error('Stream must be ACTIVE to transfer');
+    if (c[0] !== 0) throw new Error('This stream can only be transferred to a new recipient while it is active.');
     const newRecipientHash = addressToHash160(params.newRecipientAddress);
     const newCommitment = new Uint8Array(40);
     newCommitment.set(c.slice(0, 20), 0); // covenant keeps status/flags/released/cursor/pause

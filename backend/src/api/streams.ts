@@ -914,16 +914,22 @@ router.get('/streams/:id/funding-info', async (req: Request, res: Response) => {
     const ftRow = parseFtVestingRow(row);
     if (ftRow) {
       const ftService = new FtVestingService(resolveBchNetwork());
-      const funding = await ftService.buildFundingWc({
-        args: ftRow.args,
-        ftCategory: ftRow.ftCategory,
-        tokenAmount: ftRow.args.totalAmount,
-        senderAddress: row.sender,
-        recipient: row.recipient,
-        cancelable: row.cancelable === 1,
-        transferable: row.transferable === 1,
-        existingStateCategory: ftRow.stateCategory,
-      });
+      let funding;
+      try {
+        funding = await ftService.buildFundingWc({
+          args: ftRow.args,
+          ftCategory: ftRow.ftCategory,
+          tokenAmount: ftRow.args.totalAmount,
+          senderAddress: row.sender,
+          recipient: row.recipient,
+          cancelable: row.cancelable === 1,
+          transferable: row.transferable === 1,
+          existingStateCategory: ftRow.stateCategory,
+        });
+      } catch (ftErr: any) {
+        // These are user-fixable (not enough tokens/BCH, wallet not ready) — 400, clean message.
+        return res.status(400).json({ error: ftErr?.message || 'Could not prepare the funding transaction.' });
+      }
       await db!.prepare('UPDATE streams SET contract_address = ?, constructor_params = ?, nft_commitment = ? WHERE id = ?')
         .run(funding.contractAddress, JSON.stringify(funding.constructorParams), funding.initialCommitment, id);
       return res.json({
@@ -1230,20 +1236,24 @@ router.post('/streams/:id/claim', requireWalletAuth, async (req: Request, res: R
     const ftClaimRow = parseFtVestingRow(row);
     if (ftClaimRow && ftClaimRow.stateCategory) {
       const ftService = new FtVestingService(resolveBchNetwork());
-      const claim = await ftService.buildClaimWc({
-        args: ftClaimRow.args,
-        stateCategory: ftClaimRow.stateCategory,
-        ftCategory: ftClaimRow.ftCategory,
-        recipientAddress: row.recipient,
-        currentCommitment: hexToBin(currentCommitment),
-        nowSeconds: Math.floor(Date.now() / 1000),
-      });
-      const claimableAmount = onChainAmountToDisplay(Number(claim.claimable), row.token_type);
-      return res.json({
-        success: true,
-        claimableAmount,
-        wcTransaction: serializeWcTransaction(claim.wcTransaction),
-      });
+      try {
+        const claim = await ftService.buildClaimWc({
+          args: ftClaimRow.args,
+          stateCategory: ftClaimRow.stateCategory,
+          ftCategory: ftClaimRow.ftCategory,
+          recipientAddress: row.recipient,
+          currentCommitment: hexToBin(currentCommitment),
+          nowSeconds: Math.floor(Date.now() / 1000),
+        });
+        const claimableAmount = onChainAmountToDisplay(Number(claim.claimable), row.token_type);
+        return res.json({
+          success: true,
+          claimableAmount,
+          wcTransaction: serializeWcTransaction(claim.wcTransaction),
+        });
+      } catch (ftErr: any) {
+        return res.status(400).json({ error: ftErr?.message || 'Could not prepare the claim transaction.', retryable: true });
+      }
     }
 
     const claimService = new StreamClaimService(resolveBchNetwork());
