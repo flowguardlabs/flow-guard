@@ -1663,6 +1663,19 @@ router.post('/streams/:id/pause', requireWalletAuth, async (req: Request, res: R
       || row.nft_commitment
       || '00'.repeat(40);
 
+    const ftRow = parseFtVestingRow(row);
+    if (ftRow && ftRow.stateCategory) {
+      const ftService = new FtVestingService(resolveBchNetwork());
+      const pause = await ftService.buildPauseWc({
+        args: ftRow.args,
+        stateCategory: ftRow.stateCategory,
+        ftCategory: ftRow.ftCategory,
+        currentCommitment: hexToBin(currentCommitment),
+        nowSeconds: Math.floor(Date.now() / 1000),
+      });
+      return res.json({ success: true, message: 'Pause transaction ready', wcTransaction: serializeWcTransaction(pause.wcTransaction) });
+    }
+
     const controlService = new StreamControlService(resolveBchNetwork());
     const pauseTx = await controlService.buildPauseTransaction({
       streamType: row.stream_type as 'LINEAR' | 'STEP' | 'RECURRING' | 'TRANCHE' | 'HYBRID',
@@ -1812,6 +1825,19 @@ router.post('/streams/:id/resume', requireWalletAuth, async (req: Request, res: 
     const currentCommitment = await contractService.getNFTCommitment(row.contract_address)
       || row.nft_commitment
       || '00'.repeat(40);
+
+    const ftRow = parseFtVestingRow(row);
+    if (ftRow && ftRow.stateCategory) {
+      const ftService = new FtVestingService(resolveBchNetwork());
+      const resume = await ftService.buildResumeWc({
+        args: ftRow.args,
+        stateCategory: ftRow.stateCategory,
+        ftCategory: ftRow.ftCategory,
+        currentCommitment: hexToBin(currentCommitment),
+        nowSeconds: Math.floor(Date.now() / 1000),
+      });
+      return res.json({ success: true, message: 'Resume transaction ready', wcTransaction: serializeWcTransaction(resume.wcTransaction) });
+    }
 
     const controlService = new StreamControlService(resolveBchNetwork());
     const resumeTx = await controlService.buildResumeTransaction({
@@ -2335,6 +2361,29 @@ router.post('/streams/:id/cancel', requireWalletAuth, async (req: Request, res: 
     const currentCommitment = await contractService.getNFTCommitment(row.contract_address)
       || row.nft_commitment
       || '00'.repeat(40);
+
+    const ftCancelRow = parseFtVestingRow(row);
+    if (ftCancelRow && ftCancelRow.stateCategory) {
+      const ftService = new FtVestingService(resolveBchNetwork());
+      const cancel = await ftService.buildCancelWc({
+        args: ftCancelRow.args,
+        stateCategory: ftCancelRow.stateCategory,
+        ftCategory: ftCancelRow.ftCategory,
+        currentCommitment: hexToBin(currentCommitment),
+        recipientAddress: row.recipient,
+        senderAddress: signerAddress, // unvested returns here, so it's safe by construction
+        nowSeconds: Math.floor(Date.now() / 1000),
+      });
+      return res.json({
+        success: true,
+        message: 'Cancel transaction ready',
+        vestedAmount: onChainAmountToDisplay(Number(cancel.claimableNow), row.token_type),
+        unvestedAmount: onChainAmountToDisplay(Number(cancel.unvested), row.token_type),
+        cancelReturnAddress: signerAddress,
+        senderAddress: signerAddress,
+        wcTransaction: serializeWcTransaction(cancel.wcTransaction),
+      });
+    }
 
     const cancelService = new StreamCancelService(resolveBchNetwork());
     const cancelTx = await cancelService.buildCancelTransaction({

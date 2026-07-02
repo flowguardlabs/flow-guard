@@ -489,6 +489,115 @@ export class FtVestingService {
     );
     return { claimable, remaining, wcTransaction };
   }
+
+  /** Pause: sender-signed, touches ONLY the state NFT (1 input -> 1 output). */
+  async buildPauseWc(params: {
+    args: FtScheduleArgs;
+    stateCategory: string;
+    ftCategory: string;
+    currentCommitment: Uint8Array;
+    nowSeconds: number;
+  }): Promise<{ wcTransaction: WcTransactionObject }> {
+    const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
+    const stateUtxo = (await this.provider.getUtxos(contract.tokenAddress))
+      .find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
+    if (!stateUtxo) throw new Error('Stream state NFT not found on-chain');
+    const c = params.currentCommitment;
+    if (c[0] !== 0) throw new Error('Stream must be ACTIVE to pause');
+    const flags = c[1];
+    const totalReleased = new DataView(c.buffer, c.byteOffset + 2, 8).getBigUint64(0, true);
+    const cursor = readUint40LE(c, 10);
+    const recipientHash = c.slice(20, 40);
+    const locktime = params.nowSeconds - CLAIM_LOCKTIME_BUFFER;
+    const newCommitment = encodeFtCommitment({ status: 1, flags, totalReleased, cursor, pauseStart: locktime, recipientHash });
+    const stateOut = toBigInt(stateUtxo.satoshis) - 2000n; // pause fee <= covenant cap 5000
+    const builder = new TransactionBuilder({ provider: this.provider })
+      .setLocktime(locktime)
+      .addInput(stateUtxo, contract.unlock.pause(placeholderSignature(), placeholderPublicKey()), { sequence: NON_FINAL_SEQUENCE })
+      .addOutput({ to: contract.tokenAddress, amount: stateOut, token: { category: params.stateCategory, amount: 0n, nft: { capability: 'mutable', commitment: binToHex(newCommitment) } } });
+    return { wcTransaction: finalizeWcTransactionSequences(builder.generateWcTransactionObject({ broadcast: true, userPrompt: 'Pause stream' })) };
+  }
+
+  /** Resume: sender-signed, advances the cursor by the pause duration (1 input -> 1 output). */
+  async buildResumeWc(params: {
+    args: FtScheduleArgs;
+    stateCategory: string;
+    ftCategory: string;
+    currentCommitment: Uint8Array;
+    nowSeconds: number;
+  }): Promise<{ wcTransaction: WcTransactionObject }> {
+    const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
+    const stateUtxo = (await this.provider.getUtxos(contract.tokenAddress))
+      .find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
+    if (!stateUtxo) throw new Error('Stream state NFT not found on-chain');
+    const c = params.currentCommitment;
+    if (c[0] !== 1) throw new Error('Stream must be PAUSED to resume');
+    const flags = c[1];
+    const totalReleased = new DataView(c.buffer, c.byteOffset + 2, 8).getBigUint64(0, true);
+    const cursor = readUint40LE(c, 10);
+    const pauseStart = readUint40LE(c, 15);
+    const recipientHash = c.slice(20, 40);
+    const locktime = params.nowSeconds - CLAIM_LOCKTIME_BUFFER;
+    if (locktime <= pauseStart) throw new Error('Cannot resume yet (need time past the pause point)');
+    const newCursor = cursor + (locktime - pauseStart);
+    const newCommitment = encodeFtCommitment({ status: 0, flags, totalReleased, cursor: newCursor, pauseStart: 0, recipientHash });
+    const stateOut = toBigInt(stateUtxo.satoshis) - 2000n;
+    const builder = new TransactionBuilder({ provider: this.provider })
+      .setLocktime(locktime)
+      .addInput(stateUtxo, contract.unlock.resume(placeholderSignature(), placeholderPublicKey()), { sequence: NON_FINAL_SEQUENCE })
+      .addOutput({ to: contract.tokenAddress, amount: stateOut, token: { category: params.stateCategory, amount: 0n, nft: { capability: 'mutable', commitment: binToHex(newCommitment) } } });
+    return { wcTransaction: finalizeWcTransactionSequences(builder.generateWcTransactionObject({ broadcast: true, userPrompt: 'Resume stream' })) };
+  }
+
+  /** Cancel: sender-signed, splits vested->recipient / unvested->sender, burns the state NFT. */
+  async buildCancelWc(params: {
+    args: FtScheduleArgs;
+    stateCategory: string;
+    ftCategory: string;
+    currentCommitment: Uint8Array;
+    recipientAddress: string;
+    senderAddress: string;
+    nowSeconds: number;
+  }): Promise<{ claimableNow: bigint; unvested: bigint; wcTransaction: WcTransactionObject }> {
+    const contract = this.deriveContract(params.args, params.stateCategory, params.ftCategory);
+    const utxos = await this.provider.getUtxos(contract.tokenAddress);
+    const stateUtxo = utxos.find((u) => Boolean(u.token?.nft) && u.token?.category === params.stateCategory);
+    const vaultUtxo = utxos.find((u) => u.token?.category === params.ftCategory && !u.token?.nft);
+    if (!stateUtxo || !vaultUtxo) throw new Error('Stream state NFT or token vault UTXO not found on-chain');
+    const c = params.currentCommitment;
+    const totalReleased = new DataView(c.buffer, c.byteOffset + 2, 8).getBigUint64(0, true);
+    const cursor = readUint40LE(c, 10);
+    const locktime = params.nowSeconds - CLAIM_LOCKTIME_BUFFER;
+    const vested = FtVestingService.vestedTotal(params.args, locktime, cursor);
+    const claimableNow = vested - totalReleased > 0n ? vested - totalReleased : 0n;
+    const vaultAmount = toBigInt(vaultUtxo.token?.amount);
+    const unvested = vaultAmount - claimableNow;
+    const bch = toBigInt(stateUtxo.satoshis) + toBigInt(vaultUtxo.satoshis);
+    const CANCEL_FEE = 4000n;
+    const recipientTokenAddr = toTokenAwareAddress(params.recipientAddress);
+    const senderTokenAddr = toTokenAwareAddress(params.senderAddress);
+
+    const builder = new TransactionBuilder({ provider: this.provider })
+      .setLocktime(locktime)
+      .addInput(stateUtxo, contract.unlock.cancel(placeholderSignature(), placeholderPublicKey()), { sequence: NON_FINAL_SEQUENCE })
+      .addInput(vaultUtxo, contract.unlock.cancel(placeholderSignature(), placeholderPublicKey()), { sequence: NON_FINAL_SEQUENCE });
+
+    if (claimableNow > 0n && unvested > 0n) {
+      const half = (bch - CANCEL_FEE) / 2n;
+      builder
+        .addOutput({ to: recipientTokenAddr, amount: half, token: { category: params.ftCategory, amount: claimableNow } })
+        .addOutput({ to: senderTokenAddr, amount: bch - CANCEL_FEE - half, token: { category: params.ftCategory, amount: unvested } });
+    } else if (claimableNow > 0n) {
+      builder.addOutput({ to: recipientTokenAddr, amount: bch - CANCEL_FEE, token: { category: params.ftCategory, amount: claimableNow } });
+    } else {
+      builder.addOutput({ to: senderTokenAddr, amount: bch - CANCEL_FEE, token: { category: params.ftCategory, amount: unvested } });
+    }
+    return {
+      claimableNow,
+      unvested,
+      wcTransaction: finalizeWcTransactionSequences(builder.generateWcTransactionObject({ broadcast: true, userPrompt: 'Cancel stream' })),
+    };
+  }
 }
 
 interface FundingSourceOutput {

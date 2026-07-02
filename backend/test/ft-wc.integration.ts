@@ -71,6 +71,14 @@ async function main() {
   check('claim computes a partial claimable', claim.claimable > 0n && claim.remaining > 0n, `claimable=${claim.claimable} remaining=${claim.remaining}`);
   check('claim produced a WC transaction object', Boolean(claim.wcTransaction && (claim.wcTransaction as any).transaction));
 
+  // control ops: pause (ACTIVE commitment), cancel (state + vault)
+  const pause = await svc.buildPauseWc({ args, stateCategory: funding.stateCategory, ftCategory, currentCommitment: initC, nowSeconds: now });
+  check('pause produced a WC transaction object', Boolean(pause.wcTransaction && (pause.wcTransaction as any).transaction));
+
+  const cancel = await svc.buildCancelWc({ args, stateCategory: funding.stateCategory, ftCategory, currentCommitment: initC, recipientAddress: senderAddr, senderAddress: senderAddr, nowSeconds: now });
+  check('cancel splits vested + unvested', cancel.claimableNow > 0n && cancel.unvested > 0n, `vested=${cancel.claimableNow} unvested=${cancel.unvested}`);
+  check('cancel produced a WC transaction object', Boolean(cancel.wcTransaction && (cancel.wcTransaction as any).transaction));
+
   log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
 }
