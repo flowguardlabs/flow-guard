@@ -103,14 +103,16 @@ export default function AirdropsPage() {
     fetchCampaigns();
   }, [wallet.address, viewMode]);
 
-  // Calculate stats
+  // Calculate stats. BCH-denominated totals must exclude CashToken campaigns:
+  // their amounts are in token units, not BCH, so summing them mixes units.
   const activeCampaigns = campaigns.filter((c) => c.status === 'ACTIVE');
-  const totalDistributed = campaigns.reduce(
+  const bchCampaigns = campaigns.filter((c) => (c.token_type ?? 'BCH') === 'BCH');
+  const totalDistributed = bchCampaigns.reduce(
     (sum, c) => sum + c.claimed_count * c.amount_per_claim,
     0
   );
   const totalRecipients = campaigns.reduce((sum, c) => sum + c.claimed_count, 0);
-  const totalValue = campaigns.reduce((sum, c) => sum + c.total_amount, 0);
+  const totalValue = bchCampaigns.reduce((sum, c) => sum + c.total_amount, 0);
 
   const filteredCampaigns = useMemo(() => {
     return campaigns.filter((campaign) => {

@@ -7,6 +7,7 @@ import { Contract, ElectrumNetworkProvider } from 'cashscript';
 import { hash160, hexToBin, binToHex, cashAddressToLockingBytecode } from '@bitauth/libauth';
 import { ContractFactory, type ConstructorParam } from './ContractFactory.js';
 import { displayAmountToOnChain } from '../utils/amounts.js';
+import { FtVestingService, type FtScheduleArgs } from './FtVestingService.js';
 
 export interface StreamDeploymentParams {
   vaultId: string; // hex-encoded 32-byte vault ID
@@ -242,6 +243,73 @@ export class StreamDeploymentService {
       constructorParams,
       initialCommitment: binToHex(initialCommitment),
       fundingTxRequired: fundingTx,
+    };
+  }
+
+  /**
+   * Deploy an FtVestingCovenant (two-UTXO CashToken vesting, LINEAR/STEP).
+   *
+   * The address depends on the genesis anchor (stateCategory = anchor txid), which
+   * is only known at funding — so contractAddress is '' here and constructor_params
+   * carry the 9 schedule args + ftCategory; funding finalizes both. No minting
+   * authority required. See FtVestingService / FtVestingCovenant.cash.
+   */
+  async deployFtVestingStream(params: StreamDeploymentParams): Promise<StreamDeployment> {
+    if (params.tokenType !== 'FUNGIBLE_TOKEN' || !params.tokenCategory) {
+      throw new Error('deployFtVestingStream requires FUNGIBLE_TOKEN with a tokenCategory');
+    }
+    const scheduleType = params.streamType === 'STEP' ? 2 : 1;
+    const totalAmountOnChain = this.toOnChainAmount(params.totalAmount, params.tokenType);
+    const stepAmountOnChain = params.stepAmount ? this.toOnChainAmount(params.stepAmount, params.tokenType) : 0;
+    const senderHash = binToHex(this.addressToHash160(params.sender));
+
+    const args: FtScheduleArgs = {
+      vaultId: params.vaultId,
+      senderHash,
+      scheduleType: scheduleType as 1 | 2,
+      totalAmount: BigInt(totalAmountOnChain),
+      startTimestamp: BigInt(params.startTime),
+      endTimestamp: BigInt(params.endTime),
+      cliffTimestamp: BigInt(params.cliffTime || 0),
+      stepInterval: BigInt(params.stepInterval || 0),
+      stepAmount: BigInt(stepAmountOnChain),
+    };
+    const ft = new FtVestingService(this.provider);
+    const initialCommitment = ft.initialCommitment(
+      args,
+      params.recipient,
+      params.cancelable !== false,
+      params.transferable === true,
+    );
+    const streamId = this.generateStreamId(params);
+
+    // 9 schedule args + ftCategory (stateCategory is appended at funding time)
+    const constructorParams: ConstructorParam[] = [
+      { type: 'bytes', value: params.vaultId },
+      { type: 'bytes', value: senderHash },
+      { type: 'bigint', value: String(scheduleType) },
+      { type: 'bigint', value: totalAmountOnChain.toString() },
+      { type: 'bigint', value: params.startTime.toString() },
+      { type: 'bigint', value: params.endTime.toString() },
+      { type: 'bigint', value: String(params.cliffTime || 0) },
+      { type: 'bigint', value: String(params.stepInterval || 0) },
+      { type: 'bigint', value: stepAmountOnChain.toString() },
+      { type: 'bytes', value: params.tokenCategory },
+    ];
+
+    return {
+      contractAddress: '', // finalized at funding (depends on the genesis anchor)
+      streamId: binToHex(streamId),
+      constructorParams,
+      initialCommitment: binToHex(initialCommitment),
+      fundingTxRequired: {
+        toAddress: '',
+        amount: 1000,
+        tokenType: 'FUNGIBLE_TOKEN',
+        tokenCategory: params.tokenCategory,
+        tokenAmount: totalAmountOnChain,
+        withNFT: { commitment: binToHex(initialCommitment), capability: 'mutable' },
+      },
     };
   }
 

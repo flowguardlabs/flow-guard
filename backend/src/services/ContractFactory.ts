@@ -36,6 +36,7 @@ export type ContractType =
   | 'VaultCovenant'
   | 'ProposalCovenant'
   | 'VestingCovenant'
+  | 'FtVestingCovenant'
   | 'HybridVestingCovenant'
   | 'TrancheVestingCovenant'
   | 'RecurringPaymentCovenant'
@@ -51,6 +52,7 @@ const CONTRACT_CATEGORY: Record<ContractType, string> = {
   VaultCovenant: 'treasury',
   ProposalCovenant: 'treasury',
   VestingCovenant: 'streaming',
+  FtVestingCovenant: 'streaming',
   HybridVestingCovenant: 'streaming',
   TrancheVestingCovenant: 'streaming',
   RecurringPaymentCovenant: 'streaming',
