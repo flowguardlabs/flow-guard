@@ -58,6 +58,13 @@ export interface FtCommitmentState {
   recipientHash: Uint8Array;
 }
 
+/** Reverse a 32-byte category hex (display txid <-> internal byte order). */
+export function reverseCategory(hex: string): string {
+  const bytes = hex.match(/../g);
+  if (!bytes || bytes.length !== 32) throw new Error(`category must be 32-byte hex, got ${hex.length / 2} bytes`);
+  return bytes.reverse().join('');
+}
+
 function setUint40LE(target: Uint8Array, offset: number, value: number): void {
   let v = Math.max(0, Math.floor(value));
   for (let i = 0; i < 5; i += 1) {
@@ -101,7 +108,11 @@ export class FtVestingService {
 
   /**
    * Derive the covenant. stateCategory = the genesis anchor's txid; ftCategory =
-   * the streamed token. The address is a pure function of these + the schedule.
+   * the streamed token. Both are passed as DISPLAY txids (as electrum/DB report
+   * them) and reversed to internal byte order for the compiled-in bytes32 args —
+   * on-chain token category introspection is internal order, and cashscript takes
+   * constructor bytes literally (unlike output token.category, which it reverses).
+   * The address is a pure function of these + the schedule.
    */
   deriveContract(args: FtScheduleArgs, stateCategory: string, ftCategory: string): Contract {
     const artifact = ContractFactory.getArtifact('FtVestingCovenant');
@@ -117,8 +128,8 @@ export class FtVestingService {
         args.cliffTimestamp,
         args.stepInterval,
         args.stepAmount,
-        stateCategory,
-        ftCategory,
+        reverseCategory(stateCategory),
+        reverseCategory(ftCategory),
       ],
       { provider: this.provider },
     );

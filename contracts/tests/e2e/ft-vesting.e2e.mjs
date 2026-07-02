@@ -47,6 +47,10 @@ const addr = encodeCashAddress({ prefix: PREFIX, type: 'p2pkh', payload: pkh }).
 const tokenAddr = encodeCashAddress({ prefix: PREFIX, type: 'p2pkhWithTokens', payload: pkh }).address;
 
 function u40le(buf, value, off) { let v = BigInt(value); for (let i = 0; i < 5; i++) { buf[off + i] = Number(v & 0xffn); v >>= 8n; } }
+// On-chain token categories are the genesis txid in INTERNAL byte order (reversed
+// display txid). cashscript reverses category hex for OUTPUTS, but takes a bytes32
+// constructor arg literally — so the compiled-in category must be pre-reversed.
+const revCategory = (txidHex) => txidHex.match(/../g).reverse().join('');
 function encodeCommitment({ status, flags, totalReleased, cursor, pauseStart, recipientHash }) {
   const b = Buffer.alloc(40);
   b.writeUInt8(status, 0);
@@ -122,7 +126,7 @@ async function main() {
   const contract = new Contract(
     artifact,
     [vaultId, binToHex(pkh), 1n, BigInt(totalAmount), BigInt(startTs), BigInt(endTs), 0n, 0n, 0n,
-      categoryState, categoryFt],
+      revCategory(categoryState), revCategory(categoryFt)],
     { provider },
   );
   log('covenant token address:', contract.tokenAddress);
