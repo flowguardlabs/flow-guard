@@ -1043,23 +1043,53 @@ router.post('/streams/:id/confirm-funding', requireWalletAuth, async (req: Reque
       BigInt(fundingAmountOnChain),
     );
 
-    const expectedContractOutput = await transactionHasExpectedOutput(
-      txHash,
-      {
-        address: row.contract_address,
-        minimumSatoshis: minimumContractSatoshis,
-        ...(isTokenStream && row.token_category
-          ? {
-              tokenCategory: row.token_category,
-              minimumTokenAmount: BigInt(Math.max(0, Math.trunc(fundingAmountOnChain))),
-            }
-          : {}),
-        requireNft: true,
-        requiredNftCapability: 'mutable',
-        minimumNftCommitmentBytes: 32,
-      },
-      network,
-    );
+    // Two-UTXO CashToken funding splits the state NFT (stateCategory) and the
+    // token vault (ftCategory) across TWO outputs, so validate each separately.
+    const ftConfirmRow = parseFtVestingRow(row);
+    let expectedContractOutput: boolean;
+    if (ftConfirmRow && ftConfirmRow.stateCategory) {
+      const stateNftOutput = await transactionHasExpectedOutput(
+        txHash,
+        {
+          address: row.contract_address,
+          minimumSatoshis: 546n,
+          tokenCategory: ftConfirmRow.stateCategory,
+          requireNft: true,
+          requiredNftCapability: 'mutable',
+          minimumNftCommitmentBytes: 32,
+        },
+        network,
+      );
+      const vaultOutput = await transactionHasExpectedOutput(
+        txHash,
+        {
+          address: row.contract_address,
+          minimumSatoshis: 546n,
+          tokenCategory: ftConfirmRow.ftCategory,
+          minimumTokenAmount: ftConfirmRow.args.totalAmount > 0n ? ftConfirmRow.args.totalAmount : 1n,
+        },
+        network,
+      );
+      expectedContractOutput = stateNftOutput && vaultOutput;
+    } else {
+      expectedContractOutput = await transactionHasExpectedOutput(
+        txHash,
+        {
+          address: row.contract_address,
+          minimumSatoshis: minimumContractSatoshis,
+          ...(isTokenStream && row.token_category
+            ? {
+                tokenCategory: row.token_category,
+                minimumTokenAmount: BigInt(Math.max(0, Math.trunc(fundingAmountOnChain))),
+              }
+            : {}),
+          requireNft: true,
+          requiredNftCapability: 'mutable',
+          minimumNftCommitmentBytes: 32,
+        },
+        network,
+      );
+    }
 
     if (!expectedContractOutput) {
       return res.status(400).json({
