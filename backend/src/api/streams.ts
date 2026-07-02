@@ -767,10 +767,14 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
         : await deploymentService.deployVestingStream(deploymentParams);
     }
 
-    const countRow = await db!.prepare('SELECT COUNT(*) as cnt FROM streams').get() as any;
+    // Next sequence = MAX(existing #FG-*-NNN) + 1, NOT COUNT(*)+1: deletions leave
+    // gaps, so COUNT can fall below the highest number and regenerate an in-use id.
+    const maxRow = await db!.prepare(
+      "SELECT COALESCE(MAX(CAST(substring(stream_id from '[0-9]+$') AS INTEGER)), 0) as maxseq FROM streams WHERE stream_id ~ '#FG-(TOK|BCH)-[0-9]+$'",
+    ).get() as any;
     const streamId = streamService.generateStreamId(
       normalizedTokenType === 'BCH' ? 'BCH' : 'CASHTOKENS',
-      Number(countRow?.cnt || 0) + 1,
+      Number(maxRow?.maxseq || 0) + 1,
     );
 
     // Store with PENDING status - becomes ACTIVE after funding tx confirmed
@@ -2513,8 +2517,11 @@ router.post('/treasuries/:vaultId/batch-create', requireWalletAuth, async (req: 
     }
 
     const batchId = randomUUID();
-    const countRow = await db!.prepare('SELECT COUNT(*) as cnt FROM streams').get() as any;
-    const sequenceBase = Number(countRow?.cnt || 0) + 1;
+    // MAX(sequence)+1, not COUNT(*)+1 — deletions leave gaps that would collide.
+    const maxRow = await db!.prepare(
+      "SELECT COALESCE(MAX(CAST(substring(stream_id from '[0-9]+$') AS INTEGER)), 0) as maxseq FROM streams WHERE stream_id ~ '#FG-(TOK|BCH)-[0-9]+$'",
+    ).get() as any;
+    const sequenceBase = Number(maxRow?.maxseq || 0) + 1;
     const now = Math.floor(Date.now() / 1000);
 
     const preparedStreams: Array<Awaited<ReturnType<typeof preparePendingStreamRecord>>> = [];
