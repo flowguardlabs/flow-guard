@@ -246,6 +246,32 @@ export async function runLifecycleAction<TPayload = Record<string, unknown>>(
   };
 }
 
+/**
+ * Sign + broadcast a single WalletConnect transaction object (no confirm loop).
+ * Used for standalone prep transactions such as the CashToken funding anchor,
+ * which must be broadcast before the real funding tx can be built.
+ */
+export async function signAndBroadcastWcTransaction(
+  wallet: WalletInterface,
+  serialized: SerializedWcTransaction,
+  context: string,
+  metadata?: {
+    txType?: 'create' | 'unlock' | 'proposal' | 'approve' | 'payout';
+    fromAddress?: string;
+  },
+): Promise<string> {
+  if (!wallet.signCashScriptTransaction) {
+    throw new Error('Connected wallet does not support CashScript transactions');
+  }
+  const signOptions = {
+    ...deserializeWcSignOptions(serialized),
+    broadcast: false,
+  };
+  const signResult = await wallet.signCashScriptTransaction(signOptions);
+  const txHash = await resolveTxHashFromSignResult(signResult, signOptions, context, wallet, metadata);
+  return publishTransactionNotice(txHash, wallet, context);
+}
+
 function requireSignedTransactionHex(signResult: CashScriptSignResponse, context: string): string {
   if (!signResult?.signedTransaction || typeof signResult.signedTransaction !== 'string') {
     throw new Error(`${context}: wallet did not return signed transaction hex`);
@@ -1074,12 +1100,53 @@ export function getExplorerAddressUrl(address: string, network: 'chipnet' | 'mai
  * @param streamId The stream ID to fund
  * @returns Transaction ID
  */
+async function fetchFundingInfo(wallet: WalletInterface, streamId: string): Promise<any> {
+  const response = await authFetch(`/api/streams/${streamId}/funding-info`, {
+    wallet,
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const payload = await parseJsonSafe(response);
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(payload, 'Failed to get funding info'));
+  }
+  return payload;
+}
+
+/**
+ * CashToken funding may need a one-time "anchor" self-send first (BCH genesis
+ * requires spending a coin at output-index 0). When the backend signals
+ * needsAnchor, sign+broadcast that prep tx, then poll funding-info until the
+ * fresh vout-0 coin registers so the real funding tx can be built.
+ */
+async function ensureFundingAnchor(wallet: WalletInterface, streamId: string): Promise<void> {
+  let payload = await fetchFundingInfo(wallet, streamId);
+  if (!payload?.needsAnchor || !payload?.wcTransaction) return;
+
+  await signAndBroadcastWcTransaction(
+    wallet,
+    payload.wcTransaction as SerializedWcTransaction,
+    'Prepare wallet for token stream',
+    { txType: 'create', fromAddress: wallet.address || undefined },
+  );
+
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    await sleep(2500);
+    payload = await fetchFundingInfo(wallet, streamId);
+    if (!payload?.needsAnchor) return;
+  }
+  throw new Error(
+    'Your wallet is still registering the funding anchor. Give it a few seconds and press Fund Stream again.',
+  );
+}
+
 export async function fundStreamContract(
   wallet: WalletInterface,
   streamId: string
 ): Promise<string> {
   try {
     const apiUrl = '/api';
+    await ensureFundingAnchor(wallet, streamId);
     const { confirm } = await runLifecycleAction({
       wallet,
       actionLabel: 'Stream funded',
@@ -1089,17 +1156,12 @@ export async function fundStreamContract(
         fromAddress: wallet.address || undefined,
       },
       build: async () => {
-        const response = await authFetch(`${apiUrl}/streams/${streamId}/funding-info`, {
-          wallet,
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+        const payload = await fetchFundingInfo(wallet, streamId);
 
-        const payload = await parseJsonSafe(response);
-        if (!response.ok) {
-          throw new Error(getApiErrorMessage(payload, 'Failed to get funding info'));
+        if (payload?.needsAnchor) {
+          throw new Error(
+            'Your wallet is still registering the funding anchor. Give it a few seconds and press Fund Stream again.',
+          );
         }
 
         const { wcTransaction } = payload;

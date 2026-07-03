@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS streams (
     recipient TEXT NOT NULL,
     token_type TEXT NOT NULL DEFAULT 'BCH',
     token_category TEXT,
+    token_decimals INTEGER DEFAULT 0,
     total_amount DOUBLE PRECISION NOT NULL,
     withdrawn_amount DOUBLE PRECISION DEFAULT 0,
     stream_type TEXT NOT NULL,
@@ -138,6 +139,9 @@ CREATE TABLE IF NOT EXISTS streams (
     created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT,
     updated_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())::BIGINT
 );
+
+ALTER TABLE streams
+    ADD COLUMN IF NOT EXISTS token_decimals INTEGER DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS stream_claims (
     id TEXT PRIMARY KEY,

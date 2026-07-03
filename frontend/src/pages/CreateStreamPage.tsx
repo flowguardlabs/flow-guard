@@ -29,6 +29,7 @@ import {
   streamScheduleTemplates,
 } from '../utils/streamShapes';
 import { validateTokenCategory } from '../utils/tokenValidation';
+import { resolveTokenMeta } from '../utils/tokenMeta';
 
 type StreamType = 'LINEAR' | 'RECURRING' | 'STEP' | 'TRANCHE' | 'HYBRID';
 type TokenType = 'BCH' | 'FUNGIBLE_TOKEN';
@@ -1022,6 +1023,7 @@ export default function CreateStreamPage() {
 
     setIsCreating(true);
 
+    let resolvedTokenDecimals = 0;
     if (formData.tokenType === 'FUNGIBLE_TOKEN' && formData.tokenCategory) {
       try {
         const isValid = await validateTokenCategory(formData.tokenCategory, network);
@@ -1032,6 +1034,8 @@ export default function CreateStreamPage() {
           setIsCreating(false);
           return;
         }
+        const meta = await resolveTokenMeta(formData.tokenCategory, network);
+        resolvedTokenDecimals = meta?.decimals ?? 0;
       } catch (validationError: any) {
         console.error('Token validation failed:', validationError);
         setErrors({
@@ -1073,6 +1077,7 @@ export default function CreateStreamPage() {
         recipient: formData.recipient,
         tokenType: formData.tokenType,
         tokenCategory: formData.tokenCategory,
+        tokenDecimals: resolvedTokenDecimals,
         totalAmount: amountValue,
         streamType: formData.streamType,
         startTime,

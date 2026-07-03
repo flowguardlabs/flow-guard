@@ -32,6 +32,7 @@ import {
   isFungibleTokenType,
   onChainAmountToDisplay,
 } from '../utils/amounts.js';
+import { resolveTokenDecimals } from '../utils/tokenMeta.js';
 import {
   getLatestActivityEvents,
   listActivityEvents,
@@ -519,6 +520,7 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
       recipient,
       tokenType,
       tokenCategory,
+      tokenDecimals: tokenDecimalsHint,
       totalAmount,
       streamType,
       startTime,
@@ -559,6 +561,13 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
     if (normalizedTokenType === 'FUNGIBLE_TOKEN' && !tokenCategory) {
       return res.status(400).json({ error: 'Token category required for CashTokens' });
     }
+    // Decimals source-of-truth is the token's BCMR registry, so FlowGuard scales
+    // whole tokens to base units exactly as the sender's wallet does. The client
+    // hint is only a fallback (e.g. chipnet, where no public indexer exists).
+    const tokenDecimals = normalizedTokenType === 'FUNGIBLE_TOKEN'
+      ? await resolveTokenDecimals(tokenCategory, resolveBchNetwork(), tokenDecimalsHint)
+      : 0;
+    const conversionDecimals = normalizedTokenType === 'FUNGIBLE_TOKEN' ? tokenDecimals : 0;
     if (scheduleTemplate && !isValidStreamScheduleTemplate(scheduleTemplate)) {
       return res.status(400).json({ error: 'Invalid schedule template' });
     }
@@ -617,6 +626,7 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
       cancelable: cancelableRequested,
       tokenType: normalizedTokenType,
       tokenCategory,
+      tokenDecimals,
     };
 
     let intervalSecondsForRow: number | null = null;
@@ -689,12 +699,12 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
         });
       }
       const stepCount = Math.max(1, Math.floor(durationSeconds / explicitStepIntervalSeconds));
-      const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType);
+      const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType, conversionDecimals);
       if (totalOnChain <= 0) {
         return res.status(400).json({ error: 'Step vesting total amount must be greater than zero' });
       }
       const stepAmountOnChain = Math.floor((totalOnChain + stepCount - 1) / stepCount);
-      const stepAmountDisplay = onChainAmountToDisplay(stepAmountOnChain, normalizedTokenType);
+      const stepAmountDisplay = onChainAmountToDisplay(stepAmountOnChain, normalizedTokenType, conversionDecimals);
       intervalSecondsForRow = explicitStepIntervalSeconds;
       const stepParams = {
         ...deploymentParams,
@@ -780,15 +790,16 @@ router.post('/streams/create', requireWalletAuth, async (req: Request, res: Resp
     // Store with PENDING status - becomes ACTIVE after funding tx confirmed
     await db!.prepare(`
       INSERT INTO streams (id, stream_id, vault_id, sender, recipient, token_type, token_category,
-        total_amount, withdrawn_amount, stream_type, start_time, end_time, interval_seconds, cliff_timestamp,
+        token_decimals, total_amount, withdrawn_amount, stream_type, start_time, end_time, interval_seconds, cliff_timestamp,
         cancelable, transferable, refillable, status, schedule_template, launch_source, launch_title,
         launch_description, preferred_lane, description, created_at, updated_at, contract_address,
         constructor_params, nft_commitment, nft_capability)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, streamId, vaultId || null, sender, recipient,
       normalizedTokenType === 'BCH' ? 'BCH' : 'CASHTOKENS',
       tokenCategory || null,
+      tokenDecimals,
       totalAmount,
       streamType,
       startTime,
@@ -914,6 +925,23 @@ router.get('/streams/:id/funding-info', async (req: Request, res: Response) => {
     const ftRow = parseFtVestingRow(row);
     if (ftRow) {
       const ftService = new FtVestingService(resolveBchNetwork());
+      // CashToken genesis needs a coin at output-index 0. If the sender's wallet
+      // has none, return a one-off self-send to mint one; the client signs it,
+      // then re-requests funding-info (which now finds the fresh vout-0 anchor).
+      let anchorPrep;
+      try {
+        anchorPrep = await ftService.buildAnchorPrepWc({ senderAddress: row.sender });
+      } catch (anchorErr: any) {
+        return res.status(400).json({ error: anchorErr?.message || 'Could not prepare your wallet for funding.' });
+      }
+      if (anchorPrep.needsAnchor && anchorPrep.wcTransaction) {
+        return res.json({
+          success: true,
+          needsAnchor: true,
+          message: 'Preparing your wallet to fund this token stream (step 1 of 2). Approve this quick self-transfer, then funding continues automatically.',
+          wcTransaction: serializeWcTransaction(anchorPrep.wcTransaction),
+        });
+      }
       let funding;
       try {
         funding = await ftService.buildFundingWc({
@@ -959,7 +987,7 @@ router.get('/streams/:id/funding-info', async (req: Request, res: Response) => {
     }
 
     const tokenType = row.token_type === 'CASHTOKENS' ? 'FUNGIBLE_TOKEN' : 'BCH';
-    const fundingAmount = displayAmountToOnChain(Number(row.total_amount), row.token_type);
+    const fundingAmount = displayAmountToOnChain(Number(row.total_amount), row.token_type, Number(row.token_decimals || 0));
     const now = Math.floor(Date.now() / 1000);
     const nftCommitment = getPendingFundingCommitment(row, now);
     if (!nftCommitment) {
@@ -1042,7 +1070,7 @@ router.post('/streams/:id/confirm-funding', requireWalletAuth, async (req: Reque
     // wallets that fund from a different address than they authenticate with.
 
     const isTokenStream = row.token_type === 'CASHTOKENS';
-    const fundingAmountOnChain = displayAmountToOnChain(Number(row.total_amount), row.token_type);
+    const fundingAmountOnChain = displayAmountToOnChain(Number(row.total_amount), row.token_type, Number(row.token_decimals || 0));
     const minimumContractSatoshis = getRequiredContractFundingSatoshis(
       'stream',
       isTokenStream ? 'FUNGIBLE_TOKEN' : 'BCH',
@@ -1224,7 +1252,7 @@ router.post('/streams/:id/claim', requireWalletAuth, async (req: Request, res: R
         constructorParams,
         currentCommitment,
       });
-      const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type);
+      const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type, Number(row.token_decimals || 0));
       return res.json({
         success: true,
         claimableAmount,
@@ -1245,7 +1273,7 @@ router.post('/streams/:id/claim', requireWalletAuth, async (req: Request, res: R
           currentCommitment: hexToBin(currentCommitment),
           nowSeconds: Math.floor(Date.now() / 1000),
         });
-        const claimableAmount = onChainAmountToDisplay(Number(claim.claimable), row.token_type);
+        const claimableAmount = onChainAmountToDisplay(Number(claim.claimable), row.token_type, Number(row.token_decimals || 0));
         return res.json({
           success: true,
           claimableAmount,
@@ -1313,7 +1341,7 @@ router.post('/streams/:id/claim', requireWalletAuth, async (req: Request, res: R
     }
 
     const claimTx = await claimService.buildClaimTransaction(claimParams);
-    const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type);
+    const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type, Number(row.token_decimals || 0));
 
     res.json({
       success: true,
@@ -1522,7 +1550,7 @@ router.get('/streams/:id/claim-info', async (req: Request, res: Response) => {
         constructorParams,
         currentCommitment,
       });
-      const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type);
+      const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type, Number(row.token_decimals || 0));
       return res.json({
         success: true,
         claimInfo: {
@@ -1530,7 +1558,7 @@ router.get('/streams/:id/claim-info', async (req: Request, res: Response) => {
           contractAddress: row.contract_address,
           recipient: row.recipient,
           claimableAmount,
-          totalReleased: onChainAmountToDisplay(Number(recurringState.totalPaid), row.token_type),
+          totalReleased: onChainAmountToDisplay(Number(recurringState.totalPaid), row.token_type, Number(row.token_decimals || 0)),
           wcTransaction: serializeWcTransaction(claimTx.wcTransaction),
         },
       });
@@ -1551,9 +1579,9 @@ router.get('/streams/:id/claim-info', async (req: Request, res: Response) => {
             streamId: row.stream_id,
             contractAddress: row.contract_address,
             recipient: row.recipient,
-            claimableAmount: onChainAmountToDisplay(Number(claimableOnChain), row.token_type),
-            totalReleased: onChainAmountToDisplay(state.totalReleased, row.token_type),
-            totalAmount: onChainAmountToDisplay(Number(ftInfoRow.args.totalAmount), row.token_type),
+            claimableAmount: onChainAmountToDisplay(Number(claimableOnChain), row.token_type, Number(row.token_decimals || 0)),
+            totalReleased: onChainAmountToDisplay(state.totalReleased, row.token_type, Number(row.token_decimals || 0)),
+            totalAmount: onChainAmountToDisplay(Number(ftInfoRow.args.totalAmount), row.token_type, Number(row.token_decimals || 0)),
             status: state.status,
           },
         });
@@ -1620,7 +1648,7 @@ router.get('/streams/:id/claim-info', async (req: Request, res: Response) => {
 
     // Build claim transaction parameters
     const claimTx = await claimService.buildClaimTransaction(claimParams);
-    const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type);
+    const claimableAmount = onChainAmountToDisplay(claimTx.claimableAmount, row.token_type, Number(row.token_decimals || 0));
 
     res.json({
       success: true,
@@ -1629,7 +1657,7 @@ router.get('/streams/:id/claim-info', async (req: Request, res: Response) => {
         contractAddress: row.contract_address,
         recipient: row.recipient,
         claimableAmount,
-        totalReleased: onChainAmountToDisplay(vestingState.totalReleased, row.token_type),
+        totalReleased: onChainAmountToDisplay(vestingState.totalReleased, row.token_type, Number(row.token_decimals || 0)),
         wcTransaction: serializeWcTransaction(claimTx.wcTransaction),
       },
     });
@@ -2400,8 +2428,8 @@ router.post('/streams/:id/cancel', requireWalletAuth, async (req: Request, res: 
       return res.json({
         success: true,
         message: 'Cancel transaction ready',
-        vestedAmount: onChainAmountToDisplay(Number(cancel.claimableNow), row.token_type),
-        unvestedAmount: onChainAmountToDisplay(Number(cancel.unvested), row.token_type),
+        vestedAmount: onChainAmountToDisplay(Number(cancel.claimableNow), row.token_type, Number(row.token_decimals || 0)),
+        unvestedAmount: onChainAmountToDisplay(Number(cancel.unvested), row.token_type, Number(row.token_decimals || 0)),
         cancelReturnAddress: signerAddress,
         senderAddress: signerAddress,
         wcTransaction: serializeWcTransaction(cancel.wcTransaction),
@@ -2691,11 +2719,11 @@ router.post('/treasuries/:vaultId/batch-create', requireWalletAuth, async (req: 
     `);
     const insertStmt = db!.prepare(`
       INSERT INTO streams (id, stream_id, vault_id, batch_id, sender, recipient, token_type, token_category,
-        total_amount, withdrawn_amount, stream_type, start_time, end_time, interval_seconds, cliff_timestamp,
+        token_decimals, total_amount, withdrawn_amount, stream_type, start_time, end_time, interval_seconds, cliff_timestamp,
         cancelable, transferable, refillable, status, schedule_template, launch_source, launch_title,
         launch_description, preferred_lane, description, created_at, updated_at, contract_address,
         constructor_params, nft_commitment, nft_capability)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     await insertBatchStmt.run(
@@ -2724,6 +2752,7 @@ router.post('/treasuries/:vaultId/batch-create', requireWalletAuth, async (req: 
         prepared.recipient,
         prepared.tokenType,
         prepared.tokenCategory,
+        prepared.tokenDecimals,
         prepared.totalAmount,
         prepared.streamType,
         prepared.startTime,
@@ -2763,7 +2792,7 @@ router.post('/treasuries/:vaultId/batch-create', requireWalletAuth, async (req: 
       senderAddress,
       items: preparedStreams.map((prepared) => ({
         contractAddress: prepared.contractAddress,
-        amount: displayAmountToOnChain(prepared.totalAmount, prepared.tokenType as 'BCH' | 'CASHTOKENS'),
+        amount: displayAmountToOnChain(prepared.totalAmount, prepared.tokenType as 'BCH' | 'CASHTOKENS', prepared.tokenDecimals),
         tokenType: prepared.tokenType === 'BCH' ? 'BCH' : 'FUNGIBLE_TOKEN',
         tokenCategory: prepared.tokenCategory || undefined,
         nftCommitment: prepared.nftCommitment,
@@ -2851,7 +2880,7 @@ router.post('/treasuries/:vaultId/batch-create/confirm', requireWalletAuth, asyn
       }
 
       const isTokenStream = row.token_type === 'CASHTOKENS';
-      const fundingAmountOnChain = displayAmountToOnChain(Number(row.total_amount), row.token_type);
+      const fundingAmountOnChain = displayAmountToOnChain(Number(row.total_amount), row.token_type, Number(row.token_decimals || 0));
       const minimumContractSatoshis = getRequiredContractFundingSatoshis(
         'stream',
         isTokenStream ? 'FUNGIBLE_TOKEN' : 'BCH',
@@ -3015,6 +3044,7 @@ function rowToStream(row: any): Stream {
     recipient: row.recipient,
     token_type: row.token_type,
     token_category: row.token_category || undefined,
+    token_decimals: Number(row.token_decimals || 0),
     total_amount: row.total_amount,
     withdrawn_amount: row.withdrawn_amount,
     stream_type: row.stream_type,
@@ -3157,7 +3187,7 @@ function buildBatchExportRow(row: any) {
   if (row.stream_type === 'HYBRID' && constructorParams.length > 0) {
     const unlockTimestamp = Number(toBigIntParam(constructorParams[4], 'unlockTimestamp'));
     const upfrontAmountOnChain = Number(toBigIntParam(constructorParams[6], 'upfrontAmount'));
-    const upfrontAmountDisplay = onChainAmountToDisplay(upfrontAmountOnChain, row.token_type);
+    const upfrontAmountDisplay = onChainAmountToDisplay(upfrontAmountOnChain, row.token_type, Number(row.token_decimals || 0));
     unlockDay = Math.max(0, Math.round((unlockTimestamp - Number(row.start_time)) / DAY_SECONDS)).toString();
     unlockPercent = row.total_amount > 0
       ? ((upfrontAmountDisplay / Number(row.total_amount)) * 100).toFixed(2).replace(/\.?0+$/, '')
@@ -3243,7 +3273,7 @@ function getStreamScheduleDetails(row: any): {
         ? Math.max(
             1,
             Math.floor(
-              displayAmountToOnChain(Number(row.total_amount), row.token_type) / amountPerIntervalOnChain,
+              displayAmountToOnChain(Number(row.total_amount), row.token_type, Number(row.token_decimals || 0)) / amountPerIntervalOnChain,
             ),
           )
         : undefined
@@ -3255,23 +3285,23 @@ function getStreamScheduleDetails(row: any): {
     intervalSeconds,
     amountPerIntervalOnChain,
     amountPerIntervalDisplay: amountPerIntervalOnChain !== undefined
-      ? onChainAmountToDisplay(amountPerIntervalOnChain, row.token_type)
+      ? onChainAmountToDisplay(amountPerIntervalOnChain, row.token_type, Number(row.token_decimals || 0))
       : undefined,
     stepAmountOnChain,
     stepAmountDisplay: stepAmountOnChain !== undefined
-      ? onChainAmountToDisplay(stepAmountOnChain, row.token_type)
+      ? onChainAmountToDisplay(stepAmountOnChain, row.token_type, Number(row.token_decimals || 0))
       : undefined,
     hybridUnlockTime,
     hybridUpfrontAmountOnChain,
     hybridUpfrontAmountDisplay: hybridUpfrontAmountOnChain !== undefined
-      ? onChainAmountToDisplay(hybridUpfrontAmountOnChain, row.token_type)
+      ? onChainAmountToDisplay(hybridUpfrontAmountOnChain, row.token_type, Number(row.token_decimals || 0))
       : undefined,
     scheduleCount,
     trancheScheduleOnChain,
     trancheScheduleDisplay: trancheScheduleOnChain?.map((tranche) => ({
       unlock_time: tranche.unlockTime,
-      amount: onChainAmountToDisplay(tranche.amount, row.token_type),
-      cumulative_amount: onChainAmountToDisplay(tranche.cumulativeAmount, row.token_type),
+      amount: onChainAmountToDisplay(tranche.amount, row.token_type, Number(row.token_decimals || 0)),
+      cumulative_amount: onChainAmountToDisplay(tranche.cumulativeAmount, row.token_type, Number(row.token_decimals || 0)),
     })),
   };
 }
@@ -3326,6 +3356,9 @@ async function preparePendingStreamRecord(params: {
   const id = randomUUID();
   const normalizedTokenType: 'BCH' | 'FUNGIBLE_TOKEN' =
     tokenType === 'FUNGIBLE_TOKEN' || tokenType === 'CASHTOKENS' ? 'FUNGIBLE_TOKEN' : 'BCH';
+  const tokenDecimals = normalizedTokenType === 'FUNGIBLE_TOKEN'
+    ? await resolveTokenDecimals(tokenCategory || '', resolveBchNetwork())
+    : 0;
   const cancelableRequested = cancelable !== false;
   const refillableRequested = Boolean(refillable);
   const scheduleEndTime = endTime || startTime + 86400 * 365;
@@ -3355,6 +3388,7 @@ async function preparePendingStreamRecord(params: {
     cancelable: cancelableRequested,
     tokenType: normalizedTokenType,
     tokenCategory: tokenCategory || undefined,
+    tokenDecimals,
   } as const;
 
   let intervalSecondsForRow: number | null = null;
@@ -3378,7 +3412,7 @@ async function preparePendingStreamRecord(params: {
     }
 
     const intervalCount = Math.max(1, Math.floor(durationSeconds / explicitIntervalSeconds));
-    const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType);
+    const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType, tokenDecimals);
     if (totalOnChain <= 0) {
       throw new Error('Recurring stream total amount must be greater than zero');
     }
@@ -3391,7 +3425,7 @@ async function preparePendingStreamRecord(params: {
 
     intervalSecondsForRow = explicitIntervalSeconds;
     const amountPerIntervalOnChain = Math.floor(totalOnChain / intervalCount);
-    const amountPerIntervalDisplay = onChainAmountToDisplay(amountPerIntervalOnChain, normalizedTokenType);
+    const amountPerIntervalDisplay = onChainAmountToDisplay(amountPerIntervalOnChain, normalizedTokenType, tokenDecimals);
     deployment = await deploymentService.deployRecurringStream({
       ...deploymentParams,
       totalAmount: refillableRequested ? 0 : Number(totalAmount),
@@ -3413,13 +3447,13 @@ async function preparePendingStreamRecord(params: {
     }
 
     const stepCount = Math.max(1, Math.floor(durationSeconds / explicitStepIntervalSeconds));
-    const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType);
+    const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType, tokenDecimals);
     if (totalOnChain <= 0) {
       throw new Error('Step vesting total amount must be greater than zero');
     }
 
     const stepAmountOnChain = Math.floor((totalOnChain + stepCount - 1) / stepCount);
-    const stepAmountDisplay = onChainAmountToDisplay(stepAmountOnChain, normalizedTokenType);
+    const stepAmountDisplay = onChainAmountToDisplay(stepAmountOnChain, normalizedTokenType, tokenDecimals);
     intervalSecondsForRow = explicitStepIntervalSeconds;
     deployment = await deploymentService.deployVestingStream({
       ...deploymentParams,
@@ -3458,13 +3492,13 @@ async function preparePendingStreamRecord(params: {
       throw new Error('Hybrid unlock timestamp must be before the stream end time');
     }
 
-    const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType);
+    const totalOnChain = displayAmountToOnChain(Number(totalAmount), normalizedTokenType, tokenDecimals);
     const hybridUpfrontAmountOnChain = Math.max(
       1,
       Math.floor((totalOnChain * hybridUpfrontPercentageValue) / 100),
     );
     hybridUnlockTimestampForRow = hybridUnlockTimestampValue;
-    hybridUpfrontAmountDisplayForRow = onChainAmountToDisplay(hybridUpfrontAmountOnChain, normalizedTokenType);
+    hybridUpfrontAmountDisplayForRow = onChainAmountToDisplay(hybridUpfrontAmountOnChain, normalizedTokenType, tokenDecimals);
     cliffTimestampForRow = hybridUnlockTimestampForRow;
 
     deployment = await deploymentService.deployHybridStream({
@@ -3497,6 +3531,7 @@ async function preparePendingStreamRecord(params: {
     recipient,
     tokenType: normalizedTokenType === 'BCH' ? 'BCH' : 'CASHTOKENS',
     tokenCategory: tokenCategory || null,
+    tokenDecimals,
     totalAmount,
     streamType,
     startTime,

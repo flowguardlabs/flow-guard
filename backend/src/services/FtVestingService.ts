@@ -426,6 +426,61 @@ export class FtVestingService {
   }
 
   /**
+   * BCH's token-genesis rule requires spending a coin at output-index 0, so the
+   * state NFT's category can equal that input's txid. Many wallets have no vout-0
+   * coin (all coins landed at other indices), which would block funding. This
+   * builds a one-off self-send the SENDER signs: output[0] pays the sender, so the
+   * resulting coin sits at vout 0 and the next funding-info call can anchor on it.
+   * Returns { needsAnchor: false } when a usable vout-0 BCH coin already exists.
+   */
+  async buildAnchorPrepWc(params: { senderAddress: string }): Promise<{
+    needsAnchor: boolean;
+    anchorSats?: number;
+    wcTransaction?: WcTransactionObject;
+  }> {
+    const utxos = await this.provider.getUtxos(params.senderAddress);
+    const bchUtxos = utxos.filter((u) => !u.token);
+    if (bchUtxos.some((u) => u.vout === 0)) return { needsAnchor: false };
+
+    // The anchor coin must fund the whole two-UTXO reserve + claim fee on its own,
+    // so a single vout-0 input is enough for the follow-up funding tx.
+    const ANCHOR_SATS = STATE_NFT_RESERVE + VAULT_DUST + 3_000n;
+    const FEE = 500n;
+    const need = ANCHOR_SATS + FEE;
+    const sorted = [...bchUtxos].sort((a, b) => Number(toBigInt(b.satoshis) - toBigInt(a.satoshis)));
+    const selected: Utxo[] = [];
+    let inSats = 0n;
+    for (const u of sorted) {
+      selected.push(u);
+      inSats += toBigInt(u.satoshis);
+      if (inSats >= need + 546n) break;
+    }
+    if (inSats < need) {
+      throw new Error('Your wallet needs a little more spendable BCH to prepare a token stream (about 17,000 sats). Add a small amount of BCH and try again.');
+    }
+
+    const inputs: FundingSourceOutput[] = selected.map((u) => ({
+      txid: u.txid,
+      vout: u.vout,
+      satoshis: Number(toBigInt(u.satoshis)),
+    }));
+    const outputs: FundingOutputSpec[] = [
+      { to: params.senderAddress, amount: ANCHOR_SATS.toString() },
+    ];
+    const change = inSats - ANCHOR_SATS - FEE;
+    if (change > 546n) outputs.push({ to: params.senderAddress, amount: change.toString() });
+
+    const wcTransaction = buildFundingWcTransaction({
+      inputOwnerAddress: params.senderAddress,
+      inputs,
+      outputs,
+      userPrompt: 'Prepare your wallet to fund a CashToken stream',
+      broadcast: false,
+    });
+    return { needsAnchor: true, anchorSats: Number(ANCHOR_SATS), wcTransaction };
+  }
+
+  /**
    * Build the two-input claim the RECIPIENT signs via WalletConnect. Placeholder
    * signatures on both covenant inputs are filled in by the wallet. The emitted
    * transaction is structurally identical to buildClaim (VM-proven).

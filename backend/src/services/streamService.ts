@@ -12,6 +12,7 @@ export interface Stream {
   recipient: string;
   token_type: 'BCH' | 'CASHTOKENS';
   token_category?: string;
+  token_decimals?: number;
   total_amount: number;
   withdrawn_amount: number;
   stream_type: 'LINEAR' | 'RECURRING' | 'STEP' | 'TRANCHE' | 'HYBRID';

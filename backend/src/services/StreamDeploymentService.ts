@@ -32,6 +32,7 @@ export interface StreamDeploymentParams {
   transferable?: boolean;
   tokenType?: 'BCH' | 'FUNGIBLE_TOKEN'; // Token type
   tokenCategory?: string; // hex-encoded 32-byte category ID for CashTokens
+  tokenDecimals?: number; // BCMR decimals; whole tokens x 10^decimals -> base units
 }
 
 export interface StreamDeployment {
@@ -101,10 +102,11 @@ export class StreamDeploymentService {
     return id;
   }
 
-  private toOnChainAmount(amount: number, tokenType?: 'BCH' | 'FUNGIBLE_TOKEN'): number {
+  private toOnChainAmount(amount: number, tokenType?: 'BCH' | 'FUNGIBLE_TOKEN', decimals = 0): number {
     return displayAmountToOnChain(
       amount,
       tokenType === 'FUNGIBLE_TOKEN' ? 'FUNGIBLE_TOKEN' : 'BCH',
+      decimals,
     );
   }
 
@@ -259,8 +261,9 @@ export class StreamDeploymentService {
       throw new Error('deployFtVestingStream requires FUNGIBLE_TOKEN with a tokenCategory');
     }
     const scheduleType = params.streamType === 'STEP' ? 2 : 1;
-    const totalAmountOnChain = this.toOnChainAmount(params.totalAmount, params.tokenType);
-    const stepAmountOnChain = params.stepAmount ? this.toOnChainAmount(params.stepAmount, params.tokenType) : 0;
+    const decimals = params.tokenDecimals ?? 0;
+    const totalAmountOnChain = this.toOnChainAmount(params.totalAmount, params.tokenType, decimals);
+    const stepAmountOnChain = params.stepAmount ? this.toOnChainAmount(params.stepAmount, params.tokenType, decimals) : 0;
     const senderHash = binToHex(this.addressToHash160(params.sender));
 
     const args: FtScheduleArgs = {
