@@ -7,7 +7,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc && node scripts/copy-assets.mjs",
+    "build": "tsc",
     "start": "node dist/index.js",
     "postinstall": "if [ -z \"$FLOWGUARD_POSTINSTALL\" ] && [ -d \"../contracts\" ]; then FLOWGUARD_POSTINSTALL=1 pnpm --dir ../contracts install --frozen-lockfile && pnpm --dir ../contracts build; fi",
     "test": "jest",
