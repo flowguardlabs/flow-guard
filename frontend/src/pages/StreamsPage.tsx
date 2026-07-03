@@ -18,6 +18,7 @@ import { SkeletonTable } from '../components/ui/Skeleton';
 import { readDaoLaunchContext, type DaoLaunchContext } from '../utils/daoStreamLaunch';
 import { getStreamScheduleTemplateLabel } from '../utils/streamShapes';
 import { formatTokenAmount } from '../utils/tokenFormat';
+import { TokenBadge } from '../components/shared/TokenIdentity';
 
 type RoleView = 'recipient' | 'sender' | 'all';
 
@@ -305,9 +306,20 @@ export default function StreamsPage() {
       sortable: true,
       className: 'text-right',
       render: (row) => (
-        <p className="font-display font-bold text-primary">
-          {formatAssetAmount(row.total_amount, row.token_type, row.token_category, row.token_decimals)}
-        </p>
+        <div className="flex items-center justify-end gap-2">
+          <p className="font-display font-bold text-primary">
+            {row.token_type === 'CASHTOKENS' && row.token_category
+              ? formatTokenAmount(row.total_amount, row.token_type, row.token_category, {
+                  decimals: row.token_decimals ?? 0,
+                  separator: true,
+                  noSuffix: true,
+                })
+              : formatAssetAmount(row.total_amount, row.token_type, row.token_category, row.token_decimals)}
+          </p>
+          {row.token_type === 'CASHTOKENS' && row.token_category && (
+            <TokenBadge category={row.token_category} size={16} />
+          )}
+        </div>
       ),
     },
     {

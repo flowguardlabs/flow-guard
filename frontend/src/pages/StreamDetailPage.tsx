@@ -24,6 +24,7 @@ import { CircularProgress } from '../components/streams/CircularProgress';
 import { StreamScheduleChart } from '../components/streams/StreamScheduleChart';
 import { formatLogicalId } from '../utils/display';
 import { tokenSymbol } from '../utils/tokenFormat';
+import { TokenIdentity, useTokenMeta } from '../components/shared/TokenIdentity';
 import { readDaoLaunchContext, type DaoLaunchContext } from '../utils/daoStreamLaunch';
 import { getStreamScheduleTemplateLabel } from '../utils/streamShapes';
 import { toUserFacingError } from '../utils/userError';
@@ -522,6 +523,9 @@ export default function StreamDetailPage() {
   const launchState = location.state as { daoContext?: DaoLaunchContext; freshCreate?: boolean } | null;
   const daoContext = launchState?.daoContext || readDaoLaunchContext();
   const [stream, setStream] = useState<Stream | null>(null);
+  // Resolve BCMR metadata so amounts render the real symbol (STAMP) instead of
+  // "CT 963d…"; also drives the rich token identity block below.
+  useTokenMeta(stream?.token_type === 'CASHTOKENS' ? stream?.token_category : null);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
@@ -1698,11 +1702,13 @@ export default function StreamDetailPage() {
               </div>
 
               {/* Token */}
-              <div className="flex justify-between">
-                <p className="text-xs text-textMuted">Token</p>
-                <p className="text-sm font-medium text-textPrimary">
-                  {stream.token_type === 'BCH' ? 'Bitcoin Cash' : 'CashTokens'}
-                </p>
+              <div>
+                <p className="text-xs text-textMuted mb-1.5">Token</p>
+                {stream.token_type === 'CASHTOKENS' && stream.token_category ? (
+                  <TokenIdentity category={stream.token_category} />
+                ) : (
+                  <p className="text-sm font-medium text-textPrimary">Bitcoin Cash</p>
+                )}
               </div>
 
               {stream.stream_type !== 'LINEAR' && stream.stream_type !== 'HYBRID' && stream.interval_seconds && (

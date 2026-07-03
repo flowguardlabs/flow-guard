@@ -1,3 +1,5 @@
+import { getCachedTokenMeta } from './tokenMeta';
+
 export type TokenType = 'BCH' | 'CASHTOKENS' | 'FUNGIBLE_TOKEN' | string | null | undefined;
 
 export interface FormatTokenAmountOptions {
@@ -29,11 +31,14 @@ export function formatTokenAmount(
   if (isToken) {
     const decimals = options.decimals ?? 0;
     const value = options.separator ? formatWithSep(numeric, decimals) : numeric.toFixed(decimals);
+    const symbol = getCachedTokenMeta(tokenCategory)?.symbol;
     const suffix = options.noSuffix
       ? ''
-      : tokenCategory
-        ? ` · CT ${shortenCategory(tokenCategory)}`
-        : ' tokens';
+      : symbol
+        ? ` ${symbol}`
+        : tokenCategory
+          ? ` · CT ${shortenCategory(tokenCategory)}`
+          : ' tokens';
     return `${value}${suffix}`;
   }
 
@@ -46,12 +51,14 @@ export function formatTokenAmount(
 export function tokenSymbol(tokenType: TokenType, tokenCategory?: string | null): string {
   if (tokenType === 'BCH' || !tokenType) return 'BCH';
   if (tokenType === 'CASHTOKENS' || tokenType === 'FUNGIBLE_TOKEN') {
+    const symbol = getCachedTokenMeta(tokenCategory)?.symbol;
+    if (symbol) return symbol;
     return tokenCategory ? `CT ${shortenCategory(tokenCategory)}` : 'tokens';
   }
   return tokenType;
 }
 
-function shortenCategory(category: string): string {
+export function shortenCategory(category: string): string {
   if (category.length <= 8) return category;
   return `${category.slice(0, 4)}…${category.slice(-3)}`;
 }
