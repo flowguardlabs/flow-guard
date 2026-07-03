@@ -10,18 +10,24 @@
  * filter combination is shareable and deep-linkable.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CrossLink } from '../components/CrossLink';
 import {
   Activity,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   ArrowUpRight,
   BarChart3,
   Box,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Columns3,
   Copy,
   ExternalLink,
   FileText,
@@ -69,6 +75,8 @@ import {
   type ExplorerStatsResponse,
   type ExplorerTransactionRow,
   type ExplorerTransactionsQuery,
+  type ExplorerSortField,
+  type ExplorerSortOrder,
   type ExplorerTxType,
 } from '../utils/explorerQueries';
 
@@ -76,7 +84,9 @@ type Scope = 'global' | 'personal' | 'treasury';
 type EntityTypeFilter = 'all' | 'stream' | 'vault' | 'payment' | 'airdrop' | 'proposal';
 type StatusFilter = 'all' | 'ACTIVE' | 'PENDING' | 'COMPLETED' | 'EXECUTED' | 'DEPLOYED' | 'CREATED';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = [10, 15, 25, 50];
+const DEFAULT_PAGE_SIZE = 15;
+const COLUMN_VISIBILITY_STORAGE_KEY = 'fg.explorer.columns';
 
 interface TypeMeta {
   label: string;
@@ -418,26 +428,32 @@ function StatSkeleton() {
   );
 }
 
-interface TransactionRowProps {
-  tx: ExplorerTransactionRow;
+type ColumnKey = 'type' | 'entity' | 'parties' | 'amount' | 'status' | 'event' | 'time';
+
+interface ColumnCtx {
   network: 'mainnet' | 'chipnet';
   onSelectAddress: (address: string) => void;
 }
 
-function TransactionRow({ tx, network, onSelectAddress }: TransactionRowProps) {
-  const meta = TYPE_META[tx.tx_type];
-  const Icon = meta?.icon || Hash;
-  const detailPath = meta ? meta.detailPath(tx) : `#`;
-  const txHash = tx.latest_event?.tx_hash || tx.tx_hash || null;
-  const createdMs = toUnixMs(tx.created_at);
-  const eventMs = tx.latest_event ? toUnixMs(tx.latest_event.created_at) : NaN;
-  // The tx shown is the latest on-chain event, so pair it with that event's
-  // time, not the row's DB creation (which can be many minutes earlier).
-  const txTimeMs = Number.isNaN(eventMs) ? createdMs : eventMs;
+interface ExplorerColumn {
+  key: ColumnKey;
+  label: string;
+  align: 'left' | 'right' | 'center';
+  sortField?: ExplorerSortField;
+  cell: (tx: ExplorerTransactionRow, ctx: ColumnCtx) => ReactNode;
+}
 
-  return (
-    <tr className="group border-b border-border/60 transition-colors hover:bg-surfaceAlt/60">
-      <td className="px-4 py-3">
+const EXPLORER_COLUMNS: ExplorerColumn[] = [
+  {
+    key: 'type',
+    label: 'Type',
+    align: 'left',
+    sortField: 'type',
+    cell: (tx) => {
+      const meta = TYPE_META[tx.tx_type];
+      const Icon = meta?.icon || Hash;
+      const detailPath = meta ? meta.detailPath(tx) : '#';
+      return (
         <CrossLink
           to={detailPath}
           className="inline-flex items-center gap-2 rounded-full border border-border bg-surfaceAlt px-2.5 py-1 text-xs font-medium text-textPrimary hover:border-primary/40 hover:bg-primarySoft"
@@ -445,52 +461,98 @@ function TransactionRow({ tx, network, onSelectAddress }: TransactionRowProps) {
           <Icon className="h-3.5 w-3.5 text-primary" />
           {meta?.label || tx.tx_type}
         </CrossLink>
-      </td>
-      <td className="px-4 py-3">
+      );
+    },
+  },
+  {
+    key: 'entity',
+    label: 'Entity',
+    align: 'left',
+    cell: (tx) => {
+      const meta = TYPE_META[tx.tx_type];
+      const detailPath = meta ? meta.detailPath(tx) : '#';
+      return (
         <div className="flex flex-col">
           <CrossLink to={detailPath} className="font-sans text-sm font-medium text-textPrimary hover:text-primary">
             {tx.name || formatLogicalId(tx.id)}
           </CrossLink>
           <span className="font-mono text-[11px] text-textMuted">{formatLogicalId(tx.id)}</span>
         </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <AddressTag address={tx.sender} onSelect={onSelectAddress} network={network} />
-          {tx.recipient && (
-            <>
-              <ChevronRight className="h-3.5 w-3.5 text-textMuted" />
-              <AddressTag address={tx.recipient} onSelect={onSelectAddress} network={network} />
-            </>
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-3 text-right">
-        <div className="flex flex-col items-end">
-          <span className="font-display text-sm font-semibold text-textPrimary">
-            {formatTokenAmount(tx.amount, tx.token_type ?? null, tx.token_category ?? null, { noSuffix: true })}
-          </span>
-          <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">
-            {tokenSymbol(tx.token_type ?? null, tx.token_category ?? null)}
-          </span>
-        </div>
-      </td>
-      <td className="px-4 py-3 text-center">
-        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${getStatusClasses(tx.status)}`}>
-          {tx.status}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        {tx.latest_event ? (
-          <div className="flex flex-col">
-            <span className="text-xs text-textPrimary">{formatEventLabel(tx.latest_event.event_type)}</span>
-            <span className="font-mono text-[11px] text-textMuted">{formatRelativeTime(eventMs)}</span>
-          </div>
-        ) : (
-          <span className="text-xs text-textMuted"> - </span>
+      );
+    },
+  },
+  {
+    key: 'parties',
+    label: 'Parties',
+    align: 'left',
+    cell: (tx, { network, onSelectAddress }) => (
+      <div className="flex items-center gap-2">
+        <AddressTag address={tx.sender} onSelect={onSelectAddress} network={network} />
+        {tx.recipient && (
+          <>
+            <ChevronRight className="h-3.5 w-3.5 text-textMuted" />
+            <AddressTag address={tx.recipient} onSelect={onSelectAddress} network={network} />
+          </>
         )}
-      </td>
-      <td className="px-4 py-3 text-right">
+      </div>
+    ),
+  },
+  {
+    key: 'amount',
+    label: 'Amount',
+    align: 'right',
+    sortField: 'amount',
+    cell: (tx) => (
+      <div className="flex flex-col items-end">
+        <span className="font-display text-sm font-semibold text-textPrimary">
+          {formatTokenAmount(tx.amount, tx.token_type ?? null, tx.token_category ?? null, { noSuffix: true })}
+        </span>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-textMuted">
+          {tokenSymbol(tx.token_type ?? null, tx.token_category ?? null)}
+        </span>
+      </div>
+    ),
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    align: 'center',
+    sortField: 'status',
+    cell: (tx) => (
+      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${getStatusClasses(tx.status)}`}>
+        {tx.status}
+      </span>
+    ),
+  },
+  {
+    key: 'event',
+    label: 'Latest event',
+    align: 'left',
+    cell: (tx) => {
+      const eventMs = tx.latest_event ? toUnixMs(tx.latest_event.created_at) : NaN;
+      return tx.latest_event ? (
+        <div className="flex flex-col">
+          <span className="text-xs text-textPrimary">{formatEventLabel(tx.latest_event.event_type)}</span>
+          <span className="font-mono text-[11px] text-textMuted">{formatRelativeTime(eventMs)}</span>
+        </div>
+      ) : (
+        <span className="text-xs text-textMuted"> - </span>
+      );
+    },
+  },
+  {
+    key: 'time',
+    label: 'Time / Tx',
+    align: 'right',
+    sortField: 'time',
+    cell: (tx, { network }) => {
+      const txHash = tx.latest_event?.tx_hash || tx.tx_hash || null;
+      const createdMs = toUnixMs(tx.created_at);
+      const eventMs = tx.latest_event ? toUnixMs(tx.latest_event.created_at) : NaN;
+      // The tx shown is the latest on-chain event, so pair it with that event's
+      // time, not the row's DB creation (which can be many minutes earlier).
+      const txTimeMs = Number.isNaN(eventMs) ? createdMs : eventMs;
+      return (
         <div className="flex flex-col items-end">
           <span className="text-xs text-textPrimary" title={new Date(txTimeMs).toLocaleString()}>
             {formatRelativeTime(txTimeMs)}
@@ -508,12 +570,42 @@ function TransactionRow({ tx, network, onSelectAddress }: TransactionRowProps) {
             </a>
           )}
         </div>
-      </td>
+      );
+    },
+  },
+];
+
+const DEFAULT_COLUMN_VISIBILITY: Record<ColumnKey, boolean> = {
+  type: true, entity: true, parties: true, amount: true, status: true, event: true, time: true,
+};
+
+function alignClass(align: 'left' | 'right' | 'center'): string {
+  return align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
+}
+
+interface TransactionCellProps {
+  tx: ExplorerTransactionRow;
+  network: 'mainnet' | 'chipnet';
+  onSelectAddress: (address: string) => void;
+}
+
+interface TransactionRowProps extends TransactionCellProps {
+  visibleColumns: Record<ColumnKey, boolean>;
+}
+
+function TransactionRow({ tx, network, onSelectAddress, visibleColumns }: TransactionRowProps) {
+  return (
+    <tr className="group border-b border-border/60 transition-colors hover:bg-surfaceAlt/60">
+      {EXPLORER_COLUMNS.filter((column) => visibleColumns[column.key]).map((column) => (
+        <td key={column.key} className={`px-4 py-3 ${alignClass(column.align)}`}>
+          {column.cell(tx, { network, onSelectAddress })}
+        </td>
+      ))}
     </tr>
   );
 }
 
-function TransactionCard({ tx, network, onSelectAddress }: TransactionRowProps) {
+function TransactionCard({ tx, network, onSelectAddress }: TransactionCellProps) {
   const meta = TYPE_META[tx.tx_type];
   const Icon = meta?.icon || Hash;
   const detailPath = meta ? meta.detailPath(tx) : `#`;
@@ -996,6 +1088,10 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const queryParam = searchParams.get('q') || '';
   const activeAddress = searchParams.get('address');
+  const pageSizeParam = Number(searchParams.get('pageSize'));
+  const pageSize = PAGE_SIZE_OPTIONS.includes(pageSizeParam) ? pageSizeParam : DEFAULT_PAGE_SIZE;
+  const sort = (searchParams.get('sort') as ExplorerSortField) || 'time';
+  const order = (searchParams.get('order') as ExplorerSortOrder) || 'desc';
 
   const updateParams = useCallback(
     (mutate: (current: URLSearchParams) => void) => {
@@ -1005,6 +1101,66 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
     },
     [searchParams, setSearchParams],
   );
+
+  /* --------------------- Column visibility (localStorage) ------------ */
+
+  const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY);
+      if (raw) return { ...DEFAULT_COLUMN_VISIBILITY, ...JSON.parse(raw) };
+    } catch {
+      /* localStorage unavailable — fall back to defaults */
+    }
+    return DEFAULT_COLUMN_VISIBILITY;
+  });
+  const [columnMenuOpen, setColumnMenuOpen] = useState(false);
+  const columnMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const toggleColumn = useCallback((key: ColumnKey) => {
+    setVisibleColumns((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (!Object.values(next).some(Boolean)) return prev; // keep at least one column
+      try {
+        localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        /* persistence is best-effort */
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!columnMenuOpen) return;
+    const onClick = (event: MouseEvent) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(event.target as Node)) {
+        setColumnMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [columnMenuOpen]);
+
+  const handleSort = useCallback((field: ExplorerSortField) => {
+    updateParams((next) => {
+      const currentSort = next.get('sort') || 'time';
+      const currentOrder = next.get('order') || 'desc';
+      if (currentSort === field) {
+        next.set('order', currentOrder === 'asc' ? 'desc' : 'asc');
+      } else {
+        next.set('sort', field);
+        next.set('order', 'desc');
+      }
+      next.delete('page');
+    });
+  }, [updateParams]);
+
+  const handlePageSizeChange = useCallback((size: number) => {
+    updateParams((next) => {
+      if (size === DEFAULT_PAGE_SIZE) next.delete('pageSize');
+      else next.set('pageSize', String(size));
+      next.delete('page');
+    });
+  }, [updateParams]);
 
   /* ------------------------------- Stats ----------------------------- */
 
@@ -1047,8 +1203,10 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
       setTxLoading(true);
       setTxError(null);
       const query: ExplorerTransactionsQuery = {
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        sort,
+        order,
       };
       if (entityType !== 'all') query.type = entityType;
       if (statusFilter !== 'all') query.status = statusFilter;
@@ -1066,7 +1224,7 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
     } finally {
       setTxLoading(false);
     }
-  }, [entityType, statusFilter, effectiveAddress, scope, page]);
+  }, [entityType, statusFilter, effectiveAddress, scope, page, pageSize, sort, order]);
 
   useEffect(() => {
     void loadTransactions();
@@ -1465,7 +1623,7 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
                 )}
 
                 <Card padding="none" className="overflow-hidden">
-                  <div className="flex items-center justify-between border-b border-border/60 bg-surfaceAlt/60 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-surfaceAlt/60 px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Box className="h-4 w-4 text-primary" />
                       <h2 className="font-display text-base text-textPrimary">Activity</h2>
@@ -1475,9 +1633,52 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
                         </span>
                       )}
                     </div>
-                    <span className="font-mono text-[11px] text-textMuted">
-                      sorted newest → oldest
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* Rows per page */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[11px] text-textMuted">Rows</span>
+                        <select
+                          value={pageSize}
+                          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                          className="rounded-md border border-border bg-surface px-2 py-1 font-mono text-[11px] text-textPrimary outline-none hover:border-borderHover focus:border-primary/50"
+                          aria-label="Rows per page"
+                        >
+                          {PAGE_SIZE_OPTIONS.map((size) => (
+                            <option key={size} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Column visibility (desktop table only) */}
+                      <div className="relative hidden lg:block" ref={columnMenuRef}>
+                        <button
+                          onClick={() => setColumnMenuOpen((open) => !open)}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 font-mono text-[11px] text-textPrimary transition-colors hover:border-borderHover"
+                          aria-haspopup="true"
+                          aria-expanded={columnMenuOpen}
+                        >
+                          <Columns3 className="h-3.5 w-3.5 text-textMuted" />
+                          Columns
+                          <ChevronDown className="h-3 w-3 text-textMuted" />
+                        </button>
+                        {columnMenuOpen && (
+                          <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
+                            {EXPLORER_COLUMNS.map((column) => (
+                              <button
+                                key={column.key}
+                                onClick={() => toggleColumn(column.key)}
+                                className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-textPrimary transition-colors hover:bg-surfaceAlt"
+                              >
+                                {column.label}
+                                <span className={`flex h-4 w-4 items-center justify-center rounded border ${visibleColumns[column.key] ? 'border-primary bg-primary text-white' : 'border-border'}`}>
+                                  {visibleColumns[column.key] && <Check className="h-3 w-3" />}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {txLoading ? (
@@ -1509,13 +1710,27 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
                         <table className="w-full">
                           <thead className="bg-surfaceAlt/30">
                             <tr>
-                              <th className="px-4 py-3 text-left font-mono text-[11px] uppercase tracking-wider text-textMuted">Type</th>
-                              <th className="px-4 py-3 text-left font-mono text-[11px] uppercase tracking-wider text-textMuted">Entity</th>
-                              <th className="px-4 py-3 text-left font-mono text-[11px] uppercase tracking-wider text-textMuted">Parties</th>
-                              <th className="px-4 py-3 text-right font-mono text-[11px] uppercase tracking-wider text-textMuted">Amount</th>
-                              <th className="px-4 py-3 text-center font-mono text-[11px] uppercase tracking-wider text-textMuted">Status</th>
-                              <th className="px-4 py-3 text-left font-mono text-[11px] uppercase tracking-wider text-textMuted">Latest event</th>
-                              <th className="px-4 py-3 text-right font-mono text-[11px] uppercase tracking-wider text-textMuted">Time / Tx</th>
+                              {EXPLORER_COLUMNS.filter((column) => visibleColumns[column.key]).map((column) => {
+                                const active = column.sortField && sort === column.sortField;
+                                return (
+                                  <th
+                                    key={column.key}
+                                    className={`px-4 py-3 font-mono text-[11px] uppercase tracking-wider text-textMuted ${alignClass(column.align)} ${column.sortField ? 'cursor-pointer select-none hover:text-textPrimary' : ''}`}
+                                    onClick={() => column.sortField && handleSort(column.sortField)}
+                                  >
+                                    <span className={`inline-flex items-center gap-1 ${column.align === 'right' ? 'flex-row-reverse' : ''}`}>
+                                      {column.label}
+                                      {column.sortField && (
+                                        active
+                                          ? (order === 'asc'
+                                              ? <ArrowUp className="h-3 w-3 text-primary" />
+                                              : <ArrowDown className="h-3 w-3 text-primary" />)
+                                          : <ArrowUpDown className="h-3 w-3 text-textMuted/50" />
+                                      )}
+                                    </span>
+                                  </th>
+                                );
+                              })}
                             </tr>
                           </thead>
                           <tbody>
@@ -1525,6 +1740,7 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
                                 tx={tx}
                                 network={network}
                                 onSelectAddress={selectAddress}
+                                visibleColumns={visibleColumns}
                               />
                             ))}
                           </tbody>
@@ -1548,7 +1764,7 @@ export default function ExplorerPage({ embedded = false }: { embedded?: boolean 
                 <PaginationBar
                   page={page}
                   total={txTotal}
-                  pageSize={PAGE_SIZE}
+                  pageSize={pageSize}
                   onPageChange={handlePageChange}
                 />
               </div>

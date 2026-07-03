@@ -108,6 +108,9 @@ export interface ExplorerTransactionsResponse {
   offset: number;
 }
 
+export type ExplorerSortField = 'time' | 'amount' | 'type' | 'status';
+export type ExplorerSortOrder = 'asc' | 'desc';
+
 export interface ExplorerTransactionsQuery {
   type?: 'vault' | 'stream' | 'payment' | 'airdrop' | 'proposal';
   status?: string;
@@ -116,6 +119,8 @@ export interface ExplorerTransactionsQuery {
   maxAmount?: number;
   startDate?: string;
   endDate?: string;
+  sort?: ExplorerSortField;
+  order?: ExplorerSortOrder;
   limit?: number;
   offset?: number;
 }

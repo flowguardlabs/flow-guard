@@ -90,6 +90,8 @@ router.get('/explorer/transactions', async (req, res) => {
       maxAmount,   // maximum BCH amount
       startDate,   // ISO date string
       endDate,     // ISO date string
+      sort = 'time',   // time | amount | type | status
+      order = 'desc',  // asc | desc
       limit = 50,
       offset = 0,
     } = req.query;
@@ -375,8 +377,22 @@ router.get('/explorer/transactions', async (req, res) => {
       delete row.entity_id;
     }
 
-    // Sort by created_at desc
-    results.sort((a, b) => Number(b.created_at) - Number(a.created_at));
+    // Server-side sort across ALL matched rows (results are already fully
+    // materialized here), so ordering is global, not just within a page.
+    const sortFieldMap: Record<string, string> = {
+      time: 'created_at',
+      amount: 'amount',
+      type: 'tx_type',
+      status: 'status',
+    };
+    const sortField = sortFieldMap[String(sort)] || 'created_at';
+    const dir = String(order).toLowerCase() === 'asc' ? 1 : -1;
+    results.sort((a, b) => {
+      const av = a[sortField];
+      const bv = b[sortField];
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av ?? '').localeCompare(String(bv ?? '')) * dir;
+    });
 
     // Apply pagination
     const paginated = results.slice(Number(offset), Number(offset) + Number(limit));
