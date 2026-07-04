@@ -433,7 +433,7 @@ export class FtVestingService {
    * resulting coin sits at vout 0 and the next funding-info call can anchor on it.
    * Returns { needsAnchor: false } when a usable vout-0 BCH coin already exists.
    */
-  async buildAnchorPrepWc(params: { senderAddress: string }): Promise<{
+  async buildAnchorPrepWc(params: { senderAddress: string; userPrompt?: string }): Promise<{
     needsAnchor: boolean;
     anchorSats?: number;
     wcTransaction?: WcTransactionObject;
@@ -474,7 +474,7 @@ export class FtVestingService {
       inputOwnerAddress: params.senderAddress,
       inputs,
       outputs,
-      userPrompt: 'Prepare your wallet to fund a CashToken stream',
+      userPrompt: params.userPrompt ?? 'Prepare your wallet to fund a CashToken stream',
       broadcast: false,
     });
     return { needsAnchor: true, anchorSats: Number(ANCHOR_SATS), wcTransaction };

@@ -994,6 +994,31 @@ router.get('/streams/:id/funding-info', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing stream NFT commitment for funding' });
     }
 
+    // The BCH stateful covenant mints a state NFT, whose category genesis (like
+    // CashToken genesis) requires a coin at output-index 0 — see StreamFundingService's
+    // non-token branch. If the sender has no pure-BCH vout-0 coin, return a one-off
+    // self-send to mint one; the client signs it, then re-requests funding-info
+    // (which now finds the fresh anchor). Only the BCH path mints via vout-0.
+    if (tokenType === 'BCH') {
+      let bchAnchorPrep;
+      try {
+        bchAnchorPrep = await new FtVestingService(resolveBchNetwork()).buildAnchorPrepWc({
+          senderAddress: row.sender,
+          userPrompt: 'Prepare your wallet to fund this stream (step 1 of 2). Approve this quick self-transfer, then funding continues automatically.',
+        });
+      } catch (anchorErr: any) {
+        return res.status(400).json({ error: anchorErr?.message || 'Could not prepare your wallet for funding.' });
+      }
+      if (bchAnchorPrep.needsAnchor && bchAnchorPrep.wcTransaction) {
+        return res.json({
+          success: true,
+          needsAnchor: true,
+          message: 'Preparing your wallet to fund this stream (step 1 of 2). Approve this quick self-transfer, then funding continues automatically.',
+          wcTransaction: serializeWcTransaction(bchAnchorPrep.wcTransaction),
+        });
+      }
+    }
+
     const fundingService = new StreamFundingService(resolveBchNetwork());
     const fundingTx = await fundingService.buildFundingTransaction({
       contractAddress,
