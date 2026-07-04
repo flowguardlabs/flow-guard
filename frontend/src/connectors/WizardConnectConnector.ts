@@ -38,7 +38,8 @@ import {
   binToHex,
   hexToBin,
   hashTransaction,
-  stringify,
+  encodeTransaction,
+  type TransactionCommon,
 } from '@bitauth/libauth';
 import QRCode from 'qrcode';
 
@@ -51,6 +52,7 @@ import type {
   SignedTransaction,
   CashScriptSignOptions,
   CashScriptSignResponse,
+  SourceOutput,
 } from '../types/wallet';
 
 // Connect-time timeout: wallet must complete handshake within this window.
@@ -71,6 +73,44 @@ const RELAY_URLS = [
   'wss://relay.cauldron.quest:443',
   'wss://relay.riften.net:443',
 ];
+
+type LibauthInput = TransactionCommon['inputs'][number];
+
+/**
+ * Convert a libauth source output into hdwalletv1's relay-safe JSON, matching
+ * `@wizardconnect/core`'s `sourceOutputToRelay`: bytecode/category as plain hex,
+ * amounts as `<bigint: Xn>`. Outpoint + sequence come from the aligned spending
+ * input (always present after decode) since our SourceOutput carries them only
+ * conditionally.
+ */
+function toRelaySourceOutput(
+  so: SourceOutput,
+  input: LibauthInput | undefined,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {
+    outpointTransactionHash: input ? binToHex(input.outpointTransactionHash) : '',
+    outpointIndex: input ? input.outpointIndex : 0,
+    unlockingBytecode: binToHex(so.unlockingBytecode ?? input?.unlockingBytecode ?? new Uint8Array(0)),
+    sequenceNumber: input ? input.sequenceNumber : 0xffffffff,
+    valueSatoshis: `<bigint: ${so.valueSatoshis ?? 0n}n>`,
+    lockingBytecode: binToHex(so.lockingBytecode ?? new Uint8Array(0)),
+  };
+  if (so.token) {
+    result.token = {
+      category: binToHex(so.token.category),
+      amount: `<bigint: ${so.token.amount}n>`,
+      ...(so.token.nft
+        ? {
+            nft: {
+              capability: so.token.nft.capability,
+              commitment: binToHex(so.token.nft.commitment),
+            },
+          }
+        : {}),
+    };
+  }
+  return result;
+}
 
 /**
  * WizardConnect connector.
@@ -296,26 +336,34 @@ export class WizardConnectConnector implements IWalletConnector {
     // by the connected receive/0 key — P2PKH user inputs on funding, and the
     // covenant input's recipient-signature placeholder on claim/cancel/pause — so
     // map them all unless the caller supplied explicit paths.
-    const txInputs = typeof options.transaction === 'object' && options.transaction !== null
-      ? ((options.transaction as { inputs?: unknown[] }).inputs ?? [])
-      : [];
+    const decodedTransaction =
+      typeof options.transaction === 'object' && options.transaction !== null
+        ? (options.transaction as unknown as TransactionCommon)
+        : undefined;
+    const txInputs = decodedTransaction?.inputs ?? [];
     const inputPaths: [number, string, number][] = options.inputPaths
       ?? (txInputs.length > 0
         ? txInputs.map((_, i): [number, string, number] => [i, PATH_RECEIVE, 0])
         : [[0, PATH_RECEIVE, 0]]);
 
-    // The relay JSON.stringify's the message with no encoder, so the cashscript
-    // WcTransactionObject (BigInt valueSatoshis + Uint8Arrays) must be pre-encoded
-    // to libauth's extended-JSON — exactly as the WalletConnect path does — or the
-    // sign request throws "Do not know how to serialize a BigInt" before sending.
-    const serializedRequest = JSON.parse(
-      stringify({
-        transaction: options.transaction,
-        sourceOutputs: options.sourceOutputs,
-        broadcast: options.broadcast ?? true,
-        userPrompt: options.userPrompt,
-      }),
-    );
+    // hdwalletv1's SignTransactionRequest wire format (see @wizardconnect/core's
+    // hdwalletv1-serialize): the transaction is a HEX string and each source
+    // output uses plain-hex bytecode + `<bigint: Xn>` values — NOT libauth's
+    // extended-JSON object form. Sending the tx as an object makes the wallet
+    // run decodeTransaction(hexToBin(<object>)) → empty → the exact failure we
+    // saw: "Failed to decode transaction: requires 4 bytes, remaining 0".
+    const transactionHex =
+      typeof options.transaction === 'string'
+        ? options.transaction
+        : binToHex(encodeTransaction(options.transaction as unknown as TransactionCommon));
+    const wcSignRequest = {
+      transaction: transactionHex,
+      sourceOutputs: options.sourceOutputs.map((so, i) =>
+        toRelaySourceOutput(so, txInputs[i]),
+      ),
+      broadcast: options.broadcast ?? true,
+      userPrompt: options.userPrompt,
+    };
 
     const abortController = new AbortController();
     const timer = window.setTimeout(
@@ -331,7 +379,7 @@ export class WizardConnectConnector implements IWalletConnector {
 
       const response = await this.dappMgr.signTransaction(
         {
-          transaction: serializedRequest as never,
+          transaction: wcSignRequest as never,
           inputPaths,
         },
         { signal: abortController.signal },
