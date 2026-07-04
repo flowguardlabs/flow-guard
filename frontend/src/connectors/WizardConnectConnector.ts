@@ -345,7 +345,7 @@ export class WizardConnectConnector implements IWalletConnector {
       // Diagnostic: surface exactly what the wallet returned so a decode failure
       // is actionable (empty vs non-hex vs wrong key vs truncated).
       console.log('[WizardConnect] sign response:', {
-        responseKeys: Object.keys((response ?? {}) as Record<string, unknown>),
+        responseKeys: Object.keys(response ?? {}),
         signedType: typeof signedTransaction,
         signedLength: typeof signedTransaction === 'string' ? signedTransaction.length : undefined,
         signedHead: typeof signedTransaction === 'string' ? signedTransaction.slice(0, 80) : signedTransaction,
@@ -355,7 +355,7 @@ export class WizardConnectConnector implements IWalletConnector {
           `WizardConnect: wallet returned an unusable signed transaction ` +
           `(type=${typeof signedTransaction}, len=${typeof signedTransaction === 'string' ? signedTransaction.length : 'n/a'}, ` +
           `head="${typeof signedTransaction === 'string' ? signedTransaction.slice(0, 40) : String(signedTransaction)}", ` +
-          `keys=[${Object.keys((response ?? {}) as Record<string, unknown>).join(',')}])`,
+          `keys=[${Object.keys(response ?? {}).join(',')}])`,
         );
       }
 
