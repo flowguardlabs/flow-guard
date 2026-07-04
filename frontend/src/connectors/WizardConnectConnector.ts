@@ -321,30 +321,35 @@ export class WizardConnectConnector implements IWalletConnector {
    * Sign a CashScript-compatible transaction. Maps FlowGuard's
    * CashScriptSignOptions onto the hdwalletv1 SignTransactionRequest payload.
    *
-   * inputPaths default ([[0, 'receive', 0]]) covers single-input user spends.
-   * Multi-input covenant spends MUST supply explicit inputPaths via the
-   * extended options.inputPaths field - see /Users/mac/flow-guard/backend/src/utils/wcFundingBuilder.ts.
+   * inputPaths default: every wallet-owned (non-contract) input at receive/0.
+   * Covenant (P2SH) inputs are intentionally excluded so the wallet leaves their
+   * pre-set unlocking script intact. Callers may override via options.inputPaths.
    */
   async signCashScriptTransaction(
     options: CashScriptSignOptions,
   ): Promise<CashScriptSignResponse> {
     if (!this.dappMgr) throw new Error('WizardConnect not connected');
 
-    // Unlike WalletConnect (which matches inputs to signers by locking bytecode),
-    // WizardConnect requires an explicit [inputIndex, pathName, addressIndex] for
-    // every input the wallet must sign. Every input in a FlowGuard WC tx is signed
-    // by the connected receive/0 key — P2PKH user inputs on funding, and the
-    // covenant input's recipient-signature placeholder on claim/cancel/pause — so
-    // map them all unless the caller supplied explicit paths.
+    // hdwalletv1 signs listed inputs as standard P2PKH: it derives the key at the
+    // given path and REPLACES the input's unlocking script with <sig><pubkey>.
+    // That is correct for wallet-owned inputs (P2PKH user coins on funding, the
+    // auth-proof input on login) but destructive for a covenant (P2SH32) input —
+    // it would overwrite the pre-set covenant unlocking script and the redeem-hash
+    // check fails. So list ONLY non-contract inputs; covenant inputs (flagged on
+    // the source output by deserializeWcSignOptions) keep their unlocking script
+    // intact. A caller may still override via options.inputPaths.
     const decodedTransaction =
       typeof options.transaction === 'object' && options.transaction !== null
         ? (options.transaction as unknown as TransactionCommon)
         : undefined;
     const txInputs = decodedTransaction?.inputs ?? [];
-    const inputPaths: [number, string, number][] = options.inputPaths
-      ?? (txInputs.length > 0
-        ? txInputs.map((_, i): [number, string, number] => [i, PATH_RECEIVE, 0])
-        : [[0, PATH_RECEIVE, 0]]);
+    const keyedInputPaths: [number, string, number][] =
+      options.sourceOutputs.length > 0
+        ? options.sourceOutputs.flatMap((so, i): [number, string, number][] =>
+            (so as { contract?: unknown }).contract ? [] : [[i, PATH_RECEIVE, 0]],
+          )
+        : txInputs.map((_, i): [number, string, number] => [i, PATH_RECEIVE, 0]);
+    const inputPaths: [number, string, number][] = options.inputPaths ?? keyedInputPaths;
 
     // hdwalletv1's SignTransactionRequest wire format (see @wizardconnect/core's
     // hdwalletv1-serialize): the transaction is a HEX string and each source
