@@ -27,6 +27,9 @@
  * etc.) and doesn't tug a Zustand store into modules that don't need it.
  */
 
+import { deserializeWcSignOptions, type SerializedWcTransaction } from './blockchain';
+import type { CashScriptSignOptions, CashScriptSignResponse } from '../types/wallet';
+
 const BEARER_STORAGE_KEY = 'flowguard.siwx.bearer';
 const EXPIRY_SAFETY_MARGIN_MS = 30_000;
 
@@ -35,6 +38,13 @@ const AUTH_BASE = '/api/auth';
 export interface WalletForAuth {
   address: string | null;
   signMessage: (message: string) => Promise<string>;
+  /**
+   * WizardConnect (hdwalletv1) has no message-signing primitive, so it proves
+   * ownership by signing a non-broadcastable proof transaction instead. These
+   * are present on the `useWallet()` value passed into authFetch.
+   */
+  walletType?: string | null;
+  signCashScriptTransaction?: (options: CashScriptSignOptions) => Promise<CashScriptSignResponse>;
 }
 
 export interface AuthFetchInit extends RequestInit {
@@ -104,6 +114,8 @@ interface NonceResponse {
   nonceId: string;
   message: string;
   expiresAt: number;
+  /** Present for transaction-only wallets: the proof tx to sign in lieu of a message. */
+  authProof?: SerializedWcTransaction;
 }
 
 interface VerifyResponse {
@@ -149,7 +161,23 @@ async function obtainBearer(wallet: WalletForAuth): Promise<string> {
     address: wallet.address,
     domain,
     uri,
+    // Lets the server skip building the tx-proof for message-signing wallets.
+    walletType: wallet.walletType ?? undefined,
   });
+
+  // WizardConnect / hdwalletv1 has no message signing — authenticate by signing
+  // a non-broadcastable proof transaction (same single-use nonce, same bearer).
+  if (wallet.walletType === 'wizardconnect' && wallet.signCashScriptTransaction && nonce.authProof) {
+    const options = deserializeWcSignOptions(nonce.authProof);
+    const signed = await wallet.signCashScriptTransaction({ ...options, broadcast: false });
+    const verify = await postJson<VerifyResponse>(`${AUTH_BASE}/verify-tx`, {
+      address: wallet.address,
+      nonceId: nonce.nonceId,
+      signedTransaction: signed.signedTransaction,
+    });
+    writeCachedBearer(wallet.address, verify.bearer, verify.expiresAt);
+    return verify.bearer;
+  }
 
   const signature = await wallet.signMessage(nonce.message);
 

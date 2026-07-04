@@ -15,8 +15,11 @@ import {
   issueAuthNonce,
   issueBearer,
   verifyWalletOwnership,
+  verifyWalletOwnershipViaTx,
   type NonceContext,
 } from '../middleware/auth.js';
+import { buildAuthProofWcTransaction } from '../middleware/txAuthProof.js';
+import { serializeWcTransaction } from '../utils/wcSerializer.js';
 
 const router = Router();
 
@@ -38,11 +41,23 @@ router.post('/auth/nonce', async (req: Request, res: Response) => {
   };
   try {
     const nonce = await issueAuthNonce(address, context);
+    // authProof: a non-broadcastable proof tx for transaction-only wallets
+    // (WizardConnect / hdwalletv1) that cannot sign a message. Only built for
+    // those wallets — message-signing wallets (WalletConnect) use `message`.
+    let authProof: ReturnType<typeof serializeWcTransaction> | undefined;
+    if (String(req.body?.walletType || '') === 'wizardconnect') {
+      try {
+        authProof = serializeWcTransaction(buildAuthProofWcTransaction(address, nonce.id));
+      } catch {
+        authProof = undefined; // non-P2PKH or build failure: message path still works
+      }
+    }
     return res.json({
       success: true,
       nonceId: nonce.id,
       message: nonce.message,
       expiresAt: nonce.expiresAt,
+      authProof,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Invalid address';
@@ -83,6 +98,41 @@ router.post('/auth/verify', async (req: Request, res: Response) => {
         address: user.address,
         pubkeyHex: user.pubkeyHex,
         legacySiwxFormat: user.legacySiwxFormat,
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unauthorized';
+    return res.status(401).json({ error: 'Unauthorized', message });
+  }
+});
+
+/**
+ * POST /api/auth/verify-tx
+ *
+ * Transaction-signature login for wallets without message signing (WizardConnect
+ * / hdwalletv1). Exchange a signed proof transaction (from /auth/nonce's
+ * `authProof`, filled by the wallet) for the same 30-minute bearer as /verify.
+ * Additive to /verify — the message-signature paths are unchanged.
+ */
+router.post('/auth/verify-tx', async (req: Request, res: Response) => {
+  const address = String(req.body?.address || '').trim();
+  const nonceId = String(req.body?.nonceId || '').trim();
+  const signedTransaction = String(req.body?.signedTransaction || '').trim();
+
+  if (!address || !nonceId || !signedTransaction) {
+    return res.status(400).json({ error: 'address, nonceId, and signedTransaction are required' });
+  }
+
+  try {
+    const user = await verifyWalletOwnershipViaTx({ address, nonceId, signedTransaction });
+    const bearer = issueBearer(user);
+    return res.json({
+      success: true,
+      bearer: bearer.token,
+      expiresAt: bearer.expiresAt,
+      verifiedUser: {
+        address: user.address,
+        pubkeyHex: user.pubkeyHex,
       },
     });
   } catch (error: unknown) {

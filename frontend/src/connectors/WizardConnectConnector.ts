@@ -38,6 +38,7 @@ import {
   binToHex,
   hexToBin,
   hashTransaction,
+  stringify,
 } from '@bitauth/libauth';
 import QRCode from 'qrcode';
 
@@ -89,6 +90,10 @@ export class WizardConnectConnector implements IWalletConnector {
   private network: 'mainnet' | 'testnet' | 'chipnet';
 
   private qrModal: HTMLDivElement | null = null;
+  // Set while waiting for the wallet to scan the QR; lets the close button /
+  // Escape reject the pairing promise so connect() unwinds cleanly.
+  private cancelPairing: ((err: Error) => void) | null = null;
+  private qrEscapeHandler: ((e: KeyboardEvent) => void) | null = null;
   private eventListeners: Map<string, ((data?: unknown) => void)[]> = new Map();
 
   constructor() {
@@ -161,6 +166,9 @@ export class WizardConnectConnector implements IWalletConnector {
         '[WizardConnect] Restored session - address:',
         this.currentAddress,
       );
+      // Restored sessions must also bridge a wallet-side disconnect to
+      // useWallet, otherwise a reload leaves a stale "connected" UI.
+      this.bindProtocolEvents();
       return this.buildWalletInfo();
     }
 
@@ -282,7 +290,32 @@ export class WizardConnectConnector implements IWalletConnector {
   ): Promise<CashScriptSignResponse> {
     if (!this.dappMgr) throw new Error('WizardConnect not connected');
 
-    const inputPaths = options.inputPaths ?? [[0, PATH_RECEIVE, 0]];
+    // Unlike WalletConnect (which matches inputs to signers by locking bytecode),
+    // WizardConnect requires an explicit [inputIndex, pathName, addressIndex] for
+    // every input the wallet must sign. Every input in a FlowGuard WC tx is signed
+    // by the connected receive/0 key — P2PKH user inputs on funding, and the
+    // covenant input's recipient-signature placeholder on claim/cancel/pause — so
+    // map them all unless the caller supplied explicit paths.
+    const txInputs = typeof options.transaction === 'object' && options.transaction !== null
+      ? ((options.transaction as { inputs?: unknown[] }).inputs ?? [])
+      : [];
+    const inputPaths: [number, string, number][] = options.inputPaths
+      ?? (txInputs.length > 0
+        ? txInputs.map((_, i): [number, string, number] => [i, PATH_RECEIVE, 0])
+        : [[0, PATH_RECEIVE, 0]]);
+
+    // The relay JSON.stringify's the message with no encoder, so the cashscript
+    // WcTransactionObject (BigInt valueSatoshis + Uint8Arrays) must be pre-encoded
+    // to libauth's extended-JSON — exactly as the WalletConnect path does — or the
+    // sign request throws "Do not know how to serialize a BigInt" before sending.
+    const serializedRequest = JSON.parse(
+      stringify({
+        transaction: options.transaction,
+        sourceOutputs: options.sourceOutputs,
+        broadcast: options.broadcast ?? true,
+        userPrompt: options.userPrompt,
+      }),
+    );
 
     const abortController = new AbortController();
     const timer = window.setTimeout(
@@ -298,12 +331,7 @@ export class WizardConnectConnector implements IWalletConnector {
 
       const response = await this.dappMgr.signTransaction(
         {
-          transaction: {
-            transaction: options.transaction as never,
-            sourceOutputs: options.sourceOutputs as never,
-            broadcast: options.broadcast ?? true,
-            userPrompt: options.userPrompt,
-          },
+          transaction: serializedRequest as never,
           inputPaths,
         },
         { signal: abortController.signal },
@@ -402,6 +430,12 @@ export class WizardConnectConnector implements IWalletConnector {
         window.clearTimeout(timer);
         mgr.off('walletready', onReady);
         mgr.off('disconnect', onDisconnect);
+        this.cancelPairing = null;
+      };
+      // Allow the QR overlay's close button / Escape to abort the wait.
+      this.cancelPairing = (err: Error) => {
+        cleanup();
+        reject(err);
       };
 
       const onReady = () => {
@@ -588,9 +622,16 @@ export class WizardConnectConnector implements IWalletConnector {
       'absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-2xl leading-none px-2';
     closeBtn.setAttribute('aria-label', 'Close');
     closeBtn.textContent = '×';
-    closeBtn.addEventListener('click', () => {
-      this.hideQrModal();
-    });
+    const abort = () => {
+      // Reject the pairing wait so connect() runs its catch (hideQrModal +
+      // cleanupRelay), clearing isConnecting and re-showing the wallet picker.
+      // Fall back to just hiding the overlay if the wait already settled.
+      if (this.cancelPairing) this.cancelPairing(new Error('WizardConnect pairing cancelled'));
+      else this.hideQrModal();
+    };
+    closeBtn.addEventListener('click', abort);
+    this.qrEscapeHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') abort(); };
+    document.addEventListener('keydown', this.qrEscapeHandler);
 
     card.append(closeBtn, header, qrWrap, uriRow, beta);
     overlay.appendChild(card);
@@ -600,6 +641,10 @@ export class WizardConnectConnector implements IWalletConnector {
   }
 
   private hideQrModal(): void {
+    if (this.qrEscapeHandler) {
+      document.removeEventListener('keydown', this.qrEscapeHandler);
+      this.qrEscapeHandler = null;
+    }
     if (this.qrModal?.parentNode) {
       this.qrModal.parentNode.removeChild(this.qrModal);
     }

@@ -51,6 +51,7 @@ import {
 } from '@bitauth/libauth';
 import type { Redis } from 'ioredis';
 import { getRedis } from '../utils/redis.js';
+import { verifyAuthProofTx } from './txAuthProof.js';
 
 const NONCE_TTL_MS = 5 * 60 * 1000;
 const NONCE_BYTES = 24;
@@ -634,6 +635,38 @@ function b64urlDecode(input: string): Buffer | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Verify wallet ownership via a signed PROOF TRANSACTION — the message-signing
+ * substitute for transaction-only wallets (WizardConnect / hdwalletv1, which has
+ * no sign_message). Consumes the single-use nonce (same anti-replay as the
+ * message path) and verifies the signature over the non-broadcastable proof tx.
+ * Strictly additive: it does not touch the message-signature paths above and
+ * mints the identical bearer.
+ */
+export async function verifyWalletOwnershipViaTx(params: {
+  address: string;
+  nonceId: string;
+  signedTransaction: string;
+}): Promise<AuthenticatedUser> {
+  const { address, nonceId, signedTransaction } = params;
+  if (!address || !nonceId || !signedTransaction) {
+    throw new Error('Missing tx-ownership proof fields');
+  }
+  const expectedHash = pubkeyHashFromAddress(address);
+  if (!expectedHash) throw new Error('Address is not a supported P2PKH cash address');
+
+  const record = await nonceStore.consume(nonceId, address);
+  if (!record) throw new Error('Nonce expired or already consumed');
+
+  const { pubkeyHex } = verifyAuthProofTx(address, nonceId, signedTransaction);
+  return {
+    address,
+    pubkeyHex,
+    pubkeyHash: Buffer.from(expectedHash).toString('hex'),
+    authenticatedAt: Date.now(),
+  };
 }
 
 /**
