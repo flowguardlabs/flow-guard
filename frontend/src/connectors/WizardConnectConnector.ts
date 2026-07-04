@@ -342,8 +342,21 @@ export class WizardConnectConnector implements IWalletConnector {
       }
 
       const signedTransaction = response.signedTransaction;
-      if (!signedTransaction) {
-        throw new Error('Wallet returned empty signed transaction');
+      // Diagnostic: surface exactly what the wallet returned so a decode failure
+      // is actionable (empty vs non-hex vs wrong key vs truncated).
+      console.log('[WizardConnect] sign response:', {
+        responseKeys: Object.keys((response ?? {}) as Record<string, unknown>),
+        signedType: typeof signedTransaction,
+        signedLength: typeof signedTransaction === 'string' ? signedTransaction.length : undefined,
+        signedHead: typeof signedTransaction === 'string' ? signedTransaction.slice(0, 80) : signedTransaction,
+      });
+      if (typeof signedTransaction !== 'string' || !/^[0-9a-fA-F]+$/.test(signedTransaction) || signedTransaction.length < 20) {
+        throw new Error(
+          `WizardConnect: wallet returned an unusable signed transaction ` +
+          `(type=${typeof signedTransaction}, len=${typeof signedTransaction === 'string' ? signedTransaction.length : 'n/a'}, ` +
+          `head="${typeof signedTransaction === 'string' ? signedTransaction.slice(0, 40) : String(signedTransaction)}", ` +
+          `keys=[${Object.keys((response ?? {}) as Record<string, unknown>).join(',')}])`,
+        );
       }
 
       // hdwalletv1 only sends back the signed hex - compute the txid locally.
