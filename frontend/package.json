@@ -9,7 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "deploy": "pnpm build && npx wrangler deploy"
+    "deploy": "NODE_ENV=production pnpm build && npx wrangler deploy"
   },
   "dependencies": {
     "@bitauth/libauth": "3.0.0",

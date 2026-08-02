@@ -33,3 +33,9 @@ Needs `CLOUDFLARE_API_TOKEN` in env.
 Zone is active on Cloudflare, but DNS still points to the old (blocked) Vercel origin. To finish,
 attach these to the `flowguard` Worker (delete stale Vercel records first):
 `flowguard.cash`, `www.flowguard.cash`, `app.flowguard.cash`, `explorer.flowguard.cash`.
+
+## ⚠️ Build note — NODE_ENV
+`.env` / `.env.local` set `NODE_ENV=development`. Vercel overrode it to `production`, but a plain
+`vite build` here inherits `development` → Vite emits the **dev JSX runtime (`jsxDEV`)**, which
+crashes against production React (blank page). The `deploy` script forces `NODE_ENV=production`
+to prevent this. If building manually, use `NODE_ENV=production pnpm build`.
