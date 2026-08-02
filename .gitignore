@@ -92,4 +92,5 @@ bch refrences/
 internal/
 .vercel
 video/
-zkstark_pkg/
+zkstark_pkg/.wrangler
+frontend/.env.cf.production
