@@ -39,3 +39,9 @@ attach these to the `flowguard` Worker (delete stale Vercel records first):
 `vite build` here inherits `development` → Vite emits the **dev JSX runtime (`jsxDEV`)**, which
 crashes against production React (blank page). The `deploy` script forces `NODE_ENV=production`
 to prevent this. If building manually, use `NODE_ENV=production pnpm build`.
+
+## API proxy (worker.js)
+Vercel rewrote `/api/*` → `https://api.flowguard.cash/api/*`. Cloudflare Static Assets can't
+rewrite, so `frontend/worker.js` proxies `/api/*` to the backend and serves the SPA otherwise
+(`run_worker_first: ["/api/*"]` in wrangler.jsonc routes only /api to the Worker). `api`→Railway
+and `docs`→Mintlify DNS records are unchanged.
