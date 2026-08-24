@@ -45,3 +45,40 @@ Vercel rewrote `/api/*` → `https://api.flowguard.cash/api/*`. Cloudflare Stati
 rewrite, so `frontend/worker.js` proxies `/api/*` to the backend and serves the SPA otherwise
 (`run_worker_first: ["/api/*"]` in wrangler.jsonc routes only /api to the Worker). `api`→Railway
 and `docs`→Mintlify DNS records are unchanged.
+
+---
+
+# Migration: backend + indexer Railway → GreenCloud VPS (2026-08-16)
+
+Railway's trial expired and stopped the whole project (backend + indexer + Redis). `api.flowguard.cash`
+started returning Railway's `"Application not found"`, and the explorer went empty (indexer down).
+Restarting needs a paid Railway plan, so the **`backend/` + `backend/indexer/`** moved to a plain
+always-on box. They are NOT Workers-shaped (Express, `pg` over TCP, `ElectrumNetworkProvider`, three
+`setInterval` monitors), so a VPS is the right host; only the frontend stays on Cloudflare.
+
+**Host:** GreenCloud KVM VPS, Frankfurt DE, Ubuntu 24.04, 4GB/2-core, `172.93.185.150`, ~$25/yr flat.
+Chosen in Frankfurt because Supabase is in `eu-west-1` (backend↔DB is the hot path).
+
+## What runs where
+- **backend + indexer** → Docker Compose on the VPS at `/root/flowguard` (`docker-compose.yml`,
+  builds `Dockerfile.backend` / `Dockerfile.indexer`, `env_file: backend/.env`, `NODE_ENV=production`,
+  `mem_limit` 1200m/700m, `restart: unless-stopped`). Docker enabled at boot → survives reboots.
+- **DB** → Supabase Postgres `eu-west-1` (already migrated: 30 tables, data intact). `railway-backup/`
+  holds a `dump.sql` fallback but no restore was needed.
+- **Redis** → dropped. It only backed the SIWX nonce store, which falls back to in-memory cleanly.
+- **TLS + routing** → Caddy on the VPS reverse-proxies `api.flowguard.cash` (443) → `127.0.0.1:3001`,
+  auto Let's Encrypt cert. Backend bound to `127.0.0.1:3001` only; ufw allows 22/80/443. 3.5GB swap.
+
+## Env fix
+Pointing `pg` at Supabase surfaced `SELF_SIGNED_CERT_IN_CHAIN` (Supabase's pooler CA isn't in Node's
+default trust). Added **`PG_SSL_INSECURE=true`** to `backend/.env` on the VPS (connection stays TLS,
+skips CA verification). Pin `PG_SSL_CA_PEM` later for strict verification.
+
+## DNS
+`api.flowguard.cash` A record repointed in Cloudflare from the dead Railway CNAME →
+`172.93.185.150`, **DNS-only (grey cloud)** so Caddy can complete the ACME challenge. The frontend
+needed no change: its `/api` proxy already targets `api.flowguard.cash`, which now resolves to the VPS.
+
+## Verified
+`https://api.flowguard.cash/health` → 200 `blockchain: connected`; explorer activity returns real
+data again; frontend `flowguard.cash` still 200; indexer following the chain.
