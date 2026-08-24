@@ -5,6 +5,7 @@
 
 import { ElectrumNetworkProvider } from 'cashscript';
 import db from '../database/schema.js';
+import { registerWorker, recordWorkerTick, recordWorkerError, deregisterWorker } from './worker-heartbeats.js';
 
 interface PendingTransaction {
   id: string;
@@ -38,19 +39,29 @@ export class TransactionMonitor {
     console.log(`[TransactionMonitor] Starting (interval: ${intervalMs}ms)`);
     this.isRunning = true;
 
+    registerWorker('transaction_monitor', intervalMs);
+
     // Run immediately
-    this.checkPendingTransactions().catch(err => {
-      console.error('[TransactionMonitor] Error:', err);
-    });
+    void this.runCycle();
 
     // Then run periodically
-    this.monitoringInterval = setInterval(async () => {
-      try {
-        await this.checkPendingTransactions();
-      } catch (error) {
-        console.error('[TransactionMonitor] Error:', error);
-      }
+    this.monitoringInterval = setInterval(() => {
+      void this.runCycle();
     }, intervalMs);
+  }
+
+  /**
+   * One monitored pass. The tick is what lets the public status page distinguish a
+   * live watcher from a dead one; it previously had no signal at all here.
+   */
+  private async runCycle(): Promise<void> {
+    try {
+      await this.checkPendingTransactions();
+      recordWorkerTick('transaction_monitor');
+    } catch (error) {
+      recordWorkerError('transaction_monitor', error);
+      console.error('[TransactionMonitor] Error:', error);
+    }
   }
 
   /**
@@ -62,6 +73,7 @@ export class TransactionMonitor {
       this.monitoringInterval = null;
     }
     this.isRunning = false;
+    deregisterWorker('transaction_monitor');
     console.log('[TransactionMonitor] Stopped');
   }
 

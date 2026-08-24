@@ -16,6 +16,7 @@
 import { Router, Request, Response } from 'express';
 import { ElectrumNetworkProvider } from 'cashscript';
 import db from '../database/schema.js';
+import { getWorkerHealth } from '../services/worker-heartbeats.js';
 
 type Health = 'operational' | 'degraded' | 'partial_outage' | 'major_outage' | 'maintenance' | 'unknown';
 type ComponentStatus = 'operational' | 'degraded' | 'outage' | 'maintenance' | 'unknown';
@@ -360,39 +361,44 @@ async function buildPublicStatus(): Promise<PublicStatusPayload> {
     'Scheduled transaction executor',
   );
 
-  // In-process workers — no liveness instrumentation yet, so we conservatively
-  // report `unknown` rather than green-washing them.
-  // TODO(status-phase-2): wire BlockchainMonitor / TransactionMonitor / CycleUnlockScheduler getStatus().
-  const blockchainMonitor: PublicComponent = {
-    id: 'blockchain_monitor',
-    name: 'Blockchain Monitor',
+  // In-process workers, from the heartbeat each records when a cycle completes.
+  // A worker that never registered still reports `unknown` — this reads real
+  // liveness and does not invent health for something that never started.
+  //
+  // Liveness, specifically: it answers "is the loop still turning", not "is every
+  // item inside it succeeding". Each worker swallows its own per-item errors, which
+  // is deliberate — one bad vault should not stop the sweep — so a cycle that
+  // completes with individual failures still ticks.
+  const inProcessWorker = (
+    id: Parameters<typeof getWorkerHealth>[0],
+    name: string,
+    description: string,
+  ): PublicComponent => ({
+    id,
+    name,
     group: 'Workers',
-    status: 'unknown',
-    description: 'Vault balance refresher (in-process)',
+    status: getWorkerHealth(id),
+    description,
     latencyMs: null,
     uptime90d: null,
     lastIncidentAt: null,
-  };
-  const transactionMonitor: PublicComponent = {
-    id: 'transaction_monitor',
-    name: 'Transaction Monitor',
-    group: 'Workers',
-    status: 'unknown',
-    description: 'On-chain transaction confirmation watcher',
-    latencyMs: null,
-    uptime90d: null,
-    lastIncidentAt: null,
-  };
-  const cycleUnlockScheduler: PublicComponent = {
-    id: 'cycle_unlock_scheduler',
-    name: 'Cycle Unlock Scheduler',
-    group: 'Workers',
-    status: 'unknown',
-    description: 'Governance cycle unlock scheduler',
-    latencyMs: null,
-    uptime90d: null,
-    lastIncidentAt: null,
-  };
+  });
+
+  const blockchainMonitor = inProcessWorker(
+    'blockchain_monitor',
+    'Blockchain Monitor',
+    'Vault balance refresher (in-process)',
+  );
+  const transactionMonitor = inProcessWorker(
+    'transaction_monitor',
+    'Transaction Monitor',
+    'On-chain transaction confirmation watcher',
+  );
+  const cycleUnlockScheduler = inProcessWorker(
+    'cycle_unlock_scheduler',
+    'Cycle Unlock Scheduler',
+    'Governance cycle unlock scheduler',
+  );
 
   // Supabase Vault — we can't probe a managed external service from here without
   // leaking auth, so it stays `unknown` until a server-side health check exists.

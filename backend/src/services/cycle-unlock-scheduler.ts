@@ -12,6 +12,7 @@ import { ContractService } from './contract-service.js';
 import { Contract, ElectrumNetworkProvider, TransactionBuilder, placeholderPublicKey, placeholderSignature } from 'cashscript';
 import { ContractFactory } from './ContractFactory.js';
 import { binToHex, hexToBin } from '@bitauth/libauth';
+import { registerWorker, recordWorkerTick, recordWorkerError, deregisterWorker } from './worker-heartbeats.js';
 
 export interface CycleUnlockResult {
   vaultId: string;
@@ -43,13 +44,29 @@ export class CycleUnlockScheduler {
     this.isRunning = true;
     console.log(`Starting cycle unlock scheduler (checking every ${intervalMs / 1000}s)...`);
 
+    registerWorker('cycle_unlock_scheduler', intervalMs);
+
     // Run initial check
-    await this.checkAndUnlockCycles();
+    await this.runCycle();
 
     // Set up interval for periodic checks
     this.intervalId = setInterval(async () => {
-      await this.checkAndUnlockCycles();
+      await this.runCycle();
     }, intervalMs);
+  }
+
+  /**
+   * One monitored pass. Records the tick the public status page reads to tell a
+   * running scheduler from a stalled one.
+   */
+  private async runCycle(): Promise<void> {
+    try {
+      await this.checkAndUnlockCycles();
+      recordWorkerTick('cycle_unlock_scheduler');
+    } catch (error) {
+      recordWorkerError('cycle_unlock_scheduler', error);
+      console.error('[CycleUnlockScheduler] cycle failed:', error);
+    }
   }
 
   /**
@@ -61,6 +78,7 @@ export class CycleUnlockScheduler {
       this.intervalId = null;
     }
     this.isRunning = false;
+    deregisterWorker('cycle_unlock_scheduler');
     console.log('Cycle unlock scheduler stopped');
   }
 

@@ -129,6 +129,14 @@ async function main(): Promise<void> {
     return {
       healthy,
       body: {
+        // The API's public status page reads `service.status` and nothing else from
+        // this payload (see sanitizeRemoteComponent in backend/src/api/status.ts).
+        // Without this envelope the indexer reported `unknown` even when running.
+        // Degraded rather than an outage: losing Electrum or the DB stops progress
+        // but the process is still up and recovers on its own.
+        service: {
+          status: healthy ? 'operational' : 'degraded',
+        },
         network: env.network,
         electrumServer: current ? `${current.host}:${current.port}` : null,
         electrumConnected: electrum.isConnected,

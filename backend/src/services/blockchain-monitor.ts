@@ -7,6 +7,7 @@ import { resolveBchNetwork } from '../utils/network.js';
 import { ContractService } from './contract-service.js';
 import { VaultService } from './vaultService.js';
 import db from '../database/schema.js';
+import { registerWorker, recordWorkerTick, recordWorkerError, deregisterWorker } from './worker-heartbeats.js';
 
 export class BlockchainMonitor {
   private contractService: ContractService;
@@ -30,13 +31,29 @@ export class BlockchainMonitor {
     this.isRunning = true;
     console.log(`Starting blockchain monitor (checking every ${intervalMs / 1000}s)...`);
 
+    registerWorker('blockchain_monitor', intervalMs);
+
     // Run initial check
-    await this.checkAllVaults();
+    await this.runCycle();
 
     // Set up interval for periodic checks
     this.intervalId = setInterval(async () => {
-      await this.checkAllVaults();
+      await this.runCycle();
     }, intervalMs);
+  }
+
+  /**
+   * One monitored pass. Wraps checkAllVaults so the public status page can tell a
+   * running monitor from a dead one — previously it could only report `unknown`.
+   */
+  private async runCycle(): Promise<void> {
+    try {
+      await this.checkAllVaults();
+      recordWorkerTick('blockchain_monitor');
+    } catch (error) {
+      recordWorkerError('blockchain_monitor', error);
+      console.error('[BlockchainMonitor] cycle failed:', error);
+    }
   }
 
   /**
@@ -48,6 +65,7 @@ export class BlockchainMonitor {
       this.intervalId = null;
     }
     this.isRunning = false;
+    deregisterWorker('blockchain_monitor');
     console.log('Blockchain monitor stopped');
   }
 
