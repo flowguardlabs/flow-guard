@@ -29,6 +29,30 @@ function trimOrUndefined(v: unknown): string | undefined {
   return t.length > 0 ? t : undefined;
 }
 
+/**
+ * Wallet types known to lack usable message signing, kept so older clients that
+ * send only `walletType` (no `txProof` flag) still receive a proof transaction.
+ *
+ * - `wizardconnect` (hdwalletv1): no sign_message action at all.
+ * - `optn`: has one, but its Bitcoin-signed-message length prefix is raw hex rather
+ *   than a CompactSize varint, so it cannot sign our ~380-byte CAIP-122 message.
+ */
+const TX_PROOF_WALLET_TYPES = new Set(['wizardconnect', 'optn']);
+
+/**
+ * Whether to build the non-broadcastable proof transaction for this nonce.
+ *
+ * Issuing it is not a privilege: the proof tx is bound to this single-use nonce and
+ * is worthless without the address's private key, so an unnecessary one is wasted
+ * work rather than a security concern. Gate exists purely to avoid building it for
+ * the message-signing majority.
+ */
+export function wantsTxProof(body: unknown): boolean {
+  const payload = (body ?? {}) as { txProof?: unknown; walletType?: unknown };
+  if (payload.txProof === true) return true;
+  return TX_PROOF_WALLET_TYPES.has(String(payload.walletType ?? '').trim().toLowerCase());
+}
+
 router.post('/auth/nonce', async (req: Request, res: Response) => {
   const address = String(req.body?.address || '').trim();
   if (!address) {
@@ -41,11 +65,10 @@ router.post('/auth/nonce', async (req: Request, res: Response) => {
   };
   try {
     const nonce = await issueAuthNonce(address, context);
-    // authProof: a non-broadcastable proof tx for transaction-only wallets
-    // (WizardConnect / hdwalletv1) that cannot sign a message. Only built for
-    // those wallets — message-signing wallets (WalletConnect) use `message`.
+    // authProof: a non-broadcastable proof tx for wallets that cannot sign our
+    // CAIP-122 message (WizardConnect, OPTN). Message-signing wallets use `message`.
     let authProof: ReturnType<typeof serializeWcTransaction> | undefined;
-    if (String(req.body?.walletType || '') === 'wizardconnect') {
+    if (wantsTxProof(req.body)) {
       try {
         authProof = serializeWcTransaction(buildAuthProofWcTransaction(address, nonce.id));
       } catch {

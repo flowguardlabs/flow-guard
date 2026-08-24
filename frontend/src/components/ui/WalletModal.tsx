@@ -11,8 +11,8 @@
 
 import { useState } from 'react';
 import { WalletType } from '../../types/wallet';
-import { isWizardConnectEnabled } from '../../connectors';
-import { Wallet, X, Smartphone, Loader2, Sparkles } from 'lucide-react';
+import { isOptnEnabled, isWizardConnectEnabled } from '../../connectors';
+import { Wallet, X, Smartphone, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface WalletOption {
@@ -41,6 +41,16 @@ function buildWalletOptions(): WalletOption[] {
     },
   ];
 
+  if (isOptnEnabled()) {
+    options.push({
+      type: WalletType.OPTN,
+      name: 'OPTN Wallet',
+      description: 'Covenant-native mobile wallet, paired via QR (beta)',
+      Icon: ShieldCheck,
+      beta: true,
+    });
+  }
+
   if (isWizardConnectEnabled()) {
     options.push({
       type: WalletType.WIZARDCONNECT,
@@ -52,6 +62,17 @@ function buildWalletOptions(): WalletOption[] {
   }
 
   return options;
+}
+
+/** Wallets that pop their own pairing QR, which our modal must not cover. */
+const SELF_QR_WALLETS: ReadonlySet<WalletType> = new Set([
+  WalletType.WALLETCONNECT,
+  WalletType.WIZARDCONNECT,
+  WalletType.OPTN,
+]);
+
+function rendersOwnQrModal(walletType: WalletType | null): boolean {
+  return walletType !== null && SELF_QR_WALLETS.has(walletType);
 }
 
 interface WalletModalProps {
@@ -76,18 +97,17 @@ export function WalletModal({
 
   if (!isOpen) return null;
 
-  // Hide our modal during WalletConnect or WizardConnect to allow the QR modal to show.
-  const usesExternalQrModal =
-    selectedWallet === WalletType.WALLETCONNECT
-    || selectedWallet === WalletType.WIZARDCONNECT;
-  const shouldHide = hideForWC && usesExternalQrModal && isConnecting;
+  // Hide our modal while a wallet renders its own QR modal (WalletConnect-based
+  // pairing, or WizardConnect's relay QR) so the QR is not covered.
+  const shouldHide = hideForWC && rendersOwnQrModal(selectedWallet) && isConnecting;
 
   const handleConnect = async (walletType: WalletType) => {
     setSelectedWallet(walletType);
     setLocalError(null);
 
-    // Hide our modal if a wallet renders its own QR modal
-    if (usesExternalQrModal || walletType === WalletType.WALLETCONNECT || walletType === WalletType.WIZARDCONNECT) {
+    // Checked against the incoming type, not `selectedWallet`: the state update
+    // above has not flushed yet on this render.
+    if (rendersOwnQrModal(walletType)) {
       setHideForWC(true);
     }
 

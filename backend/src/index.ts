@@ -30,6 +30,7 @@ import { startTransactionMonitor, stopTransactionMonitor } from './services/Tran
 import { errorHandler } from './middleware/errorHandler.js';
 import { generalLimiter, strictLimiter, queryLimiter } from './middleware/rateLimiter.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { resolveBchNetwork } from './utils/network.js';
 
 dotenv.config();
 
@@ -55,8 +56,29 @@ const allowedOriginsConfig = (process.env.CORS_ALLOWED_ORIGINS || DEFAULT_ALLOWE
   .filter(Boolean);
 const allowLocalhostInDev = process.env.NODE_ENV !== 'production';
 
+/**
+ * Origins presented by native WebView shells (Capacitor / Ionic), which is what a
+ * wallet-hosted FlowGuard add-on runs as. Exact-match only, no wildcards, no port
+ * range: these four literals are the complete set Capacitor 6 emits.
+ *
+ * Opt-in via CORS_ALLOW_NATIVE_APP_ORIGINS=true so the default production posture is
+ * unchanged until an add-on actually ships. Not needed for Phase 1 (WalletConnect
+ * pairing runs from a normal https origin) — landed now so the add-on PR does not
+ * have to touch CORS under time pressure.
+ */
+const NATIVE_APP_ORIGINS: ReadonlySet<string> = new Set([
+  'capacitor://localhost',
+  'ionic://localhost',
+  'http://localhost',
+  'https://localhost',
+]);
+const allowNativeAppOrigins = process.env.CORS_ALLOW_NATIVE_APP_ORIGINS === 'true';
+
 function originAllowed(origin: string): boolean {
   if (allowLocalhostInDev && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    return true;
+  }
+  if (allowNativeAppOrigins && NATIVE_APP_ORIGINS.has(origin)) {
     return true;
   }
   return allowedOriginsConfig.some((pattern) => {
@@ -142,7 +164,10 @@ app.use('/api', adminRouter); // Admin/operator endpoints
 app.use('/api', proposalsRouter); // LAST - has catch-all /:id routes
 
 app.get('/api', (req, res) => {
-  res.json({ message: 'FlowGuard API', version: '0.1.0', network: 'chipnet' });
+  // Report the network this process actually resolved. Previously hardcoded to
+  // 'chipnet', which silently misreported every mainnet deploy — and this is the
+  // field a client uses to detect a frontend/backend network mismatch.
+  res.json({ message: 'FlowGuard API', version: '0.1.0', network: resolveBchNetwork() });
 });
 
 // Error handler middleware (MUST be last)
@@ -157,7 +182,9 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 FlowGuard backend running on port ${PORT}`);
-    console.log(`📡 Network: ${process.env.BCH_NETWORK || 'chipnet'}`);
+    // Same resolver the API and covenant builders use, so the banner cannot
+    // disagree with the network the process actually runs on.
+    console.log(`📡 Network: ${resolveBchNetwork()}`);
 
     console.log('🔗 Starting blockchain monitor...');
     startBlockchainMonitor(30000);

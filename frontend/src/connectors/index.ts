@@ -10,19 +10,21 @@
  * 2. Cashonize (CashScript-aware mobile wallet via WalletConnect v2)
  * 3. WalletConnect v2 (Zapit and other mobile wallets)
  * 4. WizardConnect (BCH-native, NIP-17 transport - beta, Paytaca mobile only)
- * 5. Mainnet.cash (testing/development)
+ * 5. OPTN Wallet (covenant-native mobile wallet via WalletConnect v2 - beta)
  */
 
 export { PaytacaNativeConnector } from './PaytacaNativeConnector';
 export { CashonizeConnector } from './CashonizeConnector';
 export { Web3ModalWalletConnectConnector } from './Web3ModalWalletConnectConnector';
 export { WizardConnectConnector } from './WizardConnectConnector';
+export { OptnConnector, OPTN_WALLET_URL } from './OptnConnector';
 
 import type { IWalletConnector, WalletType } from '../types/wallet';
 import { PaytacaNativeConnector } from './PaytacaNativeConnector';
 import { CashonizeConnector } from './CashonizeConnector';
 import { Web3ModalWalletConnectConnector } from './Web3ModalWalletConnectConnector';
 import { WizardConnectConnector } from './WizardConnectConnector';
+import { OptnConnector, OPTN_WALLET_URL } from './OptnConnector';
 
 /**
  * Feature flag for WizardConnect. Defaults to disabled because the protocol
@@ -32,6 +34,20 @@ import { WizardConnectConnector } from './WizardConnectConnector';
  */
 export function isWizardConnectEnabled(): boolean {
   return import.meta.env.VITE_ENABLE_WIZARDCONNECT === 'true';
+}
+
+/**
+ * Feature flag for OPTN Wallet. Defaults to disabled: the pairing is wire-compatible
+ * on paper (same WalletConnect v2 namespace, same covenant placeholder handling) but
+ * unproven end to end, and OPTN signs with its first derived address only. Keep it
+ * off in production until the Phase 1 compatibility run produces mainnet txids.
+ *
+ * Enable with: VITE_ENABLE_OPTN=true (in frontend/.env.local)
+ *
+ * @see docs/integrations/optn-phase1-testplan.md
+ */
+export function isOptnEnabled(): boolean {
+  return import.meta.env.VITE_ENABLE_OPTN === 'true';
 }
 
 /**
@@ -67,6 +83,15 @@ export function createWalletConnector(type: WalletType): IWalletConnector {
       }
       return new WizardConnectConnector();
 
+    case 'optn':
+      if (!isOptnEnabled()) {
+        throw new Error(
+          'OPTN Wallet support is in beta and disabled by default. ' +
+            'Enable with VITE_ENABLE_OPTN=true in your env.',
+        );
+      }
+      return new OptnConnector();
+
     default:
       throw new Error(`Unsupported wallet type: ${type}`);
   }
@@ -85,6 +110,8 @@ export function getWalletDisplayName(type: WalletType): string {
       return 'WalletConnect';
     case 'wizardconnect':
       return 'WizardConnect';
+    case 'optn':
+      return 'OPTN Wallet';
     default:
       return 'Unknown Wallet';
   }
@@ -103,6 +130,8 @@ export function getWalletDescription(type: WalletType): string {
       return 'Mobile wallets (Cashonize, Zapit)';
     case 'wizardconnect':
       return 'BCH-native, end-to-end encrypted (Beta)';
+    case 'optn':
+      return 'Covenant-native mobile wallet (Beta)';
     default:
       return '';
   }
@@ -124,6 +153,8 @@ export function getInstallationUrl(type: WalletType): string | null {
       return 'https://chrome.google.com/webstore/detail/paytaca/pakphhpnneopheifihmjcjnbdbhaaiaa';
     case 'wizardconnect':
       return 'https://paytaca.com';
+    case 'optn':
+      return OPTN_WALLET_URL;
     default:
       return null;
   }

@@ -16,6 +16,15 @@ import {
   CashScriptSignResponse,
 } from '../types/wallet';
 import { createWalletConnector } from '../connectors';
+import { assertBackendNetworkMatches } from '../utils/networkGuard';
+
+/**
+ * Network this build targets. Baked in at build time — there is no runtime switch on
+ * either side, which is why `connect()` verifies the backend agrees before prompting
+ * the wallet for anything.
+ */
+const CONFIGURED_NETWORK: 'mainnet' | 'chipnet' =
+  (import.meta.env.VITE_BCH_NETWORK as 'mainnet' | 'chipnet') === 'mainnet' ? 'mainnet' : 'chipnet';
 
 let activeEventConnector: IWalletConnector | null = null;
 let activeAddressChangedHandler: ((data?: any) => void) | null = null;
@@ -55,7 +64,7 @@ const useWalletStore = create<WalletStore>((set, get) => ({
   balance: null,
   isConnected: false,
   isConnecting: false,
-  network: (import.meta.env.VITE_BCH_NETWORK as 'mainnet' | 'chipnet') === 'mainnet' ? 'mainnet' : 'chipnet',
+  network: CONFIGURED_NETWORK,
   error: null,
   connector: null,
   isConnectingRef: false,
@@ -79,6 +88,13 @@ const useWalletStore = create<WalletStore>((set, get) => ({
     set({ isConnectingRef: true, isConnecting: true, error: null });
 
     try {
+      // Fail before prompting the wallet if this build and the API disagree on which
+      // BCH network they target. Neither side can switch at runtime, so nothing
+      // downstream recovers from it — and the first visible symptom would otherwise be
+      // a wallet prompt for a transaction that cannot confirm. Inconclusive checks
+      // (API unreachable, unexpected shape) pass through silently.
+      await assertBackendNetworkMatches(CONFIGURED_NETWORK);
+
       let newConnector: IWalletConnector;
 
       // Create appropriate connector using factory
@@ -92,6 +108,7 @@ const useWalletStore = create<WalletStore>((set, get) => ({
           [WalletType.CASHONIZE]: 'Cashonize wallet not available. Please install Cashonize mobile app from https://cashonize.com',
           [WalletType.WALLETCONNECT]: 'WalletConnect not available',
           [WalletType.WIZARDCONNECT]: 'WizardConnect unavailable - browser environment required.',
+          [WalletType.OPTN]: 'OPTN Wallet unavailable - browser environment required for WalletConnect pairing.',
         };
         throw new Error(messages[walletType] || 'Wallet not available');
       }
@@ -176,7 +193,7 @@ const useWalletStore = create<WalletStore>((set, get) => ({
       balance: null,
       isConnected: false,
       isConnecting: false,
-      network: (import.meta.env.VITE_BCH_NETWORK as 'mainnet' | 'chipnet') === 'mainnet' ? 'mainnet' : 'chipnet',
+      network: CONFIGURED_NETWORK,
       error: null,
       connector: null,
       isConnectingRef: false,
@@ -365,7 +382,7 @@ export function useWallet() {
         console.error('[useWallet] Failed to reconnect wallet:', error);
         const message = error instanceof Error ? error.message : String(error || '');
         const isTransientWalletConnectError =
-          savedWalletType === WalletType.WALLETCONNECT
+          (savedWalletType === WalletType.WALLETCONNECT || savedWalletType === WalletType.OPTN)
           && /(timeout|relay|websocket|network|temporar|stale session)/i.test(message);
 
         const isTransientWizardConnectError =
@@ -454,6 +471,12 @@ export function useWallet() {
     initAttempted,
     network,
     error,
+    /**
+     * Surfaced from the active connector so `authFetch` can pick the login path
+     * without string-matching wallet types. Wallets that cannot sign FlowGuard's
+     * ~380-byte CAIP-122 message (currently OPTN) log in with a proof transaction.
+     */
+    supportsMessageSigning: connector?.supportsMessageSigning ?? true,
     connect,
     disconnect,
     getPublicKey,

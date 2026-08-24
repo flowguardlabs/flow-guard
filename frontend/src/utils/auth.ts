@@ -39,12 +39,32 @@ export interface WalletForAuth {
   address: string | null;
   signMessage: (message: string) => Promise<string>;
   /**
-   * WizardConnect (hdwalletv1) has no message-signing primitive, so it proves
-   * ownership by signing a non-broadcastable proof transaction instead. These
-   * are present on the `useWallet()` value passed into authFetch.
+   * Some wallets have no usable message-signing primitive, so they prove ownership
+   * by signing a non-broadcastable proof transaction instead. These are present on
+   * the `useWallet()` value passed into authFetch.
+   *
+   * - WizardConnect (hdwalletv1) has no `sign_message` action at all.
+   * - OPTN Wallet has one, but its Bitcoin-signed-message length prefix is not a
+   *   CompactSize varint, so it cannot sign our ~380-byte CAIP-122 login message.
    */
   walletType?: string | null;
+  /** Defaults to `true` when omitted. `false` selects the proof-transaction login. */
+  supportsMessageSigning?: boolean;
   signCashScriptTransaction?: (options: CashScriptSignOptions) => Promise<CashScriptSignResponse>;
+}
+
+/**
+ * Wallet types that predate the `supportsMessageSigning` capability flag. Kept so a
+ * caller that hands `authFetch` a partially-shaped wallet object (without the flag)
+ * still routes to the proof-transaction login instead of failing verification.
+ */
+const LEGACY_TX_PROOF_WALLET_TYPES = new Set(['wizardconnect', 'optn']);
+
+/** True when this wallet must authenticate by signing a proof transaction. */
+function requiresTxProofLogin(wallet: WalletForAuth): boolean {
+  if (wallet.supportsMessageSigning === false) return true;
+  if (wallet.supportsMessageSigning === true) return false;
+  return LEGACY_TX_PROOF_WALLET_TYPES.has(String(wallet.walletType ?? '').toLowerCase());
 }
 
 export interface AuthFetchInit extends RequestInit {
@@ -157,19 +177,32 @@ async function obtainBearer(wallet: WalletForAuth): Promise<string> {
   const uri =
     typeof window !== 'undefined' && window.location ? window.location.origin : undefined;
 
+  const needsTxProof = requiresTxProofLogin(wallet);
+
   const nonce = await postJson<NonceResponse>(`${AUTH_BASE}/nonce`, {
     address: wallet.address,
     domain,
     uri,
     // Lets the server skip building the tx-proof for message-signing wallets.
+    txProof: needsTxProof,
     walletType: wallet.walletType ?? undefined,
   });
 
-  // WizardConnect / hdwalletv1 has no message signing — authenticate by signing
-  // a non-broadcastable proof transaction (same single-use nonce, same bearer).
-  if (wallet.walletType === 'wizardconnect' && wallet.signCashScriptTransaction && nonce.authProof) {
+  // Wallets without usable message signing authenticate by signing a
+  // non-broadcastable proof transaction (same single-use nonce, same bearer).
+  if (needsTxProof) {
+    if (!wallet.signCashScriptTransaction) {
+      throw new Error('This wallet cannot sign FlowGuard login requests (no transaction signing support).');
+    }
+    if (!nonce.authProof) {
+      throw new Error('Login failed: the server did not issue a proof transaction for this wallet.');
+    }
     const options = deserializeWcSignOptions(nonce.authProof);
-    const signed = await wallet.signCashScriptTransaction({ ...options, broadcast: false });
+    const signed = await wallet.signCashScriptTransaction({
+      ...options,
+      broadcast: false,
+      userPrompt: 'Prove wallet ownership to FlowGuard (this transaction cannot be broadcast and moves no funds)',
+    });
     const verify = await postJson<VerifyResponse>(`${AUTH_BASE}/verify-tx`, {
       address: wallet.address,
       nonceId: nonce.nonceId,

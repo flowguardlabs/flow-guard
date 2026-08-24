@@ -68,6 +68,8 @@ export const WalletDropdown = () => {
         return 'Cashonize';
       case 'wizardconnect':
         return 'WizardConnect';
+      case 'optn':
+        return 'OPTN Wallet';
       default:
         return 'Unknown';
     }

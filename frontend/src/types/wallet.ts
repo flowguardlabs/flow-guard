@@ -11,6 +11,7 @@ export enum WalletType {
   CASHONIZE = 'cashonize',       // Cashonize mobile wallet (CashScript-aware)
   WALLETCONNECT = 'walletconnect', // WalletConnect v2 (Zapit, etc.)
   WIZARDCONNECT = 'wizardconnect', // WizardConnect - BCH-native, NIP-17 transport (beta)
+  OPTN = 'optn',                 // OPTN Wallet - covenant-native mobile wallet via WalletConnect v2 (beta)
 }
 
 export interface WalletBalance {
@@ -102,6 +103,16 @@ export interface WalletInfo {
  */
 export interface IWalletConnector {
   type: WalletType;
+
+  /**
+   * Whether this wallet can produce a verifiable `bch_signMessage` signature over
+   * FlowGuard's ~380-byte CAIP-122 login message.
+   *
+   * Defaults to `true` when omitted. Connectors that set it to `false` are routed
+   * through the proof-transaction login path (`/api/auth/verify-tx`) instead — see
+   * `backend/src/middleware/txAuthProof.ts`.
+   */
+  supportsMessageSigning?: boolean;
 
   /** Check if wallet is available */
   isAvailable(): Promise<boolean>;

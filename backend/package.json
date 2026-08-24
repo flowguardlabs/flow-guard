@@ -19,7 +19,8 @@
     "backfill:logical-ids": "node scripts/backfill-logical-ids.mjs",
     "deploy:chipnet:legacy": "NODE_OPTIONS='--no-warnings --experimental-loader ./node_modules/tsx/dist/esm/index.mjs' node --loader tsx/esm src/scripts/deploy-chipnet.ts || tsx src/scripts/deploy-chipnet.ts",
     "verify:deployment": "tsx src/scripts/verify-deployment.ts",
-    "test:siwx": "tsx test/auth-siwx.smoke.ts && tsx test/auth-siwx.http.smoke.ts"
+    "test:siwx": "tsx test/auth-siwx.smoke.ts && tsx test/auth-siwx.http.smoke.ts && tsx test/auth-txproof-gate.smoke.ts",
+    "scan:placeholders": "node ../scripts/scan-tx-placeholders.mjs"
   },
   "dependencies": {
     "@bitauth/libauth": "3.0.0",

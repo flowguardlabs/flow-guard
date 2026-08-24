@@ -28,6 +28,11 @@ export interface WalletInterface {
   isConnected: boolean;
   address: string | null;
   walletType?: string | null;
+  /**
+   * Forwarded to `authFetch` so it can pick the login path. `false` (currently OPTN)
+   * selects the proof-transaction login. Defaults to `true` when omitted.
+   */
+  supportsMessageSigning?: boolean;
   network?: 'mainnet' | 'testnet' | 'chipnet';
 }
 
