@@ -1,3 +1,7 @@
+# pnpm/action-setup deliberately has no `version:`. It errors when one is given
+# alongside `packageManager` in package.json, and reading the version from there
+# keeps CI on the same pnpm as local checkouts — which the overrides in
+# pnpm-workspace.yaml depend on, since pnpm only reads them from 10.6 onwards.
 name: CI
 
 on:
@@ -17,8 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -60,8 +62,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -87,8 +87,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -109,8 +107,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
