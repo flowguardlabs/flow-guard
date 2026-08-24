@@ -1,0 +1,16 @@
+# Lives at /etc/caddy/Caddyfile on the VPS. Caddy is the only public listener;
+# the backend binds 127.0.0.1:3001 and is not reachable from outside without it.
+#
+# api.flowguard.cash is DNS-only in Cloudflare (grey cloud), not proxied. That is
+# deliberate: Caddy needs to answer the ACME HTTP challenge directly to issue and
+# renew its own certificate. The consequence is that this host is reachable without
+# going through the Cloudflare Worker, which is why the backend authenticates the
+# forwarded client-IP header rather than trusting it (see backend rateLimiter).
+api.flowguard.cash {
+	reverse_proxy 127.0.0.1:3001
+
+	encode gzip
+
+	# Security headers are set by helmet in the backend. Caddy passes them through;
+	# they are not duplicated here so there is one place to change them.
+}

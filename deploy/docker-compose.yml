@@ -1,0 +1,44 @@
+# Production compose for the GreenCloud VPS. Lives at /root/flowguard on the host.
+#
+# Both services read secrets from ./backend/.env, which is NOT in this repo and never
+# should be. deploy/README.md lists every key it must contain.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      # Reachable only over the compose network; the indexer runs in its own
+      # container, so without this the public status page cannot see it at all and
+      # reports `unknown` whether it is healthy or dead.
+      INDEXER_STATUS_URL: "http://indexer:8080/status"
+    # Loopback only. Caddy terminates TLS and is the sole public entry point.
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      - indexer
+    restart: unless-stopped
+    mem_limit: 1200m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    env_file: ./backend/.env
+    environment:
+      NODE_ENV: production
+      # Must be set explicitly. The indexer falls back to PORT when STATUS_PORT is
+      # absent, and the shared backend/.env sets PORT=3001 — so without this its
+      # status server would bind 3001 and INDEXER_STATUS_URL above would miss it.
+      STATUS_PORT: "8080"
+    # No ports mapping: only the backend talks to it, over the compose network.
+    restart: unless-stopped
+    mem_limit: 700m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
