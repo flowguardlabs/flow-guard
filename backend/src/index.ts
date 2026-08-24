@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import vaultsRouter from './api/vaults.js';
@@ -37,9 +38,46 @@ dotenv.config();
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-// Trust first proxy (Vercel / Railway / nginx) so rate-limit + req.ip see real client addresses.
-// Must be set BEFORE route/middleware registration.
+// One proxy hop in front of us: Caddy on the VPS, terminating TLS and forwarding to
+// 127.0.0.1:3001. Must be set BEFORE route/middleware registration.
+//
+// This makes req.ip the address Caddy saw, which for traffic arriving through the
+// Cloudflare Worker is a Cloudflare egress address, not the visitor. Rate limiting
+// therefore does not key on req.ip alone — see clientRateLimitKey.
 app.set('trust proxy', 1);
+
+/**
+ * Security headers. The API is JSON-only and never renders HTML, so the useful set
+ * is narrow: stop it being framed, stop MIME sniffing, force HTTPS on repeat visits,
+ * and drop the Express fingerprint.
+ *
+ * crossOriginResourcePolicy is deliberately 'cross-origin' rather than helmet's
+ * 'same-origin' default. This API is meant to be called from other origins under
+ * CORS (the wallet add-on, and any SDK consumer); the same-origin default would
+ * block exactly those reads that the allowlist above is there to permit.
+ */
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // helmet defaults this to SAMEORIGIN, which would contradict the
+  // frame-ancestors 'none' above for older browsers that only honour the header.
+  frameguard: { action: 'deny' },
+  referrerPolicy: { policy: 'no-referrer' },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    // No preload: that is a one-way door on the public HSTS list and belongs to a
+    // deliberate decision about the whole flowguard.cash zone, not to this service.
+    preload: false,
+  },
+}));
 
 // CORS allowlist — explicit. Wildcard reflection + credentials is a cross-site takeover vector.
 // Configure via CORS_ALLOWED_ORIGINS (comma-separated). Supports exact match and *.host wildcard patterns.
@@ -91,12 +129,26 @@ function originAllowed(origin: string): boolean {
   });
 }
 
+/**
+ * Marker for a rejected cross-origin request, so the handler below can answer 403
+ * instead of letting it fall through to the generic 500. `cors` has no other way to
+ * signal refusal: its origin callback either allows or errors.
+ */
+class OriginNotAllowedError extends Error {
+  readonly origin: string;
+  constructor(origin: string) {
+    super(`Origin not allowed: ${origin}`);
+    this.name = 'OriginNotAllowedError';
+    this.origin = origin;
+  }
+}
+
 app.use(cors({
   origin: (origin, callback) => {
     // Same-origin / curl / server-side: no Origin header — allow; nothing to leak cross-site.
     if (!origin) return callback(null, true);
     if (originAllowed(origin)) return callback(null, true);
-    return callback(new Error(`Origin not allowed: ${origin}`));
+    return callback(new OriginNotAllowedError(origin));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -112,6 +164,24 @@ app.use(cors({
   maxAge: 86400,
   optionsSuccessStatus: 200,
 }));
+
+/**
+ * A disallowed origin is a configuration answer, not a server fault. Left to the
+ * generic handler it surfaced as 500 INTERNAL_ERROR, which reads as "the API is
+ * broken" and sent people debugging the wrong thing. Deliberately still a hard
+ * refusal rather than a silent `callback(null, false)`: a missing allowlist entry
+ * should fail loudly, and no ACAO header is emitted either way.
+ */
+app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (!(err instanceof OriginNotAllowedError)) return next(err);
+  res.status(403).json({
+    error: 'ORIGIN_NOT_ALLOWED',
+    message: 'This origin is not in the API allowlist.',
+    origin: err.origin,
+    timestamp: Date.now(),
+  });
+});
+
 app.use(express.json({ limit: '1mb' }));
 
 // Structured access logs + per-request correlation ID (also surfaced as
