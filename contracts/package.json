@@ -15,6 +15,7 @@
     "check:streaming": "cashc core/streaming/VestingCovenant.cash > /dev/null && cashc core/streaming/FtVestingCovenant.cash > /dev/null && cashc core/streaming/HybridVestingCovenant.cash > /dev/null && cashc core/streaming/RecurringPaymentCovenant.cash > /dev/null && cashc core/streaming/TrancheVestingCovenant.cash > /dev/null",
     "check:distribution": "cashc core/distribution/AirdropCovenant.cash > /dev/null && cashc core/distribution/RewardCovenant.cash > /dev/null && cashc core/distribution/BountyCovenant.cash > /dev/null && cashc core/distribution/GrantCovenant.cash > /dev/null",
     "check:governance": "cashc core/governance/VoteLockCovenant.cash > /dev/null && cashc core/governance/TallyCommitment_FixedMax.cash > /dev/null && cashc core/governance/TallyCommitment_Attested.cash > /dev/null",
+    "check:drift": "node ../scripts/check-artifact-drift.mjs",
     "test": "npm run test:unit",
     "test:unit": "mocha tests/current/**/*.test.mjs",
     "test:streaming": "mocha tests/current/streaming/**/*.test.mjs",

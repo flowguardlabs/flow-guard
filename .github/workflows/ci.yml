@@ -37,6 +37,7 @@ jobs:
           for f in artifacts/treasury/VaultCovenant.json \
                    artifacts/treasury/ProposalCovenant.json \
                    artifacts/streaming/VestingCovenant.json \
+                   artifacts/streaming/FtVestingCovenant.json \
                    artifacts/streaming/HybridVestingCovenant.json \
                    artifacts/streaming/RecurringPaymentCovenant.json \
                    artifacts/streaming/TrancheVestingCovenant.json \
@@ -49,6 +50,8 @@ jobs:
                    artifacts/governance/TallyCommitment_Attested.json; do
             test -s "$f" || { echo "missing or empty artifact: $f" >&2; exit 1; }
           done
+      - name: No artifact drift (rebuild must match what is committed)
+        run: node scripts/check-artifact-drift.mjs
 
   backend:
     name: Backend (typecheck + build)
