@@ -92,5 +92,9 @@ bch refrences/
 internal/
 .vercel
 video/
-zkstark_pkg/.wrangler
+
+# Standalone STARK/CashVM research (own package.json, no coupling to the app).
+# Kept on disk, out of this repo's history.
+zkstark_pkg/
+
 frontend/.env.cf.production
