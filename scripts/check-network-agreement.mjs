@@ -53,16 +53,26 @@ function readFrontendNetwork(explicitPath) {
   return null;
 }
 
+/**
+ * Reads the backend's resolved network from /api/status.
+ *
+ * Not from `GET /api`, which also reports it: the proposals router is mounted at
+ * /api and defines its own `/`, so it shadows that handler and returns the proposal
+ * list instead. This check silently reported UNDETERMINED against every live
+ * backend until it was repointed here. /api/status is unauthenticated and is the
+ * same source the frontend's networkGuard uses.
+ */
 async function readBackendNetwork(apiBase) {
-  const url = `${apiBase.replace(/\/+$/, '')}/api`;
+  const url = `${apiBase.replace(/\/+$/, '')}/api/status`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const body = await response.json();
-    if (!body?.network) throw new Error('response has no "network" field');
-    return { network: canonical(body.network), source: url, raw: String(body.network) };
+    const name = body?.network?.name;
+    if (!name) throw new Error('response has no "network.name" field');
+    return { network: canonical(name), source: url, raw: String(name) };
   } finally {
     clearTimeout(timer);
   }
@@ -84,7 +94,7 @@ async function main(argv) {
     backend = await readBackendNetwork(apiBase);
   } catch (error) {
     const reason = error.name === 'AbortError' ? `no response within ${REQUEST_TIMEOUT_MS}ms` : error.message;
-    console.error(`UNDETERMINED — could not read backend network from ${apiBase}/api: ${reason}`);
+    console.error(`UNDETERMINED — could not read backend network from ${apiBase}/api/status: ${reason}`);
     console.error('Is the backend running? Pass --api <base-url> if it is elsewhere.');
     return EXIT_UNDETERMINED;
   }
