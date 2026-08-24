@@ -8,26 +8,9 @@ const API_ORIGIN = 'https://api.flowguard.cash';
 const CLIENT_IP_HEADER = 'x-flowguard-client-ip';
 const EDGE_SECRET_HEADER = 'x-flowguard-edge-secret';
 
-/**
- * Headers added to every static asset response.
- *
- * The API sets its own via helmet; these cover the SPA, which is the surface that
- * actually renders and prompts for wallet signatures. frame-ancestors is the one
- * that matters: without it any page can iframe the app and trick a visitor into
- * approving a transaction they cannot see the context of.
- *
- * No Content-Security-Policy beyond frame-ancestors. The app loads wallet SDKs that
- * open WebSockets to several relays and fetch remote token metadata, so a script-src
- * or connect-src policy needs to be derived from that real list and tested against a
- * live wallet connection, not guessed at here.
- */
-const ASSET_SECURITY_HEADERS = {
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Content-Security-Policy': "frame-ancestors 'none'",
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-};
+// Security headers for the SPA live in public/_headers, not here: asset requests
+// never reach this Worker (see run_worker_first in wrangler.jsonc), so they are
+// applied by Workers Static Assets at the edge instead.
 
 function proxyToApi(request, url, env) {
   // Deriving the outbound request from the inbound one keeps method, body and
@@ -51,25 +34,12 @@ function proxyToApi(request, url, env) {
   return fetch(proxied);
 }
 
-async function serveAsset(request, env) {
-  const response = await env.ASSETS.fetch(request);
-  const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(ASSET_SECURITY_HEADERS)) {
-    headers.set(name, value);
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) {
       return proxyToApi(request, url, env);
     }
-    return serveAsset(request, env);
+    return env.ASSETS.fetch(request);
   },
 };

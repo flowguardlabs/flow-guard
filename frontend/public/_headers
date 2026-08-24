@@ -1,0 +1,21 @@
+# Security headers for the static SPA.
+#
+# Applied by Workers Static Assets at the edge. They cannot be set from worker.js:
+# `run_worker_first: ["/api/*"]` in wrangler.jsonc means asset requests never reach
+# Worker code, which is the point — one Worker invocation per image would be waste.
+#
+# The API sets its own headers via helmet; these cover the app itself, which is the
+# surface that renders and prompts for wallet signatures.
+#
+# frame-ancestors is the one that matters here: without it any page can iframe the
+# app and get a transaction approved out of context.
+#
+# No script-src or connect-src. The app loads wallet SDKs that open WebSockets to
+# several relays and fetch remote token metadata; that policy has to be derived from
+# the real list and tested against a live wallet connection, not guessed at.
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Content-Security-Policy: frame-ancestors 'none'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
