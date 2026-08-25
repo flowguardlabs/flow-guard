@@ -81,7 +81,11 @@
   "navigation": [
     {
       "group": "Getting Started",
-      "pages": ["introduction", "security", "roadmap"]
+      "pages": [
+        "introduction",
+        "security",
+        "roadmap"
+      ]
     },
     {
       "group": "Concepts",
@@ -93,21 +97,34 @@
         "concepts/wallet-options",
         {
           "group": "Vaults",
-          "pages": ["concepts/vaults"]
+          "pages": [
+            "concepts/vaults"
+          ]
         },
         {
           "group": "Streaming",
-          "pages": ["concepts/vesting", "concepts/recurring-payments"]
+          "pages": [
+            "concepts/vesting",
+            "concepts/recurring-payments"
+          ]
         },
         {
           "group": "Distribution",
-          "pages": ["concepts/airdrops", "concepts/grants", "concepts/bounties", "concepts/rewards"]
+          "pages": [
+            "concepts/airdrops",
+            "concepts/grants",
+            "concepts/bounties",
+            "concepts/rewards"
+          ]
         },
         {
           "group": "Governance",
-          "pages": ["concepts/governance"]
+          "pages": [
+            "concepts/governance"
+          ]
         },
-        "concepts/executor-network"
+        "concepts/executor-network",
+        "concepts/distribution"
       ]
     },
     {
@@ -147,19 +164,32 @@
         },
         {
           "group": "Airdrops",
-          "pages": ["guides/airdrops/create", "guides/airdrops/claim", "guides/airdrops/manage"]
+          "pages": [
+            "guides/airdrops/create",
+            "guides/airdrops/claim",
+            "guides/airdrops/manage"
+          ]
         },
         {
           "group": "Grants",
-          "pages": ["guides/grants/create", "guides/grants/milestones"]
+          "pages": [
+            "guides/grants/create",
+            "guides/grants/milestones"
+          ]
         },
         {
           "group": "Bounties",
-          "pages": ["guides/bounties/create", "guides/bounties/claim"]
+          "pages": [
+            "guides/bounties/create",
+            "guides/bounties/claim"
+          ]
         },
         {
           "group": "Rewards",
-          "pages": ["guides/rewards/create", "guides/rewards/issue"]
+          "pages": [
+            "guides/rewards/create",
+            "guides/rewards/issue"
+          ]
         },
         {
           "group": "Governance",
@@ -192,6 +222,15 @@
         "reference/shared-types",
         "reference/access-control",
         "reference/errors"
+      ]
+    },
+    {
+      "group": "SDK",
+      "pages": [
+        "sdk/overview",
+        "sdk/subscriptions",
+        "sdk/wallets",
+        "sdk/errors"
       ]
     },
     {

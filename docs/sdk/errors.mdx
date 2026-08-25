@@ -1,0 +1,103 @@
+---
+title: "Errors"
+description: "Typed errors, which are safe to retry, and the one that must never be shown as a failure."
+icon: "triangle-exclamation"
+---
+
+Every error the SDK throws extends `FlowGuardError`, so one `catch` covers the surface
+while still letting you branch structurally instead of matching on message text.
+
+```ts
+import {
+  FlowGuardError,
+  ApiError,
+  AuthError,
+  WalletError,
+  ConfirmationPendingError,
+} from '@flowguard/sdk';
+```
+
+| Class | Meaning |
+|---|---|
+| `ApiError` | Non-2xx response. Carries `status`, `code`, `retryable` |
+| `WalletError` | Wallet declined, or lacks a capability the action needs |
+| `AuthError` | SIWX login failed — nonce expired, signature rejected |
+| `ConfirmationPendingError` | Broadcast succeeded, confirmation did not arrive. Carries `txHash` |
+
+## The one that matters
+
+<Warning>
+  `ConfirmationPendingError` is **not** a failure. The transaction was broadcast. The money
+  may well have moved, and only FlowGuard's record of it is behind.
+
+  Showing a user "your payment failed" here invites them to pay twice.
+</Warning>
+
+```ts
+try {
+  await flowguard.subscriptions.subscribe({ /* ... */ });
+} catch (error) {
+  if (error instanceof ConfirmationPendingError) {
+    show(`Payment sent and confirming. Do not pay again. Transaction: ${error.txHash}`);
+    return;
+  }
+  throw error;
+}
+```
+
+The txid is on the error so you can link it to an explorer and re-check later. Poll
+`subscriptions.status()` rather than retrying the payment.
+
+## API errors
+
+```ts
+try {
+  await flowguard.payments.get(id);
+} catch (error) {
+  if (error instanceof ApiError) {
+    console.error(error.status, error.code, error.message);
+  }
+}
+```
+
+`retryable` is true for `429` and `5xx` — cases where the identical request can succeed
+later. A `400` will fail identically forever, and retrying it only delays the error.
+
+Common codes:
+
+| Code | Status | Meaning |
+|---|---|---|
+| `INVALID_INPUT` | 400 | Malformed or missing field |
+| `RATE_LIMIT_EXCEEDED` | 429 | Over the window. Back off |
+| `ORIGIN_NOT_ALLOWED` | 403 | Browser origin not on the API allowlist |
+
+`ORIGIN_NOT_ALLOWED` is a configuration answer, not a server fault. Server-to-server calls
+send no `Origin` header and never see it.
+
+## Wallet errors
+
+```ts
+if (error instanceof WalletError) {
+  // Usually the user declining, which is not worth logging as a fault.
+}
+```
+
+Also raised when a read-only client is asked to do something that needs signing — the
+message says which, and that you need to construct the client with a `wallet`.
+
+## Retry behaviour
+
+The confirm step already retries internally with backoff, and only on failures that can
+change outcome. A node that has not yet seen a transaction broadcast a second ago is
+retryable; a malformed request is not.
+
+Tune it per call where the default six attempts is wrong:
+
+```ts
+await flowguard.payments.fund(paymentId, {
+  retry: { attempts: 10, delayMs: 2000, backoff: 1.5 },
+});
+```
+
+Raise `attempts` when the network is congested. Lower it in a request path where you would
+rather return "pending" quickly than hold the connection open.

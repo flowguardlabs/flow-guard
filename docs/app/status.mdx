@@ -43,9 +43,20 @@ The BCH wallets that work with FlowGuard today:
 
 Any wallet that supports WalletConnect v2 on BCH and can sign CAIP-122 messages will work.
 
-## Testnet
+## Networks
 
-Chipnet is available for development and testing. Use the [Chipnet faucet](https://tbch.googol.cash/) to fund test wallets. Set `VITE_BCH_NETWORK=chipnet` in a local frontend build to target Chipnet.
+The hosted app and API run on **BCH mainnet**. `GET /api/status` reports the network a
+deployment is on as `network.name`, which is the authoritative answer:
+
+```bash
+curl -s https://api.flowguard.cash/api/status | jq .network.name
+```
+
+Chipnet is available for local development. Set `VITE_BCH_NETWORK=chipnet` in a local
+frontend build and `BCH_NETWORK=chipnet` in the backend, and fund test wallets from the
+[Chipnet faucet](https://tbch.googol.cash/). Both sides read the network at build or boot
+and neither switches at runtime, so they must be set to match — see
+[Local Environment](/guides/local-environment).
 
 ## Support
 

@@ -4,33 +4,53 @@ description: "Base URL, authentication, and common response patterns for the Flo
 icon: "code"
 ---
 
-All FlowGuard products are backed by a single Express API. Frontend apps should point `VITE_API_URL` to this backend.
+All FlowGuard products are backed by a single Express API.
+
+<Tip>
+  For JavaScript and TypeScript, the [SDK](/sdk/overview) wraps everything on this page —
+  the login round-trip, the build/sign/confirm sequence, and the ordering rules — in a
+  few typed calls. This page is the reference for what it does underneath, and for
+  integrating from any other language.
+</Tip>
 
 ## Base URL
 
 ```
-http://localhost:3001/api
+https://api.flowguard.cash/api
 ```
 
-In production this points to your Railway (or equivalent) backend deployment.
+Running locally, the backend listens on `http://localhost:3001/api`.
+
+The web app reaches the API at the relative path `/api`, which its Cloudflare Worker
+proxies to the origin above. That makes browser calls same-origin and avoids CORS
+entirely — worth copying if you serve your own frontend behind a proxy.
 
 ## Authentication
 
-Guarded routes use a SIWX (Sign-In With X) bearer flow. Wallets sign a CAIP-122 multi-line message via BIP-322 once per session, exchange the signature for a short-lived bearer token, then attach that token to subsequent requests.
+Guarded routes use a SIWX (Sign-In With X) bearer flow. A wallet signs a CAIP-122
+message once per session, exchanges the signature for a short-lived bearer token, then
+attaches that token to subsequent requests.
 
-The legacy `x-user-address` header is still accepted during migration, but the bearer token is preferred. New integrations should use the bearer flow.
+Every `GET` on this API is public. Only state-changing routes require a bearer, which
+means a service that only needs to *read* — checking whether a subscription is live,
+listing payments — needs no credentials at all.
+
+The legacy `x-user-address` header is still accepted, but the bearer is preferred and
+new integrations should use it.
 
 ### Flow
 
 <Steps>
   <Step title="Request a nonce">
-    The frontend calls `POST /api/auth/nonce` with the wallet address. The backend returns a single-use nonce and the exact CAIP-122 message the wallet must sign.
+    `POST /api/auth/nonce` with the wallet address returns a single-use `nonceId` and
+    the exact message to sign.
   </Step>
   <Step title="Sign and verify">
-    The wallet signs the message using BIP-322 (chipnet or mainnet). The frontend posts the signature to `POST /api/auth/verify` and receives a bearer token. Tokens are HMAC-SHA256 signed and expire 30 minutes after issue.
+    The wallet signs the message with BIP-322. `POST /api/auth/verify` exchanges the
+    signature for a bearer, HMAC-SHA256 signed, expiring 30 minutes after issue.
   </Step>
   <Step title="Authorize requests">
-    Subsequent guarded calls send `Authorization: Bearer <token>`. On `401`, clients should refresh by repeating steps 1 and 2.
+    Send `Authorization: Bearer <token>`. On `401`, repeat steps 1 and 2 once.
   </Step>
 </Steps>
 
@@ -43,19 +63,38 @@ Content-Type: application/json
 
 ```json
 {
-  "address": "bchtest:qr..."
+  "address": "bitcoincash:qpdah7k0pxmqu4sj8t0r4mjvxxwv4f0t7vtytfvnay",
+  "walletType": "walletconnect",
+  "txProof": false
 }
 ```
+
+Only `address` is required. `walletType` and `txProof` select the login path for
+wallets that cannot sign messages — see [Wallets without message signing](#wallets-without-message-signing).
 
 Response:
 
 ```json
 {
-  "nonce": "f3c1a9d8b27e4c0a",
-  "message": "flowguard.app wants you to sign in with your Bitcoin Cash account:\nbchtest:qr...\n\nURI: https://flowguard.app\nVersion: 1\nChain ID: bch:chipnet\nNonce: f3c1a9d8b27e4c0a\nIssued At: 2026-06-11T12:00:00.000Z",
-  "issuedAt": "2026-06-11T12:00:00.000Z"
+  "success": true,
+  "nonceId": "a2Zq2yFOeLoBQwnGTrKI6QBT0jRQc8LJ",
+  "message": "flowguard.cash wants you to sign in with your Bitcoin Cash account:\nbitcoincash:qpdah7k0...\n\nI accept the FlowGuard Terms of Service: https://flowguard.cash/terms\n\nURI: https://www.flowguard.cash\nVersion: 1\nChain ID: bch:bitcoincash\nNonce: a2Zq2yFOeLoBQwnGTrKI6QBT0jRQc8LJ\nIssued At: 2026-08-25T01:10:03.172Z\nExpiration Time: 2026-08-25T01:15:03.172Z",
+  "expiresAt": 1787620503172
 }
 ```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `nonceId` | string | Send this back to `/verify`, not the nonce line from the message |
+| `message` | string | Sign exactly as returned. Any edit invalidates the signature |
+| `expiresAt` | number | Epoch milliseconds. The nonce is valid for five minutes |
+| `authProof` | object | Only for transaction-proof logins. See below |
+
+<Warning>
+  The nonce is single-use and expires in five minutes. Request it immediately before
+  prompting the wallet, not on page load — a user who takes their time approving will
+  otherwise fail verification.
+</Warning>
 
 ### Verify
 
@@ -66,8 +105,8 @@ Content-Type: application/json
 
 ```json
 {
-  "address": "bchtest:qr...",
-  "message": "flowguard.app wants you to sign in with your Bitcoin Cash account:\nbchtest:qr...\n\nURI: https://flowguard.app\nVersion: 1\nChain ID: bch:chipnet\nNonce: f3c1a9d8b27e4c0a\nIssued At: 2026-06-11T12:00:00.000Z",
+  "address": "bitcoincash:qpdah7k0pxmqu4sj8t0r4mjvxxwv4f0t7vtytfvnay",
+  "nonceId": "a2Zq2yFOeLoBQwnGTrKI6QBT0jRQc8LJ",
   "signature": "IEx9...BIP322Base64..."
 }
 ```
@@ -76,102 +115,175 @@ Response:
 
 ```json
 {
-  "token": "eyJhZGRyZXNzIjoiYmNodGVzdDpxci4uLiIsImV4cCI6MTc0OTY0NDgwMH0.9a1b...hmac",
-  "address": "bchtest:qr...",
-  "expiresAt": "2026-06-11T12:30:00.000Z"
+  "success": true,
+  "bearer": "eyJhZGRyZXNzIjoi...9a1b...hmac",
+  "expiresAt": 1787622303172,
+  "verifiedUser": {
+    "address": "bitcoincash:qpdah7k0...",
+    "pubkeyHex": "03cfb0e439eb835f19740f0619058d41a69041aee90c2f02e52eade42dec6efdc0",
+    "legacySiwxFormat": false
+  }
 }
 ```
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `token` | string | HMAC-SHA256 bearer, 30-minute TTL |
-| `address` | string | CashAddr the token is bound to |
-| `expiresAt` | string (ISO 8601) | Token expiry |
+| `bearer` | string | HMAC-SHA256 token, 30-minute TTL |
+| `expiresAt` | number | Epoch milliseconds |
+| `verifiedUser.pubkeyHex` | string | Public key recovered from the signature |
 
-### Authed request
+### Wallets without message signing
 
-```http
-GET /api/streams/mine
-Authorization: Bearer <flowguard-siwx-bearer-from-verify-response>
+Some wallets cannot sign the CAIP-122 message. WizardConnect has no message-signing
+action at all, and OPTN Wallet's Bitcoin-signed-message length prefix is raw hex rather
+than a CompactSize varint, so it cannot sign a message of this length.
+
+Those wallets prove ownership by signing a **non-broadcastable proof transaction**
+instead. Send `txProof: true` (or a recognised `walletType`) when requesting the nonce,
+and the response carries an `authProof` transaction alongside the message. Sign it and
+post to `/api/auth/verify-tx`:
+
+```json
+{
+  "address": "bitcoincash:qpdah7k0...",
+  "nonceId": "a2Zq2yFOeLoBQwnGTrKI6QBT0jRQc8LJ",
+  "signedTransaction": "0200..."
+}
 ```
 
-Curl example:
+The response shape is identical to `/verify`.
+
+The proof transaction is bound to that single nonce and cannot be broadcast, so signing
+it moves no funds and is worthless to anyone else.
+
+### Authenticated request
 
 ```bash
-curl https://api.flowguard.app/api/streams/mine \
-  -H "Authorization: Bearer $FLOWGUARD_TOKEN"
+curl https://api.flowguard.cash/api/payments/create \
+  -X POST \
+  -H "Authorization: Bearer $FLOWGUARD_BEARER" \
+  -H "Content-Type: application/json" \
+  -d '{"recipient":"bitcoincash:qr...","amountPerPeriod":100000,"interval":"MONTHLY"}'
 ```
 
-### Frontend SDK helper
+The authenticated wallet is authoritative for ownership. `POST /api/payments/create`
+binds the sender to the bearer's address and ignores any `sender` in the body.
 
-The frontend ships `authFetch` in `frontend/src/utils/auth.ts`. It wraps `fetch` and handles the SIWX round-trip transparently:
+## Transaction signing
 
-- Caches the bearer in `sessionStorage` keyed by wallet address.
-- Reuses the cached token until it expires.
-- On `401`, drops the cached token, repeats nonce + verify, and retries the original request once.
-
-```ts
-import { authFetch } from "@/utils/auth";
-
-const res = await authFetch("/api/streams/mine");
-const streams = await res.json();
-```
-
-Some create/build routes still take the wallet address in the request body (for example `/api/streams/create`). Follow each endpoint's request spec.
-
-## WalletConnect Transactions
-
-Most on-chain build endpoints return a `wcTransaction` object rather than broadcasting directly. The frontend passes this to the connected wallet (Paytaca, Selene) via WalletConnect v2 using `bch_signTransaction`. After the wallet signs and broadcasts, the frontend calls the corresponding `confirm-*` endpoint with the resulting `txHash`.
+Most on-chain build endpoints return a `wcTransaction` rather than broadcasting. Pass it
+to the connected wallet via WalletConnect v2 `bch_signTransaction`, then call the matching
+`confirm-*` endpoint with the resulting `txHash`.
 
 ```json
 {
   "wcTransaction": {
     "transaction": "0200...",
-    "sourceOutputs": [...],
-    "broadcast": true,
+    "sourceOutputs": [],
+    "broadcast": false,
     "userPrompt": "Fund vesting stream"
   }
 }
 ```
 
-## Common Response Shape
+<Warning>
+  Sign with `broadcast: false`. FlowGuard broadcasts through its own node in the
+  `confirm-*` step so it observes the txid directly; a wallet that broadcasts on its own
+  leaves the API guessing about a transaction it never saw. If your wallet ignores the
+  flag and broadcasts anyway, pass the txid it returns to `confirm-*` as normal.
+</Warning>
 
-Many endpoints include `"success": true` at the top level:
+## Lifecycle pattern
 
-```json
-{
-  "success": true,
-  "stream": { ... }
-}
-```
-
-Some read/list endpoints return plain JSON arrays/objects without a `success` wrapper. Errors return a non-2xx status with `"error"` and optionally `"message"`:
-
-```json
-{
-  "error": "Stream not found"
-}
-```
-
-## Lifecycle Pattern
-
-Most on-chain actions follow this two-step lifecycle:
+Nearly every on-chain action is the same three beats:
 
 <Steps>
   <Step title="Build">
-    Call a build endpoint that returns a wallet payload (for example `GET /api/streams/:id/funding-info`, `POST /api/streams/:id/claim`, or `POST /api/airdrops/:id/pause`).
+    Call the action endpoint — `GET /api/streams/:id/funding-info`,
+    `POST /api/payments/:id/cancel`, `POST /api/airdrops/:id/pause`. It returns a
+    `wcTransaction`.
+  </Step>
+  <Step title="Sign">
+    The wallet signs it. Do not broadcast.
   </Step>
   <Step title="Confirm">
-    After wallet broadcast, call the corresponding `confirm-*` endpoint with `txHash`. The backend verifies on-chain outputs and updates database state.
+    `POST` the matching `confirm-*` endpoint with `txHash`. The backend broadcasts,
+    verifies the on-chain outputs, and updates state.
   </Step>
 </Steps>
 
-Non-transactional endpoints (for example list/get metadata routes) return data directly and do not use build/confirm.
-Some create endpoints (`/api/streams/create`, `/api/payments/create`, `/api/airdrops/create`) return deployment metadata first, then require a separate funding build call.
+Three ordering rules are not obvious from the endpoint list and account for most
+integration bugs:
 
-## Status Values
+<AccordionGroup>
+  <Accordion title="Creating and funding are separate calls">
+    `POST /api/{resource}/create` deploys the contract and returns `PENDING`. Nothing is
+    live until a separate funding build is signed and confirmed. The contract address does
+    not exist until deployment, so the funding amount and address cannot be known before
+    it — which is also why creating a funded resource prompts the wallet twice.
+  </Accordion>
+  <Accordion title="Funding sometimes requires a preparation transaction first">
+    When the sender's UTXO set cannot produce the genesis output the covenant needs,
+    `funding-info` returns this **instead of** funding info:
 
-Most stream/distribution resources share this status lifecycle:
+    ```json
+    {
+      "success": false,
+      "requiresPreparation": true,
+      "preparationTransaction": { "transaction": "0200...", "sourceOutputs": [] },
+      "message": "Your wallet needs a consolidation transaction before funding."
+    }
+    ```
+
+    Sign and broadcast it, then request `funding-info` again. Missing this branch is the
+    most common cause of a confusing funding failure.
+  </Accordion>
+  <Accordion title="A confirm timeout is not a failure">
+    If `confirm-*` does not succeed, the transaction may still have been broadcast and
+    settled — only FlowGuard's record is behind. Retry with backoff, and if it still does
+    not land, surface it as pending with the txid. Never tell a user their payment failed
+    on a confirm timeout; that invites a double payment.
+  </Accordion>
+</AccordionGroup>
+
+## Response shape
+
+Most endpoints wrap success:
+
+```json
+{ "success": true, "stream": {} }
+```
+
+Errors return a non-2xx status with `error`, and usually `message`:
+
+```json
+{ "error": "ORIGIN_NOT_ALLOWED", "message": "This origin is not in the API allowlist." }
+```
+
+`error` is sometimes a machine code (`RATE_LIMIT_EXCEEDED`, `ORIGIN_NOT_ALLOWED`,
+`INVALID_INPUT`) and sometimes prose. Branch on HTTP status first.
+
+## Rate limits
+
+Per client IP, over a 15-minute window. `RateLimit-*` response headers report remaining
+budget.
+
+| Scope | Limit |
+|-------|-------|
+| General `/api/*` | 100 |
+| Read-only queries | 200 (successful reads are not counted) |
+| Creation and build endpoints | 10 |
+| Authentication | 5 |
+
+## CORS
+
+Browser origins must be on the API allowlist. A disallowed origin gets `403` with
+`ORIGIN_NOT_ALLOWED` — a configuration answer, not a server fault. Server-to-server calls
+send no `Origin` header and are unaffected.
+
+## Status values
+
+Most stream and distribution resources share this lifecycle:
 
 | Status | Meaning |
 |--------|---------|
@@ -181,4 +293,17 @@ Most stream/distribution resources share this status lifecycle:
 | `CANCELLED` | Terminated early, funds returned |
 | `COMPLETED` | All obligations fulfilled |
 
-Proposal and governance entities use their own status enums (for example `pending`, `approved`, `executed`, `rejected` for treasury proposals).
+Governance entities use their own enums (`pending`, `approved`, `executed`, `rejected`).
+
+## Network
+
+`GET /api/status` reports the network this deployment runs on as `network.name`:
+
+```bash
+curl -s https://api.flowguard.cash/api/status | jq .network.name
+# "mainnet"
+```
+
+Neither the API nor a frontend switches network at runtime. Check agreement at startup —
+a mismatch is silent, and the first symptom is a wallet prompt for a transaction that
+cannot confirm.

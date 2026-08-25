@@ -8,6 +8,10 @@ Zero runtime dependencies. The wallet does the signing; no private key ever reac
 npm install @flowguard/sdk
 ```
 
+> **Not published yet.** The npm release is pending. Until then, build from the repo:
+> `git clone https://github.com/winsznx/flow-guard && cd flow-guard/sdk && pnpm install && pnpm build`,
+> then import from `dist/`.
+
 Node 18+, or any browser. Works in React, Angular, Vue, Svelte and plain JavaScript — nothing here is framework-aware.
 
 ## Two shapes of client

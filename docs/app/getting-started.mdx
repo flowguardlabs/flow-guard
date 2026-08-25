@@ -30,7 +30,18 @@ FlowGuard works with any WalletConnect v2 compatible BCH wallet:
 
 ## Network
 
-FlowGuard currently runs on **Chipnet** (BCH testnet). You can get test BCH from the [Chipnet faucet](https://tbch.googol.cash/).
+The hosted app at [app.flowguard.cash](https://app.flowguard.cash) runs on **BCH mainnet**.
+Transactions move real funds and cannot be reversed.
+
+<Warning>
+  Review every schedule preview before signing a funding transaction. Streams, payments and
+  distributions are enforced by on-chain covenants, so an amount or recipient you approve is
+  the amount and recipient the contract will honour.
+</Warning>
+
+To try things without real money, run FlowGuard locally against Chipnet — see
+[Local Environment](/guides/local-environment). Network is fixed at build time on both the
+frontend and the backend; the hosted app cannot be switched to testnet from the UI.
 
 ## Choose a Workspace
 
@@ -58,7 +69,7 @@ The two workspaces share the same underlying product flows. The difference is co
 
 ## First Steps
 
-1. Get Chipnet BCH from the [faucet](https://tbch.googol.cash/)
+1. Fund your wallet with BCH. Start with a small amount until you have seen a full flow end to end
 2. Choose whether you are working in a personal or organization context
 3. Create or open a vault if you want treasury-linked operations
 4. Open the stream shape gallery or create a recurring payment

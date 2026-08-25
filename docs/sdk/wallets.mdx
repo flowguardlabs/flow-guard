@@ -1,0 +1,111 @@
+---
+title: "Connecting a Wallet"
+description: "The WalletAdapter interface, and wallets that cannot sign messages."
+icon: "wallet"
+---
+
+The SDK adapts to your wallet rather than the other way round. The interface is
+deliberately small — only what the protocol actually requires — so no wallet SDK is
+pulled in as a dependency.
+
+```ts
+import type { WalletAdapter } from '@flowguard/sdk';
+
+const wallet: WalletAdapter = {
+  getAddress: () => connectedAddress,
+  signMessage: (message) => myWallet.signMessage(message),
+  signTransaction: (tx) => myWallet.signTransaction(tx),
+};
+
+const flowguard = new FlowGuardClient({ wallet });
+```
+
+| Member | Required | Purpose |
+|---|---|---|
+| `getAddress()` | yes | The connected cash address. Must be P2PKH |
+| `signTransaction(tx)` | yes | Sign a covenant-aware transaction |
+| `signMessage(msg)` | no | Sign the login string. Omit if the wallet cannot |
+| `supportsMessageSigning` | no | Force the login path. Inferred otherwise |
+| `walletType` | no | Label forwarded to the API |
+
+`signTransaction` receives the WalletConnect v2 `bch_signTransaction` payload — hex plus
+the source outputs — which is what every BCH wallet with covenant support already speaks.
+
+## Wallets that cannot sign messages
+
+Not every wallet can sign the ~380-byte CAIP-122 login string.
+
+- **WizardConnect** (hdwalletv1) has no message-signing action at all.
+- **OPTN Wallet** has one, but its Bitcoin-signed-message length prefix is raw hex rather
+  than a CompactSize varint, so it cannot sign a message of that length.
+
+Those wallets log in by signing a **non-broadcastable proof transaction** instead. Declare
+it and the SDK routes around it:
+
+```ts
+const wallet: WalletAdapter = {
+  getAddress: () => connectedAddress,
+  signTransaction: (tx) => myWallet.signTransaction(tx),
+  supportsMessageSigning: false,
+  walletType: 'optn',
+};
+```
+
+The proof transaction is bound to a single-use nonce and cannot be broadcast, so signing
+it moves no funds and proves only that the signer holds the key. It is worthless to
+anyone else.
+
+<Note>
+  Leaving `supportsMessageSigning` undefined makes the SDK infer it from whether you
+  provided `signMessage`. Setting it explicitly is clearer, and required if your adapter
+  exposes a `signMessage` that does not work for messages this long.
+</Note>
+
+## Sessions
+
+The first signing action runs the login and caches a bearer for ~30 minutes. Later calls
+reuse it, and concurrent calls share one login rather than opening several prompts.
+
+Bearers are held in memory per client instance by default — nothing is written to disk or
+to a browser. In a browser, persist across refreshes:
+
+```ts
+import { WebStorageTokenStore } from '@flowguard/sdk';
+
+new FlowGuardClient({
+  wallet,
+  tokenStore: new WebStorageTokenStore(window.sessionStorage),
+});
+```
+
+`sessionStorage` survives a refresh but not a browser close, which lines up with the
+bearer TTL. Use `localStorage` only if you want the session to outlive the tab, and weigh
+that against leaving a usable token on a shared machine.
+
+Implement `TokenStore` yourself to share sessions across processes:
+
+```ts
+import type { TokenStore } from '@flowguard/sdk';
+
+const redisStore: TokenStore = {
+  get: (key) => redis.get(key),
+  set: (key, value) => redis.set(key, value, 'EX', 1800),
+  delete: (key) => redis.del(key),
+};
+```
+
+Drop the cached bearer to force a fresh login:
+
+```ts
+await flowguard.signOut();
+```
+
+## Signing without a broadcast
+
+The SDK always sets `broadcast: false`. FlowGuard broadcasts through its own node in the
+confirm step so it observes the txid directly; a wallet that broadcasts on its own leaves
+the API guessing about a transaction it never saw.
+
+Some wallets ignore the flag. If yours returns a txid instead of hex, the SDK detects that
+and passes the txid to the confirm step, so it still works — you do not need to special-case
+it.

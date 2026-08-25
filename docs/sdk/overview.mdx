@@ -1,0 +1,143 @@
+---
+title: "SDK Overview"
+description: "TypeScript client for embedding FlowGuard in your own frontend or backend."
+icon: "cube"
+---
+
+`@flowguard/sdk` is the TypeScript client for FlowGuard. It exists so you do not have to
+use FlowGuard's frontend: build your own checkout, gate your own API, keep users on your
+own site.
+
+Zero runtime dependencies, no framework coupling, and no private key ever reaches it —
+the wallet does all signing and there is nowhere to put a key.
+
+```bash
+npm install @flowguard/sdk
+```
+
+Node 18+, or any browser. Works with React, Angular, Vue, Svelte, or none of them.
+
+## Two shapes of client
+
+Which one you want follows from what you are building. The two sides of a paid service
+are not symmetric.
+
+<CardGroup cols={2}>
+  <Card title="Read-only" icon="eye">
+    No wallet, no key, no auth. Everything the API exposes publicly: list payments, check
+    a subscription, read status and price. This is what a server uses to gate access, and
+    it holds no secret.
+  </Card>
+  <Card title="With a wallet" icon="pen-nib">
+    Adds every state-changing action — create, fund, pause, cancel, claim. The wallet
+    signs; the SDK never sees a key.
+  </Card>
+</CardGroup>
+
+```ts
+import { FlowGuardClient } from '@flowguard/sdk';
+
+// read-only
+const flowguard = new FlowGuardClient();
+
+// signing
+const flowguard = new FlowGuardClient({ wallet });
+```
+
+`baseUrl` defaults to `https://api.flowguard.cash`. Point it at `http://localhost:3001`
+for local work, or at your own origin when you proxy `/api` yourself.
+
+## Gate an API on a subscription
+
+The check is one public `GET`. Cheap enough for a request path, and it carries nothing
+secret.
+
+```ts
+const flowguard = new FlowGuardClient();
+
+app.use('/v1', async (req, res, next) => {
+  const subscriber = req.header('x-bch-address');
+  if (!subscriber) return res.status(401).json({ error: 'ADDRESS_REQUIRED' });
+
+  if (await flowguard.subscriptions.isActive(subscriber, MY_ADDRESS)) return next();
+
+  res.status(402).json({
+    error: 'SUBSCRIPTION_REQUIRED',
+    subscribe: { serviceAddress: MY_ADDRESS, amountPerPeriod: 100_000, interval: 'MONTHLY' },
+  });
+});
+```
+
+See [Subscriptions](/sdk/subscriptions) for the full pattern, including caching and what
+to do when FlowGuard itself is unreachable.
+
+## Take a payment
+
+```ts
+const flowguard = new FlowGuardClient({ wallet });
+
+await flowguard.subscriptions.subscribe({
+  serviceAddress: MY_ADDRESS,
+  amountPerPeriod: 100_000,   // satoshis per period
+  interval: 'MONTHLY',
+});
+```
+
+That one call deploys the contract, funds it, and waits for confirmation. It prompts the
+wallet twice, which is inherent rather than an oversight — the contract address does not
+exist until it is deployed, and you cannot fund an address you do not yet know.
+
+## What the SDK handles for you
+
+Calling the API directly is not hard. Calling it *in the right order* is where the time
+goes, and these three are invisible from the endpoint list:
+
+<AccordionGroup>
+  <Accordion title="Creating and funding are separate">
+    A new resource is `PENDING` and inert until funded. `subscribe()` and `payments.fund()`
+    sequence both steps.
+  </Accordion>
+  <Accordion title="Funding sometimes needs a consolidation transaction first">
+    When the sender's coins cannot produce the genesis output the covenant needs, the API
+    returns a preparation transaction *instead of* funding info. `payments.fund()` signs
+    it, broadcasts it, and re-fetches — you never see the branch.
+  </Accordion>
+  <Accordion title="A confirm timeout is not a failure">
+    `ConfirmationPendingError` means the transaction **was** broadcast and only FlowGuard's
+    record is behind. It carries the txid. Render it as pending, never as failed — see
+    [Errors](/sdk/errors).
+  </Accordion>
+</AccordionGroup>
+
+It also runs the SIWX login on the first signing action and caches the bearer for ~30
+minutes. Concurrent calls share one login rather than opening several wallet prompts.
+
+## Check the network first
+
+Neither side switches network at runtime, and a mismatch is silent: addresses and explorer
+links get derived for one network while transactions are built and broadcast on the other.
+
+```ts
+if (await flowguard.network.network() !== 'mainnet') {
+  throw new Error('API is not on mainnet — do not fund anything');
+}
+```
+
+## Reference
+
+<CardGroup cols={2}>
+  <Card title="Subscriptions" icon="repeat" href="/sdk/subscriptions">
+    Gating, checkout, collecting what you are owed
+  </Card>
+  <Card title="Wallets" icon="wallet" href="/sdk/wallets">
+    The adapter interface, and wallets that cannot sign messages
+  </Card>
+  <Card title="Errors" icon="triangle-exclamation" href="/sdk/errors">
+    Typed errors and which ones are safe to retry
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    The HTTP surface underneath
+  </Card>
+</CardGroup>
+
+Source and runnable examples live in [`sdk/`](https://github.com/winsznx/flow-guard/tree/main/sdk).

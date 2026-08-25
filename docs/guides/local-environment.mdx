@@ -40,9 +40,19 @@ DATABASE_PATH=./flowguard-chipnet.db
 Required variables in `frontend/.env`:
 
 ```env
-VITE_API_URL=http://localhost:3001/api
 VITE_BCH_NETWORK=chipnet
 ```
+
+<Note>
+  There is no `VITE_API_URL`. The frontend calls the relative path `/api`, which Vite's dev
+  server proxies to the backend locally and a Cloudflare Worker proxies in production. That
+  keeps browser requests same-origin and avoids CORS on both.
+
+  `VITE_BCH_NETWORK` must match `BCH_NETWORK` in `backend/.env`. Neither side reads the
+  network at runtime, so a mismatch is silent: the app derives addresses and explorer links
+  for one network while the backend builds transactions on the other. Run
+  `node scripts/check-network-agreement.mjs` to confirm they agree.
+</Note>
 
 ## Get Chipnet BCH
 

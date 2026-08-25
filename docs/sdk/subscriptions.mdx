@@ -1,0 +1,153 @@
+---
+title: "Subscriptions"
+description: "Gate an API or a feature on a recurring on-chain payment."
+icon: "repeat"
+---
+
+A subscription is a recurring payment pointed at your address. There is no separate
+contract behind it — it is a reading of `RecurringPaymentCovenant`, which names
+subscriptions in its own header, named for the case people actually want to build.
+
+The two sides are deliberately asymmetric. Checking whether someone is paying you is a
+public read with no credentials. Starting or cancelling a subscription needs the
+subscriber's wallet, because only they can authorise money leaving their address.
+
+## Checking access
+
+```ts
+import { FlowGuardClient } from '@flowguard/sdk';
+
+const flowguard = new FlowGuardClient();
+
+const active = await flowguard.subscriptions.isActive(subscriberAddress, MY_ADDRESS);
+```
+
+No wallet, no key, no auth. Safe in an edge function or a request path.
+
+### Why someone is locked out
+
+`status()` returns the reason, which is worth surfacing. `pending_funding` and `lapsed`
+are very different problems for a user to fix, and a bare `402` tells them neither.
+
+```ts
+const { active, reason, paidThrough, payment } = await flowguard.subscriptions.status(
+  subscriberAddress,
+  MY_ADDRESS,
+);
+```
+
+| `reason` | Meaning | What the user should do |
+|---|---|---|
+| `undefined` | Active | — |
+| `none` | Never subscribed | Subscribe |
+| `pending_funding` | Contract deployed, not funded | Complete the funding step |
+| `paused` | Sender paused it | Resume |
+| `cancelled` | Terminated | Subscribe again |
+| `completed` | Ran to its end date | Subscribe again |
+| `lapsed` | Period elapsed, unpaid past the grace window | Top up or resubscribe |
+
+<Note>
+  An active subscription stays active for 24 hours past `next_payment_date`. Collection is
+  permissionless, so there is a real gap between a period elapsing and someone triggering
+  the pull. Without a grace window every subscriber would flicker out during it.
+</Note>
+
+## The gating middleware
+
+```ts
+const CACHE_TTL_MS = 60_000;
+const NEGATIVE_CACHE_TTL_MS = 5_000;
+const cache = new Map<string, { active: boolean; expiresAt: number }>();
+
+async function hasActiveSubscription(subscriber: string): Promise<boolean> {
+  const hit = cache.get(subscriber);
+  if (hit && hit.expiresAt > Date.now()) return hit.active;
+
+  const active = await flowguard.subscriptions.isActive(subscriber, MY_ADDRESS);
+  cache.set(subscriber, {
+    active,
+    expiresAt: Date.now() + (active ? CACHE_TTL_MS : NEGATIVE_CACHE_TTL_MS),
+  });
+  return active;
+}
+```
+
+Cache positives for a minute and negatives for a few seconds. Someone who has just paid
+should not have to wait out a TTL to get in, while a burst of requests from one user
+should not be a burst of identical lookups.
+
+### When FlowGuard is unreachable
+
+Decide this deliberately.
+
+```ts
+try {
+  if (await hasActiveSubscription(subscriber)) return next();
+} catch (error) {
+  if (error instanceof ApiError && error.retryable) {
+    // Fail open: a FlowGuard outage should not become your outage.
+    return next();
+  }
+  throw error;
+}
+```
+
+Failing open is right for a read API, where wrongly denying a paying customer is worse
+than briefly serving someone who lapsed. Invert it wherever wrongly granting access costs
+more than wrongly denying it.
+
+## Subscribing
+
+```ts
+const flowguard = new FlowGuardClient({ wallet });
+
+const result = await flowguard.subscriptions.subscribe({
+  serviceAddress: MY_ADDRESS,
+  serviceName: 'BCH Explorer Pro',
+  amountPerPeriod: 100_000,   // satoshis
+  interval: 'MONTHLY',
+});
+```
+
+Intervals: `DAILY`, `WEEKLY`, `BIWEEKLY`, `MONTHLY`, `YEARLY`.
+
+Omit `endDate` for an open-ended subscription, which is usually what you want.
+`cancelable` defaults to true so a subscriber can always leave.
+
+Both the service address and the subscriber address must be P2PKH. Contract addresses
+are rejected.
+
+## Collecting
+
+`pay()` is permissionless at the covenant level, so your backend can sweep on a schedule
+with no subscriber online.
+
+```ts
+const { collected, failed } = await flowguard.subscriptions.collectDue(MY_ADDRESS);
+```
+
+Failures are collected rather than thrown — one subscriber's exhausted contract should
+not stop the sweep. Log `failed` and move on.
+
+<Warning>
+  `collectDue()` needs a wallet, and each collection is an on-chain transaction with a
+  fee. Sweeping far more often than your billing interval spends more in fees than it
+  collects.
+</Warning>
+
+## Cancelling
+
+```ts
+await flowguard.subscriptions.cancel(paymentId);
+```
+
+Returns the unspent remainder to the subscriber. Only the sender can cancel, and only if
+the contract was created with `cancelable` set.
+
+## Full example
+
+A runnable Express gate with caching and the fail-open policy:
+[`sdk/examples/subscription-gate.ts`](https://github.com/winsznx/flow-guard/blob/main/sdk/examples/subscription-gate.ts).
+
+A framework-free checkout with staged progress events:
+[`sdk/examples/subscribe-checkout.ts`](https://github.com/winsznx/flow-guard/blob/main/sdk/examples/subscribe-checkout.ts).

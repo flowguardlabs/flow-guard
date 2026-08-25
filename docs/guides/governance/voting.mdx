@@ -13,11 +13,11 @@ When a proposal is created on-chain, each vault signer receives a notification. 
     Navigate to **Governance → Proposals** in the vault and click the pending proposal.
   </Step>
   <Step title="Approve on-chain">
-    Click **Approve**. The app calls `POST /api/proposals/:id/approve-onchain`. Sign the approval
+    Click **Approve**. The app calls `POST /api/:id/approve-onchain`. Sign the approval
     `wcTransaction` in your wallet.
   </Step>
   <Step title="Confirm">
-    After broadcasting, the app calls `POST /api/proposals/:id/confirm-approval`. Your address is
+    After broadcasting, the app calls `POST /api/:id/confirm-approval`. Your address is
     added to the `approvals` list. When 2 of 3 signers approve, the proposal moves to `approved`.
   </Step>
 </Steps>
@@ -28,12 +28,12 @@ Once the proposal is `approved`, any of the 2 signers who approved can initiate 
 
 <Steps>
   <Step title="Initiate execute">
-    Click **Execute Payout**. The app calls `POST /api/proposals/:id/execute`. The backend selects
+    Click **Execute Payout**. The app calls `POST /api/:id/execute`. The backend selects
     the 2-signer pair and returns a `wcTransaction` with `"broadcast": false`. Sign but do **not**
     broadcast yet so the session can collect the required signatures first.
   </Step>
   <Step title="Submit signature">
-    Call `POST /api/proposals/:id/execute-signature` with the `sessionId` and your
+    Call `POST /api/:id/execute-signature` with the `sessionId` and your
     `signedTransaction`. The first signer submits their partial signature.
   </Step>
   <Step title="Second signer signs">

@@ -36,8 +36,8 @@ flowchart LR
   </Step>
   <Step title="Submit">
     This creates the proposal record with `POST /api/vaults/:vaultId/proposals`. Then fund the
-    on-chain proposal covenant with: `POST /api/proposals/:id/create-onchain` and `POST
-    /api/proposals/:id/confirm-create`.
+    on-chain proposal covenant with: `POST /api/:id/create-onchain` and `POST
+    /api/:id/confirm-create`.
   </Step>
 </Steps>
 
@@ -45,8 +45,8 @@ flowchart LR
 
 Each signer clicks **Approve** in the proposal UI.
 
-- Build approval tx: `POST /api/proposals/:id/approve-onchain`
-- Confirm approval: `POST /api/proposals/:id/confirm-approval`
+- Build approval tx: `POST /api/:id/approve-onchain`
+- Confirm approval: `POST /api/:id/confirm-approval`
 
 Once approvals reach the required threshold, status transitions to `approved`.
 
@@ -54,8 +54,8 @@ Once approvals reach the required threshold, status transitions to `approved`.
 
 Execution uses a 2-signer session:
 
-- Start session: `POST /api/proposals/:id/execute`
-- Submit first/second signed tx: `POST /api/proposals/:id/execute-signature`
+- Start session: `POST /api/:id/execute`
+- Submit first/second signed tx: `POST /api/:id/execute-signature`
 
 When enough signatures are collected, backend broadcasts the final transaction and marks proposal executed.
 
@@ -67,10 +67,10 @@ Proposal covenant functions such as `cancel()` and `expire()` exist at contract 
 
 ```bash
 POST /api/vaults/:vaultId/proposals
-POST /api/proposals/:id/create-onchain
-POST /api/proposals/:id/confirm-create
-POST /api/proposals/:id/approve-onchain
-POST /api/proposals/:id/confirm-approval
-POST /api/proposals/:id/execute
-POST /api/proposals/:id/execute-signature
+POST /api/:id/create-onchain
+POST /api/:id/confirm-create
+POST /api/:id/approve-onchain
+POST /api/:id/confirm-approval
+POST /api/:id/execute
+POST /api/:id/execute-signature
 ```

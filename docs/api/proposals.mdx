@@ -22,10 +22,20 @@ GET /api/vaults/:vaultId/proposals
 
 Returns proposals for a specific vault.
 
+<Warning>
+  These paths have no `proposals` segment. The proposal router is mounted at `/api` and
+  defines bare `/:id` routes, so a proposal is addressed as `/api/<uuid>` — not
+  `/api/proposals/<uuid>`, which returns 404.
+
+  The same mounting shadows other handlers at `/api`, which is why `GET /api` returns the
+  proposal list rather than an API index. Use [`GET /api/status`](/api/public-endpoints)
+  to read service and network information.
+</Warning>
+
 ## Get Proposal
 
 ```http
-GET /api/proposals/:id
+GET /api/:id
 ```
 
 Returns a single proposal.
@@ -42,8 +52,8 @@ Creates the proposal record before the on-chain proposal state is funded.
 ## Create On-Chain Proposal State
 
 ```http
-POST /api/proposals/:id/create-onchain
-POST /api/proposals/:id/confirm-create
+POST /api/:id/create-onchain
+POST /api/:id/confirm-create
 ```
 
 These routes build and confirm the proposal covenant funding flow.
@@ -51,8 +61,8 @@ These routes build and confirm the proposal covenant funding flow.
 ## Approvals
 
 ```http
-POST /api/proposals/:id/approve-onchain
-POST /api/proposals/:id/confirm-approval
+POST /api/:id/approve-onchain
+POST /api/:id/confirm-approval
 ```
 
 These routes collect proposal approval state on-chain.
@@ -60,8 +70,8 @@ These routes collect proposal approval state on-chain.
 ## Execute Treasury Payout
 
 ```http
-POST /api/proposals/:id/execute
-POST /api/proposals/:id/execute-signature
+POST /api/:id/execute
+POST /api/:id/execute-signature
 ```
 
 Execution uses a session-based signature collection flow. Once the required signatures are collected, the backend broadcasts the payout transaction and marks the proposal executed.
