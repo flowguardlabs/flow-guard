@@ -14,13 +14,30 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test dist/**/*.test.js"
+    "typecheck:examples": "tsc --noEmit -p tsconfig.examples.json",
+    "test": "node test/live-smoke.mjs",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "//publishConfig": "Scoped packages default to restricted, which fails on a free npm account. This makes the first publish public without needing --access on the command line.",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/winsznx/flow-guard.git",
+    "directory": "sdk"
+  },
+  "homepage": "https://docs.flowguard.cash/sdk/overview",
+  "bugs": {
+    "url": "https://github.com/winsznx/flow-guard/issues"
   },
   "keywords": [
     "bitcoin-cash",
