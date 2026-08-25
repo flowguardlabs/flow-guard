@@ -3,6 +3,7 @@ packages:
   - 'frontend'
   - 'backend'
   - 'shared'
+  - 'sdk'
 
 # Force vulnerable transitive dependencies to patched versions. Each entry is
 # justified in docs/internal/security/PACKAGE_UPDATES.md (gitignored).
