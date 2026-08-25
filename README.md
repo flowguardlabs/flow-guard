@@ -32,7 +32,9 @@ The frontend includes a shape gallery, schedule previews, row-level batch charts
 - `frontend/`: React + Vite application for the public site, personal workspace, and organization workspace.
 - `backend/`: Express + TypeScript API for transaction building, app state, indexing hooks, and execution services.
 - `contracts/`: CashScript covenant source and compiled artifacts for treasury, streaming, distribution, and governance modules.
+- `sdk/`: `@flowguardlabs/sdk`, the TypeScript client for building on FlowGuard from your own frontend or backend.
 - `docs/`: Mintlify documentation (concepts, guides, API reference, app guide).
+- `deploy/`: production topology for the VPS — Docker Compose, Caddy, and what `backend/.env` must contain.
 
 ## Core architecture
 
@@ -93,7 +95,17 @@ Key values in `backend/.env`:
 
 ### Frontend
 
-- `VITE_API_BASE_URL`: backend host the app proxies API calls to.
+- `VITE_BCH_NETWORK=chipnet|mainnet`: baked in at build time. Must match the backend's
+  `BCH_NETWORK` — neither side reads the network at runtime, so a mismatch is silent and
+  the first symptom is a wallet prompt for a transaction that cannot confirm. Check with
+  `node scripts/check-network-agreement.mjs`.
+- `VITE_WALLETCONNECT_PROJECT_ID`: required for the WalletConnect and Cashonize
+  connectors. Without it those wallets fail at connect time.
+- `VITE_ENABLE_WIZARDCONNECT`, `VITE_ENABLE_OPTN`: opt-in wallet connectors, default off.
+
+There is no API base URL variable. The frontend calls the relative path `/api`, proxied
+by Vite in development and by a Cloudflare Worker in production, which keeps browser
+requests same-origin and avoids CORS.
 
 ### Optional services
 
@@ -125,10 +137,12 @@ cd contracts && pnpm run test:streaming
 
 ## Deployment notes
 
-- Frontend: static deploy of `frontend/dist`.
-- Backend API: Node deployment with a Postgres database (Supabase or self-hosted).
-- Contracts: compiled locally and consumed by the backend and tests.
-- Docs: Mintlify documentation under `docs/`.
+- Frontend: `frontend/dist` served by a Cloudflare Worker, which also proxies `/api` to
+  the backend. `cd frontend && pnpm deploy`.
+- Backend API and indexer: Docker Compose on a VPS behind Caddy, with Postgres on
+  Supabase. Topology and the full `backend/.env` key list are in [`deploy/`](./deploy).
+- Contracts: compiled locally, artifacts committed, consumed by the backend and tests.
+- Docs: Mintlify under `docs/`.
 
 FlowGuard is live on BCH Mainnet. Contracts were reviewed internally before launch. A third-party audit is on the roadmap.
 

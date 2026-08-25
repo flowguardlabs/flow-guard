@@ -9,7 +9,7 @@ deliberately small — only what the protocol actually requires — so no wallet
 pulled in as a dependency.
 
 ```ts
-import type { WalletAdapter } from '@flowguard/sdk';
+import type { WalletAdapter } from '@flowguardlabs/sdk';
 
 const wallet: WalletAdapter = {
   getAddress: () => connectedAddress,
@@ -70,7 +70,7 @@ Bearers are held in memory per client instance by default — nothing is written
 to a browser. In a browser, persist across refreshes:
 
 ```ts
-import { WebStorageTokenStore } from '@flowguard/sdk';
+import { WebStorageTokenStore } from '@flowguardlabs/sdk';
 
 new FlowGuardClient({
   wallet,
@@ -85,7 +85,7 @@ that against leaving a usable token on a shared machine.
 Implement `TokenStore` yourself to share sessions across processes:
 
 ```ts
-import type { TokenStore } from '@flowguard/sdk';
+import type { TokenStore } from '@flowguardlabs/sdk';
 
 const redisStore: TokenStore = {
   get: (key) => redis.get(key),

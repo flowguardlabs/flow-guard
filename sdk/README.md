@@ -1,16 +1,12 @@
-# @flowguard/sdk
+# @flowguardlabs/sdk
 
 TypeScript client for [FlowGuard](https://flowguard.cash) — contract-backed treasuries, streams, payments and subscriptions on Bitcoin Cash.
 
 Zero runtime dependencies. The wallet does the signing; no private key ever reaches this package, and there is nowhere to put one.
 
 ```bash
-npm install @flowguard/sdk
+npm install @flowguardlabs/sdk
 ```
-
-> **Not published yet.** The npm release is pending. Until then, build from the repo:
-> `git clone https://github.com/winsznx/flow-guard && cd flow-guard/sdk && pnpm install && pnpm build`,
-> then import from `dist/`.
 
 Node 18+, or any browser. Works in React, Angular, Vue, Svelte and plain JavaScript — nothing here is framework-aware.
 
@@ -21,7 +17,7 @@ Which one you want follows from what you are building.
 **Read-only.** No wallet, no key, no auth. Everything the API exposes publicly.
 
 ```ts
-import { FlowGuardClient } from '@flowguard/sdk';
+import { FlowGuardClient } from '@flowguardlabs/sdk';
 
 const flowguard = new FlowGuardClient();
 const active = await flowguard.subscriptions.isActive(userAddress, MY_ADDRESS);
@@ -74,7 +70,7 @@ const { collected, failed } = await flowguard.subscriptions.collectDue(MY_ADDRES
 Implement `WalletAdapter`. It is small on purpose — this package adapts to your wallet, not the other way round.
 
 ```ts
-import type { WalletAdapter } from '@flowguard/sdk';
+import type { WalletAdapter } from '@flowguardlabs/sdk';
 
 const wallet: WalletAdapter = {
   getAddress: () => connectedAddress,
@@ -142,7 +138,7 @@ The first signing action runs the SIWX login (nonce → sign → verify) and cac
 Bearers are cached in memory per client instance by default. In a browser, persist across refreshes:
 
 ```ts
-import { WebStorageTokenStore } from '@flowguard/sdk';
+import { WebStorageTokenStore } from '@flowguardlabs/sdk';
 
 new FlowGuardClient({ wallet, tokenStore: new WebStorageTokenStore(window.sessionStorage) });
 ```

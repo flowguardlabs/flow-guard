@@ -1,5 +1,5 @@
 {
-  "name": "@flowguard/sdk",
+  "name": "@flowguardlabs/sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for FlowGuard — contract-backed treasuries, streams, payments, and subscriptions on Bitcoin Cash",
   "license": "MIT",

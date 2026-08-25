@@ -1,5 +1,5 @@
 /**
- * @flowguard/sdk — TypeScript client for FlowGuard.
+ * @flowguardlabs/sdk — TypeScript client for FlowGuard.
  *
  * Contract-backed treasuries, streams, payments and subscriptions on Bitcoin Cash.
  * Zero runtime dependencies; the wallet does the signing and no key ever reaches

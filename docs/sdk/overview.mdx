@@ -4,7 +4,7 @@ description: "TypeScript client for embedding FlowGuard in your own frontend or 
 icon: "cube"
 ---
 
-`@flowguard/sdk` is the TypeScript client for FlowGuard. It exists so you do not have to
+`@flowguardlabs/sdk` is the TypeScript client for FlowGuard. It exists so you do not have to
 use FlowGuard's frontend: build your own checkout, gate your own API, keep users on your
 own site.
 
@@ -12,7 +12,7 @@ Zero runtime dependencies, no framework coupling, and no private key ever reache
 the wallet does all signing and there is nowhere to put a key.
 
 ```bash
-npm install @flowguard/sdk
+npm install @flowguardlabs/sdk
 ```
 
 Node 18+, or any browser. Works with React, Angular, Vue, Svelte, or none of them.
@@ -35,7 +35,7 @@ are not symmetric.
 </CardGroup>
 
 ```ts
-import { FlowGuardClient } from '@flowguard/sdk';
+import { FlowGuardClient } from '@flowguardlabs/sdk';
 
 // read-only
 const flowguard = new FlowGuardClient();

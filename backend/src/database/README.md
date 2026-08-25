@@ -1,26 +1,61 @@
-# Database Configuration
+# Database
 
-## SQLite Database
+FlowGuard runs on **PostgreSQL**. Production uses Supabase; local development can use
+any Postgres.
 
-FlowGuard uses SQLite for data persistence. The database file is stored at the path specified by the `DATABASE_PATH` environment variable.
+## Configuration
 
-### Configuration
+`DATABASE_URL` is required and the process refuses to start without it.
 
-- **Default path**: `./flowguard.db` (development)
-- **Docker path**: `/app/data/flowguard.db` (persistent volume)
+```env
+DATABASE_URL=postgresql://user:pass@host:5432/flowguard
+```
 
-### Docker Persistence
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Connection string. Pooled endpoint in production |
+| `DIRECT_URL` | Unpooled endpoint, for migrations |
+| `PG_SSL_INSECURE` | Skips CA verification. See below |
 
-In Docker Compose, the SQLite database is stored in a persistent volume (`flowguard_sqlite_data`) mounted at `/app/data`. This ensures data persists across container restarts.
+### PG_SSL_INSECURE
 
-### Schema
+Supabase's pooler presents a certificate chain whose CA is not in Node's default trust
+store, which surfaces as `SELF_SIGNED_CERT_IN_CHAIN`. Setting `PG_SSL_INSECURE=true`
+keeps the connection encrypted and skips only CA verification.
 
-The database schema is automatically initialized on startup. Tables include:
-- `vaults` - Treasury vault information
-- `proposals` - Spending proposals
-- `cycles` - Time-locked cycle information
-- `transactions` - Transaction history
+It is a workaround, not the destination — pin the CA with `PG_SSL_CA_PEM` when
+convenient.
 
-### Migrations
+## The `db` shim
 
-Column migrations are automatically applied on startup. New columns are added to existing tables without data loss.
+`pg.ts` exposes a `db` object that mimics the `better-sqlite3` API — `prepare().get()`,
+`.all()`, `.run()` — over a `pg` connection pool.
+
+That shape is historical. FlowGuard began on SQLite, and the shim let the migration to
+Postgres happen without rewriting every call site. New code can use it or reach for the
+pool directly; the shim is not a limitation, just the existing idiom.
+
+`better-sqlite3` remains a devDependency for the one-time import scripts under
+`backend/scripts/`. It is not used at runtime, and the production image is built with
+`--ignore-scripts` so its native binding is never compiled.
+
+## Schema
+
+Applied automatically at startup from `postgres-schema.sql`, which the build copies into
+`dist/database/`. Column migrations are additive and run on boot, so a new column
+reaches an existing table without data loss.
+
+Roughly 30 tables covering vaults, proposals, cycles, streams, payments, airdrops,
+rewards, bounties, grants, governance, and indexer sync state.
+
+## Local setup
+
+```bash
+createdb flowguard
+echo "DATABASE_URL=postgresql://localhost:5432/flowguard" >> backend/.env
+pnpm dev
+```
+
+The schema initialises on first boot. See
+[Local Environment](https://docs.flowguard.cash/guides/local-environment) for the full
+stack.
