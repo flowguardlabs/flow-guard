@@ -189,12 +189,23 @@ async function main(): Promise<void> {
   check('bearer/pubkey-match', decoded?.pubkeyHex === verified.pubkeyHex);
 
   // ===== 6. Tampered bearer rejected =====
+  //
+  // Tamper at the byte level, not the base64 character level. The signature is a
+  // 32-byte HMAC, which base64url encodes to 43 characters: 43 * 6 = 258 bits for
+  // 256 bits of payload, so the final character carries four significant bits and
+  // two that decode to nothing.
+  //
+  // The previous version of this test flipped that final character between 'A' (0)
+  // and 'B' (1) — values that differ only in one of those ignored bits. Whenever a
+  // signature happened to end in 'A', the "tampered" token decoded to byte-identical
+  // bytes, verified correctly, and the assertion failed. Measured at 6.43% of runs
+  // over 20,000 samples, which is the 1-in-16 chance of the last four significant
+  // bits being zero. It went unnoticed locally and failed in CI.
   const dotIdx = bearer.token.lastIndexOf('.');
-  const tampered =
-    bearer.token.slice(0, dotIdx) +
-    '.' +
-    bearer.token.slice(dotIdx + 1, -1) +
-    (bearer.token.slice(-1) === 'A' ? 'B' : 'A');
+  const sigBytes = Buffer.from(bearer.token.slice(dotIdx + 1), 'base64url');
+  sigBytes[0] ^= 0xff;
+  const tampered = `${bearer.token.slice(0, dotIdx)}.${sigBytes.toString('base64url')}`;
+  check('bearer/tamper-differs', tampered !== bearer.token);
   check('bearer/tamper-rejected', verifyBearer(tampered) === null);
 
   // Garbage shape rejected
