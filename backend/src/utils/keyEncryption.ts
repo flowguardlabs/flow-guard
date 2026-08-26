@@ -54,7 +54,17 @@ export async function initializeMasterKey(): Promise<void> {
       console.warn('[crypto] vault secret present but not a 64-char hex; falling through');
     }
   } catch (err) {
-    console.warn('[crypto] vault read failed, will try env fallback:', (err as Error).message);
+    // A Postgres without Supabase Vault has no `vault.decrypted_secrets`, which is
+    // the normal case when self-hosting rather than a fault. Reading it as a
+    // warning on every boot sends people looking for a problem that isn't there,
+    // so only an unexpected failure is worth raising.
+    const message = (err as Error).message;
+    const vaultAbsent = /relation "vault\.decrypted_secrets" does not exist|schema "vault" does not exist/i.test(message);
+    if (vaultAbsent) {
+      console.log('[crypto] no Supabase Vault on this database; using the env key.');
+    } else {
+      console.warn('[crypto] vault read failed, will try env fallback:', message);
+    }
   }
 
   if (!keyHex) {

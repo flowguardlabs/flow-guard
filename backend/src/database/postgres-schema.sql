@@ -188,9 +188,14 @@ CREATE INDEX IF NOT EXISTS idx_stream_batches_launch_source ON stream_batches(la
 -- indexer's migrations add columns to `streams`, which shifts the trailing
 -- vested/claimable columns. CREATE OR REPLACE forbids renaming an existing
 -- view column, so it must be dropped and rebuilt to track the live table shape.
+-- security_invoker is applied by initializeSchema() rather than inlined here.
+-- The option is PostgreSQL 15+, and this file is executed as a single statement,
+-- so an inline `WITH (security_invoker = true)` is a syntax error on 13 and 14
+-- that takes the entire schema init down with it and stops the backend booting.
+-- Self-hosted deployments on older Postgres are a normal case, so the version
+-- check lives in code where it can degrade instead of failing.
 DROP VIEW IF EXISTS streams_with_vested;
-CREATE VIEW streams_with_vested
-WITH (security_invoker = true) AS
+CREATE VIEW streams_with_vested AS
 SELECT
     s.*,
     CASE
