@@ -16,10 +16,15 @@ is a requirement, so it is worth separating the two before you copy anything.
 
 | Needed | Not needed |
 |---|---|
-| PostgreSQL, any flavour | Supabase specifically |
+| PostgreSQL, self-hosted or managed | Supabase specifically |
 | Node 22+ | Docker, if you would rather run the process directly |
 | Some TLS terminator for a public API | Caddy specifically, or Cloudflare, or any CDN |
 | An Electrum server it can reach | AWS, or any cloud at all |
+
+Schema init is verified against PostgreSQL 14 and 16. On 15 and up the
+`streams_with_vested` view is created with `security_invoker`, so RLS on the
+underlying table is not bypassed; on 13 and 14 that option does not exist and the
+view is created without it, which is only meaningful if you have RLS policies.
 
 There is no Supabase client or SDK in the codebase — it is `pg` and a connection
 string. Nothing in the backend talks to Cloudflare: the Worker only serves the
