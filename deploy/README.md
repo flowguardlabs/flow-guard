@@ -9,6 +9,37 @@ These files are copies of what is live. Until this directory existed the only
 record of the production topology was prose in `MIGRATION.md`, which meant a lost
 host could not be rebuilt from the repository.
 
+## What is actually required
+
+The rest of this file describes how `flowguard.cash` is deployed. Almost none of it
+is a requirement, so it is worth separating the two before you copy anything.
+
+| Needed | Not needed |
+|---|---|
+| PostgreSQL, any flavour | Supabase specifically |
+| Node 22+ | Docker, if you would rather run the process directly |
+| Some TLS terminator for a public API | Caddy specifically, or Cloudflare, or any CDN |
+| An Electrum server it can reach | AWS, or any cloud at all |
+
+There is no Supabase client or SDK in the codebase — it is `pg` and a connection
+string. Nothing in the backend talks to Cloudflare: the Worker only serves the
+static frontend and proxies `/api` to this backend, so if you are building your own
+frontend you can skip it entirely. The one Cloudflare-aware piece, the forwarded
+client IP used for rate limiting, is opt-in and falls back to the peer address when
+`EDGE_PROXY_SECRET` is unset.
+
+A homelab box running Postgres and the backend behind whatever reverse proxy you
+already have is a completely normal deployment. For a database on localhost or a
+trusted LAN, set `PG_SSL_DISABLED=true`; if it has its own certificate, pin the CA
+with `PG_SSL_CA_PATH` instead. `PG_SSL_INSECURE` exists for managed providers whose
+CA is missing from Node's trust store and is not something you should need.
+
+Worth asking first whether you need to self-host at all. Reading FlowGuard state —
+checking whether a subscription is live, listing payments — is public and
+unauthenticated against `api.flowguard.cash`, so gating your own API needs no
+infrastructure from you. Self-hosting is for running your own instance of the whole
+thing.
+
 ## Host
 
 GreenCloud KVM VPS, Frankfurt, Ubuntu 24.04, 4GB/2-core, `172.93.185.150`.
