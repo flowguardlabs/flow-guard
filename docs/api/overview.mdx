@@ -16,10 +16,16 @@ All FlowGuard products are backed by a single Express API.
 ## Base URL
 
 ```
-https://api.flowguard.cash/api
+https://api.flowguard.cash/api          mainnet, real funds
+https://chipnet-api.flowguard.cash/api  chipnet, for testing
 ```
 
 Running locally, the backend listens on `http://localhost:3001/api`.
+
+The two are separate deployments with separate databases and share no state. Use
+chipnet for integration work, stress testing, and anything driving volume through an
+agent — mainnet transactions cost real BCH. `GET /api/status` reports which network a
+host is on, and it is worth checking before you fund anything.
 
 The web app reaches the API at the relative path `/api`, which its Cloudflare Worker
 proxies to the origin above. That makes browser calls same-origin and avoids CORS

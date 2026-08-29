@@ -47,6 +47,27 @@ const flowguard = new FlowGuardClient({ wallet });
 `baseUrl` defaults to `https://api.flowguard.cash`. Point it at `http://localhost:3001`
 for local work, or at your own origin when you proxy `/api` yourself.
 
+## Testing without spending real BCH
+
+`api.flowguard.cash` is mainnet, so every transaction against it moves real money.
+For integration work, stress testing, or anything with an agent generating traffic,
+use the chipnet endpoint instead:
+
+```ts
+const flowguard = new FlowGuardClient({ baseUrl: 'https://chipnet-api.flowguard.cash' });
+```
+
+Fund test wallets from the [chipnet faucet](https://tbch.googol.cash/).
+
+The two are entirely separate deployments with separate databases. A contract
+deployed on one is invisible to the other, and there is no promotion path — moving
+to mainnet means creating it again there. Confirm which one you are talking to
+before funding anything:
+
+```ts
+await flowguard.network.network();   // 'mainnet' | 'chipnet'
+```
+
 ## Gate an API on a subscription
 
 The check is one public `GET`. Cheap enough for a request path, and it carries nothing

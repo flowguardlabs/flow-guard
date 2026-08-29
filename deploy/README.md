@@ -45,6 +45,67 @@ unauthenticated against `api.flowguard.cash`, so gating your own API needs no
 infrastructure from you. Self-hosting is for running your own instance of the whole
 thing.
 
+## Running chipnet alongside mainnet
+
+Integrators need somewhere to test that does not cost real BCH. `chipnet-api.flowguard.cash`
+is a second, independent stack on the same host.
+
+It has to be a second stack rather than a flag on the first. No table in the schema
+carries a network column, so a database belongs to exactly one chain, and the
+indexer resumes from a stored cursor — pointing a chipnet indexer at the mainnet
+database would resume near height 966,000 against a chipnet tip near 321,000 and
+silently index nothing while writing chipnet state into mainnet rows. The indexer
+now refuses to start when `sync_state.network` disagrees with `BCH_NETWORK`, so
+that mistake fails loudly.
+
+What it costs is small. The indexer subscribes to covenant scripthashes over
+Electrum rather than scanning blocks, so an instance with an empty registry does
+almost nothing; the mainnet one sits under 1% CPU and 32MB.
+
+### Setup
+
+1. A database used by nothing else. A second free Supabase project is the cheapest
+   option and keeps the load off this host.
+
+2. `backend/.env.chipnet` on the host, same keys as `backend/.env` with:
+
+   ```env
+   DATABASE_URL=<the chipnet database>
+   BCH_NETWORK=chipnet
+   PORT=3002
+   CORS_ALLOWED_ORIGINS=https://flowguard.cash,https://www.flowguard.cash,https://app.flowguard.cash
+   ```
+
+   Generate a **separate** `SIWX_BEARER_SECRET` and `AIRDROP_CLAIM_KEY_ENCRYPTION_KEY`.
+   Sharing them would let a token minted on chipnet authenticate against mainnet.
+
+3. `chipnet-api.flowguard.cash` as an A record to this host, **DNS-only (grey cloud)**,
+   so Caddy can answer the ACME challenge.
+
+4. Bring it up. The `-p` is required, or Compose adopts the mainnet containers:
+
+   ```bash
+   docker compose -f docker-compose.chipnet.yml -p flowguard-chipnet up -d --build
+   ```
+
+5. Reload Caddy, then check both:
+
+   ```bash
+   curl -s https://api.flowguard.cash/api/status | jq .network.name          # mainnet
+   curl -s https://chipnet-api.flowguard.cash/api/status | jq .network.name  # chipnet
+   ```
+
+### Using it
+
+Point the SDK at it. Nothing else changes:
+
+```ts
+const flowguard = new FlowGuardClient({ baseUrl: 'https://chipnet-api.flowguard.cash' });
+```
+
+Fund test wallets from the [chipnet faucet](https://tbch.googol.cash/). The two stacks
+share no state, so a contract deployed on one is invisible to the other.
+
 ## Host
 
 GreenCloud KVM VPS, Frankfurt, Ubuntu 24.04, 4GB/2-core, `172.93.185.150`.

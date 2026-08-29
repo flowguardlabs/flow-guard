@@ -51,16 +51,52 @@ const COVENANT_TABLES = [
 
 let schemaInitialized = false;
 
-export async function runMigrations(pool: Pool): Promise<void> {
+export async function runMigrations(pool: Pool, network: 'mainnet' | 'chipnet'): Promise<void> {
   const client = await pool.connect();
   try {
-    await ensureSchema(client);
+    await ensureSchema(client, network);
   } finally {
     client.release();
   }
 }
 
-async function ensureSchema(client: PoolClient): Promise<void> {
+/**
+ * Refuse to run against a database that belongs to a different chain.
+ *
+ * There is no network column on any covenant table, so the whole database is
+ * implicitly single-network. Pointing a chipnet indexer at the mainnet database
+ * would resume from a mainnet cursor — currently around height 966,000 against a
+ * chipnet tip near 321,000 — and then write chipnet state into the same rows as
+ * mainnet, indistinguishably. Nothing checked for this, and the failure is silent:
+ * the indexer looks healthy and simply never indexes anything.
+ *
+ * Running both networks means running two stacks with two databases. This is what
+ * stops the two being crossed by a stray env var.
+ */
+async function assertNetworkMatches(
+  client: PoolClient,
+  network: 'mainnet' | 'chipnet',
+): Promise<void> {
+  const { rows } = await client.query<{ network: string }>(
+    'SELECT network FROM sync_state WHERE id = $1',
+    [SINGLETON_ID],
+  );
+  const recorded = rows[0]?.network;
+  if (!recorded || recorded === network) return;
+
+  throw new Error(
+    `Network mismatch: this database was indexed as "${recorded}" but BCH_NETWORK is ` +
+      `"${network}". Each network needs its own database — point DATABASE_URL at the ` +
+      `${network} one, or correct BCH_NETWORK.`,
+  );
+}
+
+/**
+ * `network` is supplied only from runMigrations() at startup. The other call sites
+ * are defensive re-checks that short-circuit on schemaInitialized, so they have no
+ * network to assert and do not need one.
+ */
+async function ensureSchema(client: PoolClient, network?: 'mainnet' | 'chipnet'): Promise<void> {
   if (schemaInitialized) return;
   await client.query(`
     CREATE TABLE IF NOT EXISTS sync_state (
@@ -81,11 +117,16 @@ async function ensureSchema(client: PoolClient): Promise<void> {
       indexed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Seed with the network this process is configured for. This was hardcoded
+  // 'mainnet', so a fresh chipnet database recorded itself as mainnet and the
+  // guard below had nothing true to compare against.
   await client.query(`
     INSERT INTO sync_state (id, last_height, last_safe_height, last_block_hash, electrum_server, network)
-    VALUES ($1, 0, 0, '', '', 'mainnet')
+    VALUES ($1, 0, 0, '', '', $2)
     ON CONFLICT (id) DO NOTHING
-  `, [SINGLETON_ID]);
+  `, [SINGLETON_ID, network ?? 'mainnet']);
+
+  if (network) await assertNetworkMatches(client, network);
 
   for (const table of COVENANT_TABLES) {
     const tableExists = await client.query<{ exists: boolean }>(

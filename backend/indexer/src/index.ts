@@ -95,7 +95,7 @@ async function main(): Promise<void> {
   await pool.query('SELECT 1');
   console.log(`[indexer] database connected (network=${env.network})`);
 
-  await runMigrations(pool);
+  await runMigrations(pool, env.network);
   console.log('[indexer] schema migrations applied');
 
   const electrum = new ElectrumClient();

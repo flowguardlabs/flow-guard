@@ -14,3 +14,14 @@ api.flowguard.cash {
 	# Security headers are set by helmet in the backend. Caddy passes them through;
 	# they are not duplicated here so there is one place to change them.
 }
+
+# Chipnet endpoint. Same shape as mainnet, different upstream port and a stack
+# with its own database. Exists so integrators can test without spending real
+# BCH — OPTN's x402 CLI work is the case that prompted it.
+#
+# Also DNS-only in Cloudflare, for the same ACME reason as the mainnet host.
+chipnet-api.flowguard.cash {
+	reverse_proxy 127.0.0.1:3002
+
+	encode gzip
+}
