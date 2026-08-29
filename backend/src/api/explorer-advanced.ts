@@ -48,7 +48,9 @@ router.get('/explorer/stats', async (req, res) => {
     res.json({
       network: {
         blockHeight,
-        network: 'chipnet',
+        // blockHeight comes from the configured network; reporting a fixed
+        // 'chipnet' beside it contradicted the number on any mainnet deploy.
+        network: resolveBchNetwork(),
       },
       flowguard: {
         vaults: {

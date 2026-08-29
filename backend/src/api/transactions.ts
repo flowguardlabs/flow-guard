@@ -13,6 +13,9 @@ import { binToHex, decodeTransaction, hash160, hexToBin } from '@bitauth/libauth
 import db from '../database/schema.js';
 import { displayAmountToOnChain } from '../utils/amounts.js';
 
+/** Networks a caller may name explicitly on a build request. */
+const SUPPORTED_TX_NETWORKS = new Set(['mainnet', 'testnet3', 'testnet4', 'chipnet']);
+
 const router = Router();
 
 function diagnoseSignedTransaction(txHex: string): {
@@ -242,7 +245,20 @@ router.post('/transactions/build', async (req, res) => {
       return res.status(400).json({ error: 'Invalid transaction descriptor' });
     }
 
-    const network = (req.query.network as string) || 'chipnet';
+    // Default to the network this deployment runs on, not chipnet. The old
+    // fallback meant a caller who omitted ?network= had their transaction built
+    // against a chipnet Electrum server while the contract's UTXOs live on
+    // mainnet, so it referenced outputs that do not exist on that chain and went
+    // nowhere. A wrong-chain build is not a recoverable mistake, so an
+    // unrecognised value is rejected rather than quietly substituted.
+    const requested = (req.query.network as string | undefined)?.trim();
+    if (requested && !SUPPORTED_TX_NETWORKS.has(requested)) {
+      return res.status(400).json({
+        error: 'INVALID_NETWORK',
+        message: `Unsupported network "${requested}". This deployment runs on ${resolveBchNetwork()}.`,
+      });
+    }
+    const network = requested || resolveBchNetwork();
     const provider = new ElectrumNetworkProvider(network as any);
 
     let result: { transaction: string; sourceOutputs: any[] };

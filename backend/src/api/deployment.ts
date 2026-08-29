@@ -3,7 +3,7 @@
  * Provides endpoints for contract deployment and verification
  */
 
-import { resolveBchNetwork } from '../utils/network.js';
+import { resolveBchNetwork, explorerAddressUrl, faucetUrl } from '../utils/network.js';
 import { Router } from 'express';
 import { ContractService } from '../services/contract-service.js';
 import { DeploymentRegistryService } from '../services/DeploymentRegistryService.js';
@@ -12,17 +12,32 @@ const router = Router();
 
 const SUPPORTED_NETWORKS = new Set(['mainnet', 'testnet3', 'testnet4', 'chipnet']);
 
+/**
+ * Resolve the network for a registry query.
+ *
+ * Both the missing case and the unrecognised case used to fall back to chipnet,
+ * so `GET /api/deployment/registry` on a mainnet deployment answered with chipnet
+ * contract addresses and labelled them chipnet. That reads as confirmation that
+ * chipnet is served here, and sends an integrator off to transact against
+ * addresses this deployment knows nothing about.
+ *
+ * An omitted network now means "whatever this deployment runs on". A named but
+ * unsupported one is still refused rather than silently substituted.
+ */
 function getNetwork(raw: unknown): 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet' {
-  const candidate = String(raw || 'chipnet');
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return resolveBchNetwork();
+  }
+  const candidate = String(raw).trim();
   if (SUPPORTED_NETWORKS.has(candidate)) {
     return candidate as 'mainnet' | 'testnet3' | 'testnet4' | 'chipnet';
   }
-  return 'chipnet';
+  return resolveBchNetwork();
 }
 
 /**
  * POST /api/deployment/deploy
- * Deploy a new contract to chipnet
+ * Deploy a new contract to the configured network
  */
 router.post('/deploy', async (req, res) => {
   try {
@@ -70,8 +85,8 @@ router.post('/deploy', async (req, res) => {
       funding: {
         required: !(balance > 0),
         address: deployment.contractAddress,
-        faucet: 'https://tbch.googol.cash/',
-        explorer: `https://chipnet.imaginary.cash/address/${deployment.contractAddress}`,
+        faucet: faucetUrl(),
+        explorer: explorerAddressUrl(deployment.contractAddress),
       },
     });
   } catch (error: any) {
@@ -98,7 +113,11 @@ router.get('/verify/:address', async (req, res) => {
 
     res.json({
       address,
-      network: 'chipnet',
+      // The balance, UTXOs and height above all come from resolveBchNetwork().
+      // This was hardcoded 'chipnet', so a mainnet deployment verified a contract
+      // on mainnet and then labelled the answer chipnet — which reads as
+      // confirmation that chipnet is supported when it is not.
+      network: resolveBchNetwork(),
       status: {
         balance: balance,
         balanceBCH: balance / 100000000,
@@ -113,7 +132,7 @@ router.get('/verify/:address', async (req, res) => {
         height: utxo.height,
         confirmed: utxo.height !== undefined,
       })),
-      explorer: `https://chipnet.imaginary.cash/address/${address}`,
+      explorer: explorerAddressUrl(address),
     });
   } catch (error: any) {
     console.error('Verification error:', error);
