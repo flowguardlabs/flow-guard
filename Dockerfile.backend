@@ -14,6 +14,9 @@ RUN pnpm install --prod --ignore-scripts
 
 COPY backend/src ./src
 COPY backend/tsconfig.json ./tsconfig.json
+# `pnpm build` is tsc plus scripts/copy-runtime-assets.mjs, which puts
+# postgres-schema.sql into dist. Without this the build fails on a missing script.
+COPY backend/scripts ./scripts
 COPY contracts/artifacts ./contracts/artifacts
 
 # Dev deps for TS build only; same ignore-scripts treatment then prune.
