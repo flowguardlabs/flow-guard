@@ -122,6 +122,25 @@ jobs:
         working-directory: sdk
         run: pnpm build
 
+  images:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    needs: contracts
+    steps:
+      - uses: actions/checkout@v4
+      # Builds the images the VPS actually runs. `pnpm build` in the repo passes
+      # whether or not a file is COPYed into the image, so nothing else here can
+      # catch a Dockerfile that omits one — that failure only showed up at deploy.
+      # Build only; nothing is pushed.
+      - name: Build backend image
+        run: docker build -f Dockerfile.backend -t flowguard-backend:ci .
+      - name: Build indexer image
+        run: docker build -f Dockerfile.indexer -t flowguard-indexer:ci .
+      - name: Schema reached dist in the built image
+        run: |
+          docker run --rm --entrypoint sh flowguard-backend:ci \
+            -c 'test -s dist/database/postgres-schema.sql && test -s dist/index.js'
+
   audit:
     name: pnpm audit (advisory budget)
     runs-on: ubuntu-latest
