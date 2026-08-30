@@ -29,7 +29,11 @@ RUN mkdir -p dist/database && cp src/database/postgres-schema.sql dist/database/
 
 EXPOSE 3001
 
+# Follows PORT rather than hardcoding 3001. The same image serves both networks and
+# the chipnet stack listens on 3002, so a fixed port probed the wrong one and marked
+# a working container unhealthy — which would also stall any `depends_on:
+# condition: service_healthy` waiting on it.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "const p=process.env.PORT||3001;require('http').get('http://localhost:'+p+'/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
 CMD ["node", "dist/index.js"]
